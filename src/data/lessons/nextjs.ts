@@ -1171,4 +1171,663 @@ export default function Page() {
       expect: "yazilariAl async, gövdəsinin ilk sətri \"use cache\", cacheLife(\"hours\"), cacheTag(\"yazilar\"); içində cookies/headers yoxdur; yaziYarat \"use server\" faylında, başlıq trim + uzunluq yoxlaması; updateTag(\"yazilar\") (revalidateTag yox — dərhal görünməlidir); redirect(\"/blog\") try/catch-dən kənarda və updateTag-dan sonra.",
     },
   },
+  {
+    slug: "metadata",
+    title: "Metadata və SEO",
+    intro: "Metadata — səhifə haqqında məlumatdır: başlıq, təsvir, paylaşım şəkli. Next.js-də <head> teqini əl ilə yazmırsan — metadata obyekti və ya generateMetadata funksiyası ixrac edirsən.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "metadata obyekti",
+        blocks: [
+          { t: "analogy", text: "Metadata — kitabın üz qabığıdır. Mağazada (Google) insanlar kitabın içini oxumur, əvvəl qabığa baxır: adı, qısa təsviri, şəkli. Qabıq zəifdirsə, içi nə qədər yaxşı olsa da kitabı götürən olmur." },
+          { t: "code", lang: "tsx", caption: "app/layout.tsx — bütün sayt üçün", code: `import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  metadataBase: new URL("https://kodakademiyasi.az"),
+  title: {
+    default: "Kod Akademiyası",
+    template: "%s | Kod Akademiyası", // alt səhifələr: "HTML | Kod Akademiyası"
+  },
+  description: "Front End və Back End-i Azərbaycanca öyrən.",
+};` },
+          { t: "code", lang: "tsx", caption: "app/kurslar/page.tsx — səhifəyə məxsus", code: `import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Kurslar",
+  description: "HTML-dən Next.js-ə qədər bütün kurslar.",
+};` },
+          { t: "terms", items: [
+            ["metadata", "layout və ya page-dən ixrac olunan obyekt; Next.js ondan <head> teqlərini yaradır."],
+            ["title.template", "alt səhifələrin başlığına şablon; %s yerinə səhifənin title-ı düşür."],
+            ["description", "axtarış nəticəsində başlığın altında görünən mətn (~150 simvol)."],
+            ["metadataBase", "nisbi URL-lərin (məs. şəkil) tam ünvana çevrilməsi üçün əsas domen."],
+          ]},
+          { t: "tip", text: "metadata yalnız Server Component-dən ixrac olunur. \"use client\" olan page.tsx-də işləmir." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "generateMetadata, Open Graph, sitemap",
+        blocks: [
+          { t: "code", lang: "tsx", caption: "Dinamik səhifə üçün — məlumata görə", code: `import type { Metadata } from "next";
+import { yaziAl } from "@/lib/data";
+
+export async function generateMetadata(
+  { params }: PageProps<"/blog/[slug]">,
+): Promise<Metadata> {
+  const { slug } = await params;
+  const yazi = await yaziAl(slug); // React.cache ilə — page ilə bir sorğu
+  if (!yazi) return { title: "Tapılmadı" };
+
+  return {
+    title: yazi.basliq,
+    description: yazi.xulase,
+    alternates: { canonical: "/blog/" + slug },
+    openGraph: {
+      title: yazi.basliq,
+      description: yazi.xulase,
+      type: "article",
+      images: [{ url: yazi.sekil, width: 1200, height: 630 }],
+    },
+  };
+}` },
+          { t: "code", lang: "ts", caption: "app/sitemap.ts → /sitemap.xml", code: `import type { MetadataRoute } from "next";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const yazilar = await butunYazilar();
+  return [
+    { url: "https://kodakademiyasi.az", lastModified: new Date() },
+    ...yazilar.map((y) => ({
+      url: "https://kodakademiyasi.az/blog/" + y.slug,
+      lastModified: y.yenilendi,
+    })),
+  ];
+}` },
+          { t: "code", lang: "ts", caption: "app/robots.ts → /robots.txt", code: `import type { MetadataRoute } from "next";
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: { userAgent: "*", allow: "/", disallow: ["/panel/", "/api/"] },
+    sitemap: "https://kodakademiyasi.az/sitemap.xml",
+  };
+}` },
+          { t: "mistake", lang: "tsx", wrong: `export default function Page() {
+  return (
+    <>
+      <head><title>Kurslar</title></head>
+      <h1>Kurslar</h1>
+    </>
+  );
+}`, right: `export const metadata: Metadata = { title: "Kurslar" };
+
+export default function Page() {
+  return <h1>Kurslar</h1>;
+}`, why: "<head>-i əl ilə yazmaq layout-dakı teqlərlə toqquşur və təkrarlar yaradır. Metadata API birləşdirməni özü edir." },
+          { t: "mistake", lang: "tsx", wrong: `// hər səhifədə eyni
+export const metadata = { title: "Kod Akademiyası", description: "Sayt" };`, right: `export const metadata = {
+  title: "CSS Grid dərsi",
+  description: "CSS Grid ilə iki ölçülü düzülüş: sütunlar, sətirlər, sahələr.",
+};`, why: "Təkrarlanan başlıq və təsvir SEO-nu zəiflədir: Google səhifələri ayırd edə bilmir. Hər səhifənin özünəməxsus metadata-sı olsun." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Fayl əsaslı metadata, JSON-LD, təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Fayl konvensiyaları: app/favicon.ico, icon.png, apple-icon.png, opengraph-image.png (və ya .tsx — ImageResponse ilə kodla şəkil yaratmaq), manifest.ts.",
+            "Metadata birləşir: kökdən yarpağa doğru, eyni açarı aşağıdakı əvəz edir. openGraph obyekti dərin birləşmir — tam yenidən yazılmalıdır.",
+            "Dinamik səhifələrdə metadata axınla gəlir və UI-ni bloklamır; botlar üçün Next.js onu HTML-in başına qoyur.",
+            "viewport və themeColor ayrıca ixracdır: export const viewport: Viewport = {...} (metadata-nın içində yox).",
+            "Dublikat məzmun: filtr/sıralama parametrli səhifələrdə alternates.canonical ilə əsas ünvanı göstər.",
+            "Strukturlu məlumat (JSON-LD): məhsul, məqalə, FAQ üçün <script type=\"application/ld+json\"> — axtarışda zəngin nəticə verir.",
+            "Təhlükəsizlik — JSON-LD XSS: JSON.stringify </script> ardıcıllığını neytrallaşdırmır. İstifadəçi məzmunu varsa, < simvolunu \\u003c ilə əvəz et.",
+            "Təhlükəsizlik: robots.txt gizlətmə vasitəsi DEYİL — hər kəs oxuya bilir və disallow siyahısı hücumçuya gizli yolları göstərir. Qorunan səhifəni autentifikasiya ilə qoru, noindex üçün robots: { index: false } ver.",
+            "Təhlükəsizlik: daxili panel, sınaq (staging) mühiti və istifadəçi profilləri indekslənməsin; title/description-a şəxsi məlumat (email, sifariş nömrəsi) yazma.",
+          ]},
+          { t: "code", lang: "tsx", caption: "Təhlükəsiz JSON-LD", code: `export default async function Page({ params }: PageProps<"/blog/[slug]">) {
+  const { slug } = await params;
+  const yazi = await yaziAl(slug);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: yazi.basliq,
+    datePublished: yazi.tarix,
+  };
+
+  return (
+    <article>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\\\u003c"),
+        }}
+      />
+      <h1>{yazi.basliq}</h1>
+    </article>
+  );
+}` },
+          { t: "qa", items: [
+            ["metadata ilə generateMetadata fərqi?", "metadata — statik obyekt; generateMetadata — params və ya çəkilən məlumata görə dinamik hesablayan async funksiya. Bir faylda ikisi birlikdə olmaz."],
+            ["Canonical URL nə üçündür?", "Eyni məzmun bir neçə ünvanda açılanda axtarış sisteminə əsas ünvanı göstərir — dublikat cəzasının qarşısını alır."],
+            ["robots.txt səhifəni qoruyurmu?", "Xeyr. O yalnız botlara xahişdir. Qoruma autentifikasiya ilə olur."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "title.template: \"%s | Sayt\", səhifədə title: \"Əlaqə\". Nəticə?", options: ["Sayt", "Əlaqə | Sayt", "%s | Sayt"], answer: 1, why: "%s yerinə səhifənin başlığı qoyulur." },
+          { t: "quiz", q: "/sitemap.xml yaratmaq üçün hansı fayl?", options: ["public/sitemap.tsx", "app/sitemap.ts", "next.config.ts"], answer: 1, why: "app/sitemap.ts xüsusi fayl konvensiyasıdır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Məhsul səhifəsi üçün generateMetadata yaz: params-dan id al, mehsulAl(id) ilə məhsulu çək; tapılmasa title \"Məhsul tapılmadı\" və indekslənməsin; tapılsa title — məhsulun adı, description — təsvirin ilk 150 simvolu, canonical ünvan və Open Graph şəkli (1200×630).",
+      starter: `import type { Metadata } from "next";\nimport { mehsulAl } from "@/lib/data";\n\nexport async function generateMetadata(\n  { params }: PageProps<"/mehsul/[id]">,\n): Promise<Metadata> {\n  // bura\n}\n`,
+      expect: "params await olunur; tapılmayanda title və robots: { index: false }; tapılanda title, description slice(0, 150), alternates.canonical, openGraph.images url + width 1200 + height 630; <head> əl ilə yazılmayıb; any yoxdur.",
+    },
+  },
+  {
+    slug: "sekil-font",
+    title: "Şəkil və font optimizasiyası",
+    intro: "Şəkillər adətən səhifənin ən ağır hissəsidir, fontlar isə mətnin «sıçramasına» səbəb olur. Next.js-in <Image> komponenti və next/font modulu bu işi avtomatik görür.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "<Image>",
+        blocks: [
+          { t: "analogy", text: "Adi <img> — hamıya eyni ölçüdə kostyum verməkdir: uşağa da, böyüyə də XL. <Image> — dərzidir: hər ekrana öz ölçüsündə şəkil tikir, müasir formatda (WebP/AVIF) verir və yalnız ekrana yaxınlaşanda gətirir." },
+          { t: "code", lang: "tsx", code: `import Image from "next/image";
+import muellim from "./muellim.jpg"; // lokal fayl: ölçü avtomatik bilinir
+
+export default function Page() {
+  return (
+    <>
+      <Image src={muellim} alt="Müəllim Aysel dərs deyir" placeholder="blur" />
+
+      <Image
+        src="/banner.jpg"       // public/banner.jpg
+        alt="Yay kursları — 30% endirim"
+        width={1200}
+        height={400}
+        preload                 // yuxarıdakı əsas şəkil: gözləmədən yüklə
+      />
+    </>
+  );
+}` },
+          { t: "terms", items: [
+            ["next/image", "şəkli ölçüləndirən, formatını çevirən və tənbəl yükləyən komponent."],
+            ["width / height", "şəklin nisbəti üçün; yer əvvəlcədən ayrılır, səhifə sıçramır."],
+            ["lazy loading", "şəklin yalnız ekrana yaxınlaşanda yüklənməsi (default)."],
+            ["preload", "əsas (LCP) şəkli dərhal yükləmək; Next 16-da köhnə priority-ni əvəz edir."],
+            ["alt", "şəklin mətn təsviri — məcburidir."],
+          ]},
+          { t: "tip", text: "Səhifədə yalnız bir, ən çox iki şəklə preload ver — ekranın yuxarısında görünən ən böyük şəklə. Hamısına versən, heç birinin üstünlüyü qalmır." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Uzaq şəkillər, fill, sizes və fontlar",
+        blocks: [
+          { t: "code", lang: "ts", caption: "next.config.ts — uzaq şəkil mənbələrinə icazə", code: `const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "cdn.kodakademiyasi.az", pathname: "/sekiller/**" },
+    ],
+  },
+};` },
+          { t: "code", lang: "tsx", caption: "Ölçüsü bilinməyən şəkil: fill + sizes", code: `<div className="relative aspect-video">
+  <Image
+    src={kurs.sekil}
+    alt={kurs.ad + " kursunun üz şəkli"}
+    fill
+    sizes="(max-width: 768px) 100vw, 33vw"
+    className="object-cover"
+  />
+</div>` },
+          { t: "code", lang: "tsx", caption: "app/layout.tsx — next/font", code: `import { Inter, JetBrains_Mono } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-inter" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html lang="az" className={inter.variable + " " + mono.variable}>
+      <body>{children}</body>
+    </html>
+  );
+}` },
+          { t: "p", text: "next/font fontu build zamanı yükləyib öz serverindən verir: Google-a sorğu getmir, font yüklənənə qədər mətn sıçramır. Azərbaycan hərfləri (ə, ğ, ı, ş) üçün latin-ext alt çoxluğunu əlavə et." },
+          { t: "mistake", lang: "tsx", wrong: `<Image src="/kart.jpg" alt="" fill />
+// sizes yoxdur → mobil-də də tam enli şəkil yüklənir`, right: `<Image src="/kart.jpg" alt="" fill
+  sizes="(max-width: 768px) 100vw, 400px" />`, why: "fill ilə sizes yazılmasa, brauzer şəklin 100vw olduğunu güman edir və lazımsız böyük fayl yükləyir." },
+          { t: "mistake", lang: "tsx", wrong: `<link href="https://fonts.googleapis.com/css2?family=Inter" rel="stylesheet" />`, right: `import { Inter } from "next/font/google";
+const inter = Inter({ subsets: ["latin", "latin-ext"] });`, why: "Xarici <link> əlavə şəbəkə sorğusudur, render-i bloklayır, mətn sıçrayır, CSP-ni genişləndirir və istifadəçinin IP-sini üçüncü tərəfə verir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Core Web Vitals və şəkil xidmətinin təhlükəsizliyi",
+        blocks: [
+          { t: "list", items: [
+            "LCP: əsas şəkil — preload, düzgün sizes, lazy YOX. CLS: width/height və ya aspect-ratio konteyner; next/font size-adjust ilə font dəyişimində sürüşməni sıfırlayır.",
+            "Şəkil optimizatoru /_next/image nöqtəsidir: tələblə ölçüləndirir və keşləyir. Öz serverində bu CPU və disk yeyir — çox şəkil varsa, xarici loader (Cloudinary, imgix) və ya CDN düşün.",
+            "Statik eksportda (output: \"export\") default optimizator işləmir — unoptimized və ya xüsusi loader lazımdır.",
+            "Dekorativ şəkil: alt=\"\". SVG ikonlar üçün <Image> lazım deyil — birbaşa JSX kimi yaz.",
+            "Dəyişən font (variable font) işlət: bir fayl bütün qalınlıqları verir. Yalnız lazım olan subset və weight-ləri seç.",
+            "Təhlükəsizlik — remotePatterns: hostname-ə ** və ya geniş şablon yazma. Əks halda optimizatorun açıq proxy olur: hər kəs sənin serverinlə istənilən şəkli çəkdirir (trafik oğurluğu, SSRF, DoS). Protokol + dəqiq host + pathname yaz.",
+            "Təhlükəsizlik — SVG: SVG-nin içində skript ola bilər. İstifadəçi yüklədiyi SVG-ni göstərmə; dangerouslyAllowSVG-ni yalnız zərurətdə, sərt CSP ilə aç.",
+            "Təhlükəsizlik — yükləmələr: istifadəçi şəklini public/ qovluğuna yazma. Ayrı saxlanc (S3 və s.), tip və ölçü yoxlaması, təsadüfi ad, ayrı domen.",
+          ]},
+          { t: "qa", items: [
+            ["<Image> <img>-dən nə ilə üstündür?", "Avtomatik srcset, müasir format, lazy loading, yer ayırma (CLS yox), tələblə ölçüləndirmə və keş."],
+            ["sizes nə üçündür?", "Brauzerə şəklin ekranda nə qədər yer tutacağını deyir ki, srcset-dən uyğun ölçünü seçsin."],
+            ["Niyə remotePatterns dar olmalıdır?", "Geniş şablon optimizatoru açıq proxy edir: başqaları sənin resursunla şəkil emal etdirir və daxili ünvanlara sorğu göndərtməyə cəhd edir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Səhifənin yuxarısındakı əsas bannerə hansı prop verilir?", options: ["loading=\"lazy\"", "preload", "unoptimized"], answer: 1, why: "LCP şəkli gözləmədən yüklənməlidir." },
+          { t: "quiz", q: "width və height nə üçün vacibdir?", options: ["Şəkli böyütmək üçün", "Yer ayrılır, səhifə sıçramır", "Faylı kiçiltmək üçün"], answer: 1, why: "Nisbət əvvəlcədən bilinir — CLS olmur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Kurs kartları səhifəsi yaz: yuxarıda banner (1200×400, dərhal yüklənsin), altında kurslar massivindən kartlar — hər kartda nisbəti 16:9 olan konteynerdə fill şəkil (mobil-də tam en, böyük ekranda 3 sütun), mənalı alt mətni və kursun adı. Faylın sonunda şərhdə bu şəkillər üçün remotePatterns nümunəsini yaz (yalnız https://cdn.misal.az/kurslar/**).",
+      starter: `import Image from "next/image";\n\nconst kurslar = [\n  { id: 1, ad: "HTML", sekil: "https://cdn.misal.az/kurslar/html.jpg" },\n  { id: 2, ad: "CSS", sekil: "https://cdn.misal.az/kurslar/css.jpg" },\n];\n\nexport default function Page() {\n  // bura\n}\n`,
+      expect: "Banner width/height + preload (priority də qəbul, amma lazy yox); kartlarda fill, valideyn relative + aspect-video; sizes mobil 100vw, böyük ekranda ~33vw; alt kurs adına görə mənalı; map + key; remotePatterns protocol https, hostname cdn.misal.az, pathname /kurslar/** — geniş wildcard host yoxdur; <img> işlədilməyib.",
+    },
+  },
+  {
+    slug: "auth",
+    title: "Autentifikasiya",
+    intro: "Autentifikasiya — «sən kimsən?» sualının cavabıdır; avtorizasiya — «buna icazən varmı?». Next.js-də ikisi də serverdə, məlumatın oxunduğu və dəyişdiyi yerdə yoxlanır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Üç addım: giriş, sessiya, icazə",
+        blocks: [
+          { t: "analogy", text: "Konsertə gedirsən. Girişdə biletini və şəxsiyyətini yoxlayırlar (autentifikasiya) və qoluna bilərzik taxırlar (sessiya). İçəridə hər qapıda bilərziyə baxırlar: VIP zonaya yalnız qızılı bilərziklə buraxırlar (avtorizasiya). Hər qapıda yenidən pasport soruşmurlar — amma bilərziyə HƏR qapıda baxırlar." },
+          { t: "code", lang: "ts", caption: "lib/sessiya.ts — sessiya cookie-si", code: `import "server-only";
+import { cookies } from "next/headers";
+
+export async function sessiyaYarat(token: string) {
+  const c = await cookies();
+  c.set("sessiya", token, {
+    httpOnly: true,   // JS oxuya bilmir (XSS-ə qarşı)
+    secure: true,     // yalnız HTTPS
+    sameSite: "lax",  // CSRF-ə qarşı
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 gün
+  });
+}
+
+export async function sessiyaSil() {
+  (await cookies()).delete("sessiya");
+}` },
+          { t: "terms", items: [
+            ["autentifikasiya", "kimliyin təsdiqi (email + şifrə, Google ilə giriş və s.)."],
+            ["avtorizasiya", "təsdiqlənmiş istifadəçinin nəyə icazəsi olduğunun yoxlanması."],
+            ["sessiya", "girişdən sonra istifadəçini sorğular arasında tanımaq üçün saxlanan vəziyyət."],
+            ["cookie", "brauzerdə saxlanan və hər sorğu ilə serverə göndərilən kiçik məlumat."],
+            ["httpOnly", "cookie-ni JavaScript-dən gizlədən bayraq."],
+          ]},
+          { t: "tip", text: "Autentifikasiyanı sıfırdan yazma. Hazır kitabxana işlət (Auth.js, Better Auth, Clerk və s.) — şifrə heşləmə, token yeniləmə, OAuth kimi incə işləri onlar düzgün görür. Bu dərs onların arxasındakı prinsipləri öyrədir." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Data Access Layer və proxy",
+        blocks: [
+          { t: "code", lang: "ts", caption: "lib/dal.ts — yoxlamanın tək mərkəzi", code: `import "server-only";
+import { cache } from "react";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+
+export const sessiyaAl = cache(async () => {
+  const token = (await cookies()).get("sessiya")?.value;
+  if (!token) return null;
+  return tokenYoxla(token); // imza + müddət; { istifadeciId, rol } | null
+});
+
+export async function girisTeleb() {
+  const s = await sessiyaAl();
+  if (!s) redirect("/giris");
+  return s;
+}
+
+export async function sifarislerim() {
+  const s = await girisTeleb();
+  // yalnız öz sifarişləri, yalnız lazım olan sahələr
+  return db.sifaris.tap({ istifadeciId: s.istifadeciId }, ["id", "mebleg", "tarix"]);
+}` },
+          { t: "code", lang: "ts", caption: "proxy.ts — sürətli, optimistik yönləndirmə", code: `import { NextResponse, type NextRequest } from "next/server";
+
+export function proxy(request: NextRequest) {
+  const var_ = request.cookies.has("sessiya");
+  if (!var_ && request.nextUrl.pathname.startsWith("/panel")) {
+    return NextResponse.redirect(new URL("/giris", request.url));
+  }
+}
+
+export const config = { matcher: ["/panel/:path*"] };` },
+          { t: "p", text: "proxy yalnız cookie-nin varlığına baxır — bu rahatlıqdır (giriş etməyəni dərhal yönləndirir), təhlükəsizlik deyil. Əsl yoxlama (imza, müddət, rol) DAL-da, məlumat oxunan anda edilir." },
+          { t: "mistake", lang: "tsx", wrong: `"use client";
+export function AdminPanel({ user }) {
+  if (user.rol !== "admin") return null; // yalnız UI gizlənir
+  return <button onClick={() => fetch("/api/sil", { method: "POST" })}>Sil</button>;
+}`, right: `// app/api/sil/route.ts
+export async function POST() {
+  const s = await sessiyaAl();
+  if (s?.rol !== "admin") return Response.json({ xeta: "İcazə yoxdur" }, { status: 403 });
+  // ...
+}`, why: "Client-dəki yoxlama yalnız görünüşdür — hücumçu API-ni birbaşa çağırır. İcazə serverdə, əməliyyatın özündə yoxlanmalıdır." },
+          { t: "mistake", lang: "ts", wrong: `localStorage.setItem("token", token); // XSS olsa, oğurlanır`, right: `// serverdə: httpOnly + secure + sameSite cookie`, why: "localStorage-ı istənilən skript oxuyur. Bir XSS boşluğu bütün sessiyaları oğurlamağa bəs edir. httpOnly cookie JS-ə görünmür." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Hücum səthi: hər giriş nöqtəsi qorunmalıdır",
+        blocks: [
+          { t: "list", items: [
+            "Dörd giriş nöqtəsi var və hər biri ayrıca yoxlanır: Server Component (səhifə), Server Action, Route Handler, proxy. Birində yoxlama digərini qorumur.",
+            "Layout-da yoxlama kifayət deyil: keçidlərdə layout yenidən render olunmaya bilər, action və API ondan keçmir.",
+            "Şifrələr: heç vaxt açıq və ya sürətli heşlə (MD5, SHA-256) saxlama. argon2id və ya bcrypt + hər istifadəçiyə duz (salt).",
+            "Sessiya növləri: stateless (imzalı/şifrəli JWT cookie-də — sürətli, amma ləğv etmək çətin) və ya bazada sessiya (cookie-də yalnız təsadüfi ID — istənilən an ləğv olunur). Girişdən və rol dəyişəndən sonra sessiya ID-sini yenilə (session fixation).",
+            "Giriş forması: sorğu limiti (brute-force), eyni xəta mesajı («email və ya şifrə səhvdir» — hansının səhv olduğunu demə), sabit vaxtlı müqayisə.",
+            "OAuth: state parametri (CSRF) və PKCE məcburidir; redirect_uri dəqiq ağ siyahıdan.",
+            "Yönləndirmə: /giris?novbeti=... parametrini yoxla — yalnız daxili yol (open redirect).",
+            "Sirlər (SESSION_SECRET) yalnız mühit dəyişənində, NEXT_PUBLIC_ prefiksi OLMADAN. Açarı dəyişmək (rotation) planın olsun.",
+            "Keşlə birlikdə: istifadəçiyə məxsus məlumat ümumi keşə düşməsin; yoxlamanı keşli funksiyadan ƏVVƏL et.",
+          ]},
+          { t: "code", lang: "ts", caption: "Giriş action-ı — əsas qorumalar", code: `"use server";
+
+export async function giris(_e: { xeta?: string }, formData: FormData) {
+  const email = String(formData.get("email") ?? "").toLowerCase().trim();
+  const sifre = String(formData.get("sifre") ?? "");
+
+  if (await limitAsildi("giris:" + email)) return { xeta: "Çox cəhd. Bir az sonra yoxla." };
+
+  const u = await db.istifadeci.tap({ email });
+  // istifadəçi yoxdursa da heşi yoxla — vaxt fərqi email-in varlığını bildirməsin
+  const duz = await sifreYoxla(sifre, u?.sifreHesi ?? SAXTA_HES);
+  if (!u || !duz) return { xeta: "Email və ya şifrə səhvdir" };
+
+  await sessiyaYarat(await tokenYarat({ istifadeciId: u.id, rol: u.rol }));
+  redirect("/panel");
+}` },
+          { t: "qa", items: [
+            ["Autentifikasiya ilə avtorizasiya fərqi?", "Birincisi kimliyi təsdiqləyir (401 — giriş lazımdır); ikincisi icazəni yoxlayır (403 — icazə yoxdur)."],
+            ["Niyə proxy-dəki yoxlama kifayət deyil?", "Proxy sürətli olmalıdır, baza sorğusu etmir və matcher-dən kənar yollar, action-lar ondan yan keçə bilər. O, optimistik yönləndirmədir; əsl yoxlama DAL-dadır."],
+            ["httpOnly, secure, sameSite nə edir?", "httpOnly — JS oxuya bilmir (XSS); secure — yalnız HTTPS; sameSite — başqa saytdan gələn sorğuda göndərilmir (CSRF)."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Sessiya tokenini harada saxlamaq ən təhlükəsizdir?", options: ["localStorage", "httpOnly cookie", "URL parametri"], answer: 1, why: "httpOnly cookie JavaScript-dən oxunmur." },
+          { t: "quiz", q: "Admin düyməsini client-də gizlətdin. Bu kifayətdir?", options: ["Bəli", "Xeyr, serverdə də yoxlanmalıdır", "Yalnız production-da"], answer: 1, why: "API birbaşa çağırıla bilər — UI gizlətmək qoruma deyil." },
+          { t: "quiz", q: "Giriş etmiş, amma icazəsi olmayan istifadəçiyə hansı status?", options: ["401", "403", "404"], answer: 1, why: "403 Forbidden — kimlik bəllidir, icazə yoxdur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "lib/dal.ts faylı yaz: 1) sessiyaAl() — cookie-dən «sessiya» tokenini oxuyub tokenYoxla ilə yoxlasın (React.cache ilə bir sorğuda bir dəfə); 2) girisTeleb() — sessiya yoxdursa /giris-ə yönləndirsin; 3) adminTeleb() — rol admin deyilsə xəta atsın; 4) profilim() — cari istifadəçinin yalnız ad və email sahələrini qaytarsın. Fayl client-ə import oluna bilməsin.",
+      starter: `import { cookies } from "next/headers";\nimport { redirect } from "next/navigation";\nimport { tokenYoxla } from "./token";\n\n// bura\n`,
+      expect: "Başında import \"server-only\"; sessiyaAl cache(...) ilə sarınıb, cookies() await olunur, token yoxdursa null; girisTeleb redirect(\"/giris\"); adminTeleb rol yoxlayır və xəta atır/403; profilim girisTeleb çağırır, id sessiyadan götürülür (arqumentdən yox), yalnız ad və email qaytarılır (şifrə heşi yox); any yoxdur.",
+    },
+  },
+  {
+    slug: "deploy",
+    title: "Deploy",
+    intro: "Deploy — saytı öz kompüterindən internetə çıxarmaqdır. Next.js tətbiqini hazır platformaya (Vercel), öz Node.js serverinə, Docker konteynerinə və ya statik fayllar kimi yerləşdirmək olar.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "build və start",
+        blocks: [
+          { t: "analogy", text: "npm run dev — mətbəxdə sınaq bişirməkdir: hər şey açıqdır, yavaşdır, dəyişiklik dərhal görünür. npm run build — yeməyi qablaşdırmaqdır: hər şey sıxılır, yoxlanır, hazır hala gəlir. npm run start — qablaşdırılmış yeməyi müştəriyə təqdim etməkdir." },
+          { t: "code", lang: "bash", code: `npm run build   # production yığımı: tip yoxlaması, optimizasiya, əvvəlcədən render
+npm run start   # yığılmış tətbiqi işə sal (default port 3000)` },
+          { t: "code", lang: "text", caption: "Vercel ilə ən sadə yol", code: `1. Kodu GitHub-a göndər (git push).
+2. vercel.com → Add New → Project → repozitoriyanı seç (Import).
+3. Environment Variables bölməsinə sirləri yaz (məs. GEMINI_API_KEY).
+4. Deploy. Bundan sonra hər push avtomatik yeni versiya yaradır;
+   hər Pull Request öz önizləmə (preview) ünvanını alır.` },
+          { t: "terms", items: [
+            ["deploy", "tətbiqin serverə yerləşdirilib istifadəyə verilməsi."],
+            ["build", "mənbə kodundan optimallaşdırılmış production versiyasının yığılması."],
+            ["mühit dəyişəni (environment variable)", "koddan kənarda saxlanan ayar və ya sirr; process.env.AD ilə oxunur."],
+            ["preview deploy", "hər dəyişiklik üçün ayrıca sınaq ünvanı."],
+          ]},
+          { t: "tip", text: "Deploydan əvvəl lokalda npm run build işlət. Dev rejimində işləyən kod build-də tip və ya render xətası verə bilər." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Mühit dəyişənləri və yerləşdirmə yolları",
+        blocks: [
+          { t: "code", lang: "bash", caption: ".env.local — yalnız lokal, git-ə DÜŞMÜR", code: `# Yalnız server (sirr)
+DATABASE_URL=postgres://...
+GEMINI_API_KEY=...
+
+# Brauzerə də gedir — yalnız açıq dəyərlər
+NEXT_PUBLIC_SAYT_URL=https://kodakademiyasi.az` },
+          { t: "code", lang: "text", caption: "Dörd yerləşdirmə yolu", code: `Platforma (Vercel və s.)   ən asan; bütün imkanlar; avtomatik miqyas
+Node.js serveri            next build + next start; bütün imkanlar; idarə səndə
+Docker                     output: "standalone" → kiçik image; istənilən bulud
+Statik eksport             output: "export" → yalnız HTML/CSS/JS; server imkanları YOXDUR` },
+          { t: "code", lang: "dockerfile", caption: "Dockerfile (qısaldılmış) — next.config-də output: \"standalone\"", code: `FROM node:22-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+USER node
+EXPOSE 3000
+CMD ["node", "server.js"]` },
+          { t: "mistake", lang: "bash", wrong: `git add .env.local
+git commit -m "ayarlar"`, right: `# .gitignore
+.env*.local
+
+# sirlər platformanın Environment Variables bölməsində`, why: "Git tarixçəsinə düşən sirr oradan silinmir — repozitoriya açıqdırsa, botlar dəqiqələr içində tapır. Açar sızıbsa, dərhal ləğv edib yenisini yarat." },
+          { t: "mistake", lang: "ts", wrong: `const acar = process.env.NEXT_PUBLIC_GEMINI_API_KEY;`, right: `// yalnız server faylında (route.ts, action, "server-only")
+const acar = process.env.GEMINI_API_KEY;`, why: "NEXT_PUBLIC_ dəyişənləri build zamanı JS paketinə mətn kimi yazılır — hər ziyarətçi görür. Sirr üçün bu prefiks qadağandır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Production yoxlama siyahısı",
+        blocks: [
+          { t: "list", items: [
+            "Öz serverində (self-hosting): çox instansiya varsa keş hər birində ayrıdır — ortaq cacheHandler qur; şəkil optimizasiyası CPU yeyir; qarşıya reverse proxy (nginx) və ya CDN qoy; build ID və deployment ID-ni instansiyalar arasında eyni saxla.",
+            "Platforma adapterləri: Next.js Adapter API ilə fərqli platformalara uyğunlaşır (Vercel və Bun təsdiqlənmiş adapterlərdir; digərləri öz inteqrasiyalarını təqdim edir).",
+            "Statik eksportda işləməyənlər: Server Actions, proxy, cookies/headers, default şəkil optimizatoru, tələblə revalidasiya.",
+            "Müşahidə: instrumentation.ts ilə xəta izləmə (Sentry və s.) və OpenTelemetry; jurnallara sirr və şəxsi məlumat yazma.",
+            "CI: hər PR-da lint + tsc + build + testlər. Build keşini (.next/cache) CI-da saxla — yığım sürətlənir.",
+            "Geri qaytarma (rollback) planı: əvvəlki versiyaya bir kliklə dönə bilməlisən; baza miqrasiyaları geriyə uyğun olsun.",
+            "Təhlükəsizlik başlıqları (next.config-də headers): Content-Security-Policy, Strict-Transport-Security, X-Content-Type-Options: nosniff, X-Frame-Options/frame-ancestors, Referrer-Policy, Permissions-Policy; poweredByHeader: false.",
+            "Təhlükəsizlik: preview deploy-lar da internetə açıqdır — production bazasına və açarlarına bağlama, parolla qoru. Hər mühitin öz sirləri olsun.",
+            "Təhlükəsizlik: asılılıqları yenilə (npm audit, Dependabot), package-lock.json-u commit et, npm ci işlət. Docker-də root istifadəçi ilə işləmə. productionBrowserSourceMaps-i açıq qoyma.",
+            "Təhlükəsizlik: HTTPS məcburi (HSTS), pullu API nöqtələrinə rate limit, xəta səhifələrində stack trace göstərmə.",
+          ]},
+          { t: "code", lang: "ts", caption: "next.config.ts — əsas təhlükəsizlik başlıqları", code: `const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  async headers() {
+    return [{
+      source: "/(.*)",
+      headers: [
+        { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+      ],
+    }];
+  },
+};` },
+          { t: "qa", items: [
+            ["output: \"standalone\" nə edir?", "Yalnız lazım olan faylları və minimal node_modules-u .next/standalone qovluğuna yığır — Docker image kiçilir."],
+            ["Statik eksportun məhdudiyyəti?", "Server tələb edən heç nə işləmir: Server Actions, proxy, runtime API-lər, tələblə revalidasiya, default şəkil optimizatoru."],
+            ["Sirr git-ə düşdü. Nə etməli?", "Dərhal açarı ləğv et və yenisini yarat (rotation). Tarixçədən silmək kifayət deyil — artıq kopyalanmış ola bilər."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "API açarı Vercel-də harada saxlanır?", options: ["Kodda sabit kimi", "Environment Variables bölməsində", "public/ qovluğunda"], answer: 1, why: "Sirlər koddan kənarda, platformanın mühit dəyişənlərində olur." },
+          { t: "quiz", q: "Hansı fayl git-ə göndərilməməlidir?", options: ["package-lock.json", ".env.local", "next.config.ts"], answer: 1, why: ".env.local sirləri saxlayır və .gitignore-da olmalıdır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Deploy-a hazırlıq üçün üç fayl yaz: 1) .env.example — DATABASE_URL, SESSION_SECRET (boş dəyərlə, izahlı şərhlə) və NEXT_PUBLIC_SAYT_URL; 2) .gitignore-a lazım olan sətirlər; 3) next.config.ts — poweredByHeader söndürülsün, bütün yollara HSTS, nosniff, X-Frame-Options DENY və Referrer-Policy başlıqları verilsin.",
+      starter: `# .env.example\n\n# .gitignore\n\n// next.config.ts\nimport type { NextConfig } from "next";\n`,
+      expect: ".env.example-də real sirr yoxdur, yalnız açar adları; sirlərdə NEXT_PUBLIC_ prefiksi yoxdur, yalnız SAYT_URL-də var; .gitignore-da .env*.local (və ya .env.local), node_modules, .next; next.config.ts-də poweredByHeader: false və async headers() source bütün yollar, 4 başlıq düzgün dəyərlərlə; export default nextConfig.",
+    },
+  },
+  {
+    slug: "senior",
+    title: "Senior: rendering strategiyaları",
+    intro: "Bu dərs bölmənin yekunudur: HTML harada və nə vaxt yaranır? Statik, dinamik, axınla və qismən əvvəlcədən render — hər birinin öz yeri var. Senior mühəndis hər komponent üçün düzgün strategiyanı seçə bilir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Dörd strategiya",
+        blocks: [
+          { t: "analogy", text: "Yeməkxananı düşün. Hazır qablaşdırılmış buterbrod — dərhal verilir, amma hamıya eynidir (statik). Sifarişlə bişən yemək — təzədir, amma gözləyirsən (dinamik). Hazır boşqabın üstünə isti sousu sonradan tökmək — ikisinin yaxşı tərəfi (qismən əvvəlcədən render). Çiy ərzağı evə aparıb özün bişirmək — client-də render." },
+          { t: "code", lang: "text", code: `SSG   Static Site Generation     HTML build zamanı yaranır        ən sürətli; məzmun hamıya eyni
+ISR   Incremental Static Regen.  statik + vaxtla/tələblə yenilənir blog, kataloq
+SSR   Server-Side Rendering      HTML hər sorğuda yaranır          şəxsi, canlı məlumat
+CSR   Client-Side Rendering      HTML brauzerdə JS ilə yaranır     girişdən sonrakı interaktiv hissə
+PPR   Partial Prerendering       statik qabıq + axınla dinamik     Next 16-da əsas model` },
+          { t: "terms", items: [
+            ["prerender", "HTML-in sorğudan əvvəl (build və ya revalidasiya zamanı) hazırlanması."],
+            ["statik qabıq (static shell)", "səhifənin əvvəlcədən hazırlanmış, dərhal göndərilən hissəsi."],
+            ["streaming", "qalan hissələrin hazır olduqca eyni cavabda axınla göndərilməsi."],
+            ["hydration", "HTML-ə brauzerdə interaktivliyin bağlanması."],
+            ["TTFB", "Time To First Byte — serverdən ilk baytın gəlmə vaxtı."],
+          ]},
+          { t: "tip", text: "Build çıxışına bax: ○ statik, ◐ qismən əvvəlcədən render, ƒ dinamik. Gözləmədiyin ƒ görürsənsə — haradasa lazımsız runtime API oxunur." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Cache Components modeli: komponent səviyyəsində qərar",
+        blocks: [
+          { t: "p", text: "Köhnə modeldə qərar səhifə səviyyəsində idi: səhifə ya statik, ya dinamik. Next 16-da (cacheComponents) qərar komponent səviyyəsindədir. Üç növ məzmun var və hər biri fərqli davranır:" },
+          { t: "code", lang: "tsx", code: `import { Suspense } from "react";
+import { cacheLife } from "next/cache";
+import { cookies } from "next/headers";
+
+export default function Page() {
+  return (
+    <>
+      <Basliq />                          {/* 1. statik: sinxron, məlumatsız */}
+      <Mehsullar />                       {/* 2. keşli: "use cache" → qabığa düşür */}
+      <Suspense fallback={<SebetSkeleti />}>
+        <Sebet />                         {/* 3. dinamik: sorğu zamanı axır */}
+      </Suspense>
+    </>
+  );
+}
+
+async function Mehsullar() {
+  "use cache";
+  cacheLife("hours");
+  const siyahi = await db.mehsul.hamisi();
+  return <ul>{siyahi.map((m) => <li key={m.id}>{m.ad}</li>)}</ul>;
+}
+
+async function Sebet() {
+  const sid = (await cookies()).get("sid")?.value;
+  const sebet = await sebetAl(sid);
+  return <p>Səbətdə {sebet.say} məhsul</p>;
+}` },
+          { t: "list", items: [
+            "Statik və keşli hissələr build zamanı statik qabığa yazılır — istifadəçi onları dərhal görür (CDN-dən).",
+            "Runtime API (cookies, headers, searchParams) və keşsiz async məlumat Suspense içində olmalıdır — fallback qabığa düşür, məzmun axınla gəlir.",
+            "Suspense-siz keşsiz məlumat oxusan, Next.js dev rejimində xəbərdarlıq edir: bütün səhifə bloklanardı.",
+          ]},
+          { t: "mistake", lang: "tsx", wrong: `export default async function Page() {
+  const istifadeci = await sessiyaAl(); // cookies → bütün səhifə dinamik
+  const mehsullar = await mehsullariAl();
+  return <><Salam ad={istifadeci?.ad} /><Siyahi m={mehsullar} /></>;
+}`, right: `export default function Page() {
+  return (
+    <>
+      <Suspense fallback={null}><Salam /></Suspense> {/* yalnız bu dinamik */}
+      <Siyahi />                                      {/* keşli */}
+    </>
+  );
+}`, why: "Bir kiçik şəxsi element üçün bütün səhifəni sorğu zamanına bağlama. Dinamik hissəni ən kiçik komponentə endir və Suspense-ə bürü." },
+          { t: "mistake", lang: "tsx", wrong: `"use client";
+export default function Page() {
+  const [m, setM] = useState(null);
+  useEffect(() => { fetch("/api/meqale").then(/* ... */); }, []);
+  // məqalə mətni JS-dən sonra görünür
+}`, right: `export default async function Page() {
+  "use cache";
+  const m = await meqaleAl();
+  return <article>{m.metn}</article>;
+}`, why: "Açıq, SEO üçün vacib məzmunu CSR ilə göstərmək: boş HTML, yavaş LCP, zəif indeksləmə. Belə məzmun serverdə və keşli olmalıdır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Seçim meyarları, ölçmə və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Suallar: məzmun hamıya eynidirmi? (bəli → keşlə). Nə qədər köhnə ola bilər? (cacheLife). Dəyişəndə dərhal görünməlidirmi? (updateTag). Şəxsidirmi? (dinamik + Suspense və ya \"use cache: private\"). Yalnız qarşılıqlı əlaqədən sonra lazımdır? (client-də çək).",
+            "Suspense sərhədi — UX qərarıdır: fallback məzmunla eyni ölçüdə olsun (CLS), mənalı bloklar üzrə qruplaşdır, vacib məzmunu skelet arxasında gizlətmə.",
+            "Hydration bahadır: nə qədər çox Client Component, o qədər çox JS və daha gec interaktivlik (INP). Ağır client hissələrini next/dynamic və ya React.lazy ilə tənbəl yüklə.",
+            "Ölçmə: laboratoriya (Lighthouse) kifayət deyil — real istifadəçi göstəricilərini topla (useReportWebVitals): LCP < 2.5 s, INP < 200 ms, CLS < 0.1.",
+            "Naviqasiya: Partial Prefetching ilə link əvvəlcədən statik qabığı yükləyir — klik dərhal cavab verir, dinamik hissə sonra axır.",
+            "Edge və Node runtime: edge soyuq başlanğıcı azaldır, amma Node API-ləri məhduddur və baza uzaqdırsa, hər sorğu yavaşıyır. Hesablamanı məlumata yaxın saxla.",
+            "Təhlükəsizlik — statik/keşli HTML hamıya eynidir: içində şəxsi məlumat, bir istifadəçiyə məxsus token və ya bir sorğuya aid CSP nonce OLA BİLMƏZ. Nonce əsaslı CSP səhifəni dinamik edir — bunu bilərək seç.",
+            "Təhlükəsizlik — CDN keşi: şəxsi cavaba Cache-Control: private ver; public cavabda Set-Cookie olmasın. Əks halda bir istifadəçinin səhifəsi başqasına verilə bilər.",
+            "Təhlükəsizlik — RSC payload: Client Component-ə ötürülən props və axınla gələn məlumat brauzerdə açıq görünür. Sirli sahələri serverdə süz (DTO), taint API-ləri əlavə sığortadır.",
+            "Təhlükəsizlik: icazə yoxlaması strategiyadan asılı deyil — statik səhifə özü qorunmur. Qorunan məzmun dinamik hissədə və DAL yoxlamasından sonra render olunmalıdır.",
+          ]},
+          { t: "qa", items: [
+            ["SSG, ISR və SSR-i necə seçirsən?", "Məzmun nadir dəyişir və hamıya eynidir — SSG. Vaxtaşırı dəyişir — ISR (keş + revalidasiya). Şəxsi və ya hər sorğuda fərqlidir — SSR/dinamik. Real səhifədə adətən qarışıq: PPR."],
+            ["Partial Prerendering nədir?", "Bir səhifədə statik qabığın əvvəlcədən hazırlanıb dərhal göndərilməsi, dinamik hissələrin isə eyni cavabda Suspense sərhədləri üzrə axınla gəlməsi."],
+            ["Streaming TTFB və LCP-yə necə təsir edir?", "Qabıq dərhal göndərildiyi üçün TTFB və ilk boyama sürətlənir; yavaş sorğu bütün səhifəni yox, yalnız öz blokunu gözlədir."],
+            ["Niyə statik səhifədə nonce əsaslı CSP işləmir?", "Nonce hər sorğuda unikal olmalıdır, statik HTML isə hamıya eynidir. Ya səhifə dinamik olur, ya da heş əsaslı CSP işlədilir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Blog məqaləsi (gündə bir dəfə dəyişir, hamıya eyni) üçün ən uyğun?", options: ["Hər sorğuda SSR", "Keşli/statik + revalidasiya", "Client-də fetch"], answer: 1, why: "Hamıya eyni və nadir dəyişən məzmun keşlənməlidir." },
+          { t: "quiz", q: "Statik səhifədə istifadəçinin səbət sayını necə göstərmək olar?", options: ["Bütün səhifəni dinamik etməklə", "Yalnız səbət komponentini Suspense içində dinamik etməklə", "Mümkün deyil"], answer: 1, why: "PPR: statik qabıq + kiçik dinamik hissə." },
+          { t: "quiz", q: "Statik (hamıya eyni) HTML-in içində nə OLMAMALIDIR?", options: ["Məhsul adları", "İstifadəçiyə məxsus məlumat", "Menyu linkləri"], answer: 1, why: "Statik HTML bütün ziyarətçilərə eyni verilir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Mağaza ana səhifəsini düzgün strategiya ilə yaz: 1) <Basliq /> — statik; 2) <PopulyarMehsullar /> — bazadan gəlir, saatda bir yenilənsin, teqi \"mehsullar\"; 3) <Salamlama /> — cookie-dən sessiyanı oxuyub istifadəçinin adını göstərir; 4) <SonBaxilanlar /> — istifadəçiyə məxsus, yavaş sorğu. Səhifənin qabığı dərhal görünməli, şəxsi hissələr axınla gəlməlidir. Şəxsi məlumat keşə düşməməlidir.",
+      starter: `import { Suspense } from "react";\nimport { cacheLife, cacheTag } from "next/cache";\nimport { sessiyaAl } from "@/lib/dal";\n\nexport default function Page() {\n  // bura\n}\n\n// komponentlər\n`,
+      expect: "Page async deyil və ya cookies oxumur; PopulyarMehsullar-da \"use cache\" + cacheLife(\"hours\") + cacheTag(\"mehsullar\"); Salamlama və SonBaxilanlar ayrı-ayrı <Suspense fallback=...> içindədir və \"use cache\" İŞLƏTMİR (və ya id arqumenti ilə private); sessiya yalnız dinamik komponentlərdə oxunur; bütün səhifə \"use client\" deyil; siyahılarda key var.",
+    },
+  },
 ];

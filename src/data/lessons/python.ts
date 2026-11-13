@@ -815,4 +815,715 @@ def bol(a, b, /):              # / — yalnız mövqe arqumentləri
       expect: "statistika return {'cem': 108, 'orta': 18.0, 'min': 4, 'max': 42}, boşda None; sorted(..., key=lambda t: t[1], reverse=True); endirim-də if not 0 <= faiz <= 100: raise ValueError; mutable default yoxdur.",
     },
   },
+  {
+    slug: "comprehension",
+    title: "Comprehension-lar",
+    intro: "Comprehension — bir sətirdə yeni list, dict və ya set qurmağın Python yoludur. Dövr + şərt + append üçlüyünü tək, oxunaqlı ifadəyə çevirir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "List comprehension",
+        blocks: [
+          { t: "analogy", text: "Bazarda satıcıya deyirsən: «Bu yeşikdəki almalardan qırmızı olanları seç və hər birini yu». Bir cümlədə üç iş: haradan (yeşik), hansını (qırmızı), nə et (yu). Comprehension da belə oxunur: [nə_et for element in haradan if hansı]." },
+          { t: "code", lang: "python", code: `ededler = [1, 2, 3, 4, 5, 6]
+
+# Adi yol
+kvadratlar = []
+for x in ededler:
+    kvadratlar.append(x * x)
+
+# Comprehension — eyni nəticə
+kvadratlar = [x * x for x in ededler]
+print(kvadratlar)                 # [1, 4, 9, 16, 25, 36]
+
+cutler = [x for x in ededler if x % 2 == 0]
+print(cutler)                     # [2, 4, 6]
+
+adlar = ["aysel", "murad", "leyla"]
+print([ad.title() for ad in adlar])   # ['Aysel', 'Murad', 'Leyla']` },
+          { t: "terms", items: [
+            ["comprehension", "mövcud ardıcıllıqdan yeni kolleksiya quran qısa ifadə."],
+            ["ifadə (expression)", "hər element üçün hesablanan hissə: x * x."],
+            ["filtr", "sondakı if — yalnız şərti ödəyən elementlər götürülür."],
+          ]},
+          { t: "tip", text: "Oxuma sırası: əvvəl for hissəsini oxu (haradan), sonra if (hansını), ən sonda başdakı ifadəni (nə et)." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Dict, set, şərti ifadə, iç-içə",
+        blocks: [
+          { t: "code", lang: "python", code: `ballar = {"Aysel": 92, "Murad": 65, "Leyla": 78}
+
+# dict comprehension
+kecenler = {ad: bal for ad, bal in ballar.items() if bal >= 70}
+print(kecenler)                   # {'Aysel': 92, 'Leyla': 78}
+
+# set comprehension — təkrarsız
+seherler = ["Bakı", "gəncə", "BAKI", "Gəncə"]
+print({s.lower() for s in seherler})   # {'bakı', 'gəncə'}
+
+# Şərti ifadə (if/else) — ƏVVƏLDƏ yazılır, filtr deyil
+qiymetler = ["keçdi" if b >= 70 else "kəsildi" for b in ballar.values()]
+print(qiymetler)                  # ['keçdi', 'kəsildi', 'keçdi']
+
+# İç-içə: matrisi düzləşdirmək
+matris = [[1, 2], [3, 4], [5, 6]]
+print([x for setir in matris for x in setir])   # [1, 2, 3, 4, 5, 6]
+
+# zip və enumerate ilə
+adlar, yaslar = ["Aysel", "Murad"], [25, 30]
+print({ad: yas for ad, yas in zip(adlar, yaslar)})` },
+          { t: "mistake", lang: "python", wrong: `netice = [x if x > 0 for x in ededler]      # SyntaxError`, right: `netice = [x for x in ededler if x > 0]           # filtr — sonda
+netice = [x if x > 0 else 0 for x in ededler]    # əvəzləmə — əvvəldə, else ilə`, why: "Filtr (yalnız if) for-dan SONRA yazılır. Əvvəldəki if mütləq else ilə olur və elementi atmır, dəyərini dəyişir." },
+          { t: "mistake", lang: "python", wrong: `[print(x) for x in ededler]   # yan təsir üçün comprehension`, right: `for x in ededler:
+    print(x)`, why: "Comprehension nəticə yaratmaq üçündür. Yan təsir (print, fayla yazmaq) üçün adi for işlət — lazımsız [None, None, …] siyahısı yaranmır və niyyət aydındır." },
+          { t: "mistake", lang: "python", wrong: `netice = [f(x, y) for x in a if x > 0 for y in b if y != x if g(y)]`, right: `netice = []
+for x in a:
+    if x <= 0:
+        continue
+    for y in b:
+        if y != x and g(y):
+            netice.append(f(x, y))`, why: "İki for və bir neçə şərtdən sonra comprehension oxunmaz olur. Qayda: bir sətrə sığmırsa və ya izah tələb edirsə — adi dövr yaz." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Generator ifadələri, yaddaş və təhlükəsizlik",
+        blocks: [
+          { t: "code", lang: "python", code: `import sys
+
+siyahi = [x * x for x in range(1_000_000)]      # hamısı yaddaşda
+generator = (x * x for x in range(1_000_000))   # tənbəl: lazım olduqca
+
+print(sys.getsizeof(siyahi))      # ~8 MB
+print(sys.getsizeof(generator))   # ~200 bayt
+
+print(sum(x * x for x in range(1_000_000)))   # mötərizə təkrar yazılmır
+print(any(x > 999_990 for x in range(1_000_000)))  # ilk True-da dayanır
+
+# Walrus (:=) — bahalı hesablamanı bir dəfə et
+def emal(x):
+    return x * 3
+print([y for x in range(10) if (y := emal(x)) > 15])` },
+          { t: "list", items: [
+            "List comprehension adi for + append-dən sürətlidir: dövr C səviyyəsində işləyir, append metodu hər dəfə axtarılmır.",
+            "Generator ifadəsi () tənbəldir və yalnız BİR dəfə gəzilir. İkinci dəfə gəzsən — boşdur. Nəticə bir neçə dəfə lazımdırsa, list qur.",
+            "sum, any, all, min, max, \"\".join kimi funksiyalara list yox, generator ver — aralıq siyahı yaranmır (join istisnadır: list bir qədər sürətlidir).",
+            "Comprehension-un öz scope-u var: dövr dəyişəni bayıra sızmır (Python 3). Walrus ilə mənimsədilən dəyişən isə sızır.",
+            "dict comprehension-da təkrar açar səssizcə əvvəlkini əzir — məlumat itkisini yoxla.",
+            "Təhlükəsizlik — yaddaş tükətmə (DoS): istifadəçinin göndərdiyi ölçüyə görə list qurma: [0] * n və ya [f(x) for x in range(n)], n = 10**10 olsa, proses çökür. Ölçünü əvvəlcədən məhdudlaşdır və ya generator + itertools.islice işlət.",
+            "Təhlükəsizlik: filtr comprehension-u sanitizasiya deyil. [c for c in metn if c != \"<\"] kimi «qara siyahı» təmizləməsi yan keçilir. HTML üçün html.escape, SQL üçün parametrli sorğu, fayl adı üçün ağ siyahı işlət.",
+            "Təhlükəsizlik: icazə filtrini (məs. yalnız istifadəçinin öz sənədləri) Python-da comprehension ilə yox, bazada WHERE ilə et — yoxsa bütün məlumat əvvəlcə yaddaşa yüklənir və filtr unudulanda sızır.",
+          ]},
+          { t: "qa", items: [
+            ["List comprehension ilə generator ifadəsi fərqi?", "[...] bütün nəticəni dərhal yaddaşda qurur; (...) elementləri tələb olunduqca verir, az yaddaş işlədir, amma bir dəfə gəzilir."],
+            ["Comprehension nə vaxt işlədilməməlidir?", "Yan təsir üçün, çox iç-içə/şərtli olanda və oxunaqlılıq itəndə."],
+            ["map/filter yoxsa comprehension?", "Comprehension daha «pythonic» və oxunaqlıdır; hazır funksiya varsa (map(str, xs)) map də yaxşıdır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "[x * 2 for x in [1, 2, 3] if x > 1] nəticəsi?", options: ["[2, 4, 6]", "[4, 6]", "[2, 3]"], answer: 1, why: "Əvvəl filtr (2 və 3), sonra hər biri 2-yə vurulur." },
+          { t: "quiz", q: "Milyonlarla elementin cəmini tapmaq üçün ən qənaətcil yol?", options: ["sum([x for x in data])", "sum(x for x in data)", "Hər ikisi eynidir"], answer: 1, why: "Generator ifadəsi aralıq siyahı yaratmır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Comprehension ilə həll et: 1) 1–30 arasında 3-ə bölünən ədədlərin kvadratları (list); 2) sozler siyahısından uzunluğu 4-dən çox olan sözlərin {söz: uzunluq} lüğəti; 3) mətndəki unikal saitlər (set, kiçik hərflə); 4) ballar lüğətindən 70+ olanların adlarını böyük hərflə list kimi; 5) 1-dən 1 000 000-a qədər cüt ədədlərin cəmini generator ifadəsi ilə çap et.",
+      starter: `sozler = ["kod", "python", "dövr", "funksiya", "list"]\nmetn = "Proqramlaşdırma Öyrənirəm"\nballar = {"Aysel": 92, "Murad": 65, "Leyla": 78}\n\n# 1)\n\n# 2)\n\n# 3)\n\n# 4)\n\n# 5)\n`,
+      expect: "1) [x*x for x in range(1, 31) if x % 3 == 0]; 2) dict comprehension len(s) > 4 filtri ilə; 3) set comprehension, .lower() və sait yoxlaması; 4) [ad.upper() for ad, b in ballar.items() if b >= 70]; 5) sum(... for ...) — kvadrat mötərizəsiz generator; for + append işlədilməyib.",
+    },
+  },
+  {
+    slug: "fayllar",
+    title: "Fayllarla işləmək",
+    intro: "Proqram bağlananda dəyişənlər itir. Məlumatı saxlamaq üçün fayla yazırsan. Python-da bu open() funksiyası və with bloku ilə edilir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Oxumaq və yazmaq",
+        blocks: [
+          { t: "analogy", text: "Fayl — dəftərdir. İşləmək üçün onu açırsan (open), yazır və ya oxuyursan, sonda bağlayırsan. Açıq qalan dəftər yağışda islanır: bağlanmayan fayl məlumat itirə bilər. with bloku — dəftəri özü bağlayan köməkçidir." },
+          { t: "code", lang: "python", code: `# Yazmaq ("w" — yenidən yaz, köhnəni silir)
+with open("qeydler.txt", "w", encoding="utf-8") as f:
+    f.write("Salam, dünya!\\n")
+    f.write("İkinci sətir\\n")
+
+# Əlavə etmək ("a" — sona yaz)
+with open("qeydler.txt", "a", encoding="utf-8") as f:
+    f.write("Üçüncü sətir\\n")
+
+# Oxumaq ("r" — default)
+with open("qeydler.txt", encoding="utf-8") as f:
+    metn = f.read()
+print(metn)
+
+# Sətir-sətir (böyük fayllar üçün)
+with open("qeydler.txt", encoding="utf-8") as f:
+    for setir in f:
+        print(setir.strip())` },
+          { t: "terms", items: [
+            ["open()", "faylı açır və fayl obyekti qaytarır."],
+            ["rejim (mode)", "\"r\" oxu, \"w\" yaz (üstündən), \"a\" əlavə et, \"x\" yalnız yoxdursa yarat, \"b\" ikili."],
+            ["with", "blok bitəndə (xəta olsa belə) faylı avtomatik bağlayır."],
+            ["encoding", "mətnin baytlara çevrilmə qaydası; həmişə utf-8 yaz."],
+          ]},
+          { t: "tip", text: "encoding=\"utf-8\" yazmağı vərdiş et. Yazmasan, Windows-da köhnə kodlaşdırma işlənə bilər və ə, ş, ğ hərfləri xarab olar." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "pathlib, JSON və CSV",
+        blocks: [
+          { t: "code", lang: "python", code: `from pathlib import Path
+import json, csv
+
+qovluq = Path("melumat")
+qovluq.mkdir(exist_ok=True)
+
+# pathlib — yolları / ilə birləşdir (hər əməliyyat sistemində işləyir)
+fayl = qovluq / "telebeler.json"
+
+telebeler = [{"ad": "Aysel", "bal": 92}, {"ad": "Murad", "bal": 65}]
+
+# JSON yazmaq və oxumaq
+fayl.write_text(json.dumps(telebeler, ensure_ascii=False, indent=2), encoding="utf-8")
+yuklenen = json.loads(fayl.read_text(encoding="utf-8"))
+print(yuklenen[0]["ad"])          # Aysel
+
+# CSV
+with open(qovluq / "ballar.csv", "w", newline="", encoding="utf-8") as f:
+    yazici = csv.DictWriter(f, fieldnames=["ad", "bal"])
+    yazici.writeheader()
+    yazici.writerows(telebeler)
+
+with open(qovluq / "ballar.csv", encoding="utf-8") as f:
+    for setir in csv.DictReader(f):
+        print(setir["ad"], int(setir["bal"]))
+
+print(fayl.exists(), fayl.suffix, fayl.stat().st_size)
+print([p.name for p in qovluq.iterdir()])` },
+          { t: "mistake", lang: "python", wrong: `f = open("qeydler.txt")
+metn = f.read()
+# f.close() unuduldu; xəta olsa, heç vaxt bağlanmır`, right: `with open("qeydler.txt", encoding="utf-8") as f:
+    metn = f.read()`, why: "Bağlanmayan fayl resurs sızmasıdır; yazma rejimində məlumat buferdə qalıb itə bilər. with həmişə bağlayır." },
+          { t: "mistake", lang: "python", wrong: `with open("hesabat.txt", "w") as f:   # köhnə məzmun dərhal silindi
+    f.write(yeni_setir)`, right: `with open("hesabat.txt", "a", encoding="utf-8") as f:
+    f.write(yeni_setir)`, why: "\"w\" faylı açan kimi boşaldır. Sona əlavə etmək üçün \"a\", təsadüfən üstündən yazmamaq üçün \"x\" işlət." },
+          { t: "mistake", lang: "python", wrong: `yol = "melumat" + "\\\\" + "fayl.txt"   # yalnız Windows`, right: `from pathlib import Path
+yol = Path("melumat") / "fayl.txt"`, why: "Yol ayırıcısı əməliyyat sistemindən asılıdır. pathlib düzgün ayırıcını özü seçir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Böyük fayllar, atomar yazma və fayl təhlükəsizliyi",
+        blocks: [
+          { t: "list", items: [
+            "f.read() bütün faylı yaddaşa yükləyir. Böyük faylı sətir-sətir (for setir in f) və ya hissə-hissə (f.read(64 * 1024)) oxu.",
+            "Atomar yazma: əvvəl müvəqqəti fayla yaz, sonra os.replace(tmp, hedef). Yazma yarıda kəsilsə, köhnə fayl bütöv qalır.",
+            "İkili fayllar (şəkil, PDF) \"rb\"/\"wb\" ilə açılır — encoding verilmir, bytes ilə işləyirsən.",
+            "Müvəqqəti fayl üçün tempfile modulu: təhlükəsiz ad və icazələrlə yaradır, özü silir.",
+            "Təhlükəsizlik — path traversal: istifadəçinin verdiyi adı yola birbaşa qoşma. \"../../etc/passwd\" və ya mütləq yol baza qovluğundan çıxır. resolve() et və nəticənin baza qovluğunun içində olduğunu yoxla.",
+            "Təhlükəsizlik — pickle: pickle.load etibarsız mənbədən gələn faylda İXTİYARİ KOD icra edir. Məlumat mübadiləsi üçün JSON işlət. Eyni təhlükə: yaml.load (yaml.safe_load işlət).",
+            "Təhlükəsizlik — yükləmələr: ölçünü məhdudlaşdır, uzantını VƏ məzmunu ağ siyahı ilə yoxla, faylı öz yaratdığın təsadüfi adla, veb kökündən kənarda saxla. Zip faylı açanda «zip bomb» və içindəki ../ yollarına diqqət et.",
+            "Təhlükəsizlik — CSV injection: xanası =, +, -, @ ilə başlayan dəyər Excel-də düstur kimi icra olunur. İxracda belə dəyərlərin əvvəlinə ' qoy.",
+            "Təhlükəsizlik: sirləri (parol, açar) koda və ya git-ə düşən fayla yazma; sirr faylının icazəsini daralt (chmod 600). Jurnal fayllarına şəxsi məlumat yazma.",
+          ]},
+          { t: "code", lang: "python", caption: "Təhlükəsiz yol yoxlaması", code: `from pathlib import Path
+
+BAZA = Path("yuklemeler").resolve()
+
+def tehlukesiz_yol(ad: str) -> Path:
+    hedef = (BAZA / ad).resolve()
+    if not hedef.is_relative_to(BAZA):
+        raise PermissionError("İcazəsiz yol")
+    return hedef
+
+print(tehlukesiz_yol("hesabat.txt").name)       # hesabat.txt
+try:
+    tehlukesiz_yol("../../gizli.txt")
+except PermissionError as e:
+    print("Rədd edildi:", e)` },
+          { t: "qa", items: [
+            ["with nə üçündür?", "Kontekst meneceridir: blokdan çıxanda (xəta olsa belə) resursu bağlayır — __enter__/__exit__ metodları ilə."],
+            ["Niyə pickle təhlükəlidir?", "Yükləmə zamanı obyektin yenidən qurulması ixtiyari funksiya çağırışına imkan verir — etibarsız fayl kod icra edir."],
+            ["Path traversal nədir?", "../ və ya mütləq yol vasitəsilə nəzərdə tutulan qovluqdan kənar fayla çıxış. Qarşısı: resolve + baza qovluğu yoxlaması."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Faylın sonuna əlavə etmək üçün hansı rejim?", options: ["\"w\"", "\"a\"", "\"r\""], answer: 1, why: "\"a\" (append) mövcud məzmunu saxlayır." },
+          { t: "quiz", q: "with blokunun əsas faydası?", options: ["Sürətli oxuyur", "Faylı avtomatik bağlayır", "Faylı şifrələyir"], answer: 1, why: "Blok bitəndə fayl, xəta olsa belə, bağlanır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Qeyd dəftəri yaz: 1) qeyd_elave_et(metn) — qeydi «qeydler.json» faylına əlavə etsin (fayl yoxdursa boş siyahı ilə başlasın); hər qeyd {\"id\": n, \"metn\": ...} olsun. 2) qeydleri_goster() — bütün qeydləri «1. mətn» formatında çap etsin. 3) Üç qeyd əlavə et və göstər. pathlib, json və utf-8 işlət; boş və ya 200 simvoldan uzun mətn ValueError versin.",
+      starter: `from pathlib import Path\nimport json\n\nFAYL = Path("qeydler.json")\n\ndef qeyd_elave_et(metn):\n    pass\n\ndef qeydleri_goster():\n    pass\n\nqeyd_elave_et("Python öyrən")\n`,
+      expect: "FAYL.exists() yoxlanır və ya xəta tutulur; json.loads/json.dumps (ensure_ascii=False), encoding=\"utf-8\"; id artan; metn.strip() boşdursa və ya uzunluq > 200 — raise ValueError; qeydleri_goster siyahını çap edir; with və ya Path.read_text/write_text; pickle işlədilməyib.",
+    },
+  },
+  {
+    slug: "xetalar",
+    title: "İstisnalar",
+    intro: "İstisna (exception) — proqram icrası zamanı baş verən xətadır: sıfıra bölmə, olmayan fayl, yanlış giriş. Tutulmasa, proqram dayanır. try/except ilə xətanı tutub düzgün reaksiya verirsən.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "try / except",
+        blocks: [
+          { t: "analogy", text: "Sirk akrobatı ipin üstündə gəzir, altında tor var. Yıxılsa (xəta), tor onu tutur (except) və tamaşa davam edir. Torsuz yıxılma — tamaşanın sonu (proqram çökür). Amma tor hər şeyi gizlətməməlidir: akrobat niyə yıxıldığını bilməlidir." },
+          { t: "code", lang: "python", code: `def bol(a, b):
+    try:
+        return a / b
+    except ZeroDivisionError:
+        print("Sıfıra bölmək olmaz!")
+        return None
+
+print(bol(10, 2))    # 5.0
+print(bol(10, 0))    # Sıfıra bölmək olmaz! → None
+
+try:
+    yas = int("iyirmi")
+except ValueError as e:
+    print("Xəta:", e)   # invalid literal for int() with base 10: 'iyirmi'` },
+          { t: "terms", items: [
+            ["istisna (exception)", "icra zamanı yaranan xəta obyekti."],
+            ["try", "xəta ola biləcək kod bloku."],
+            ["except", "müəyyən növ xətanı tutan blok."],
+            ["traceback", "xətanın harada və hansı çağırış zəncirində baş verdiyini göstərən çıxış."],
+          ]},
+          { t: "list", items: [
+            "ValueError — tip düzdür, dəyər yanlışdır: int(\"abc\").",
+            "TypeError — tip yanlışdır: \"5\" + 5.",
+            "KeyError / IndexError — lüğətdə açar / siyahıda indeks yoxdur.",
+            "FileNotFoundError — fayl tapılmadı.",
+            "ZeroDivisionError — sıfıra bölmə.",
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "else, finally, raise və öz istisnan",
+        blocks: [
+          { t: "code", lang: "python", code: `def yas_oxu(metn):
+    try:
+        yas = int(metn)
+    except ValueError:
+        print("Rəqəm daxil edin")
+        return None
+    else:                       # xəta OLMADISA
+        if yas < 0:
+            raise ValueError("Yaş mənfi ola bilməz")   # özün xəta at
+        return yas
+    finally:                    # HƏMİŞƏ işləyir
+        print("yoxlama bitdi")
+
+print(yas_oxu("25"))
+print(yas_oxu("abc"))
+
+
+class BalansCatmir(Exception):
+    """Hesabda kifayət qədər vəsait yoxdur."""
+    def __init__(self, balans, mebleg):
+        super().__init__(f"Balans {balans}, tələb olunan {mebleg}")
+        self.catmayan = mebleg - balans
+
+def cixar(balans, mebleg):
+    if mebleg > balans:
+        raise BalansCatmir(balans, mebleg)
+    return balans - mebleg
+
+try:
+    cixar(50, 80)
+except BalansCatmir as e:
+    print(e, "| çatmır:", e.catmayan)` },
+          { t: "mistake", lang: "python", wrong: `try:
+    emal_et()
+except:
+    pass          # hər şeyi ud, heç nə demə`, right: `try:
+    emal_et()
+except (ValueError, KeyError) as e:
+    print("Emal alınmadı:", e)`, why: "Çılpaq except hər şeyi tutur — hətta Ctrl+C (KeyboardInterrupt) və yazı səhvlərini (NameError). pass ilə birlikdə xəta izsiz itir və bug günlərlə axtarılır." },
+          { t: "mistake", lang: "python", wrong: `if os.path.exists(yol):       # yoxla
+    f = open(yol)             # ...bu arada fayl silinə bilər`, right: `try:
+    f = open(yol, encoding="utf-8")
+except FileNotFoundError:
+    print("Fayl yoxdur")`, why: "Python yanaşması EAFP-dir: «icazə soruşmaqdansa, üzr istəmək asandır». Yoxlama ilə əməliyyat arasında vəziyyət dəyişə bilər (yarış vəziyyəti)." },
+          { t: "mistake", lang: "python", wrong: `except ValueError as e:
+    raise RuntimeError("Konfiq səhvdir")   # əsl səbəb itdi`, right: `except ValueError as e:
+    raise RuntimeError("Konfiq səhvdir") from e`, why: "raise ... from e əsl səbəbi (__cause__) saxlayır — traceback-də hər iki xəta görünür." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "İyerarxiya, kontekst, jurnal və məlumat sızması",
+        blocks: [
+          { t: "code", lang: "text", caption: "İstisna iyerarxiyası (qısa)", code: `BaseException
+ ├── KeyboardInterrupt, SystemExit      ← bunları tutma
+ └── Exception                          ← tətbiq xətaları
+      ├── ValueError, TypeError
+      ├── LookupError → KeyError, IndexError
+      ├── ArithmeticError → ZeroDivisionError
+      └── OSError → FileNotFoundError, PermissionError, TimeoutError` },
+          { t: "list", items: [
+            "except Exception ən geniş qanuni tutmadır və yalnız sərhəddə (sorğu emalçısı, işçi dövrü) yer alır: jurnala yaz, ümumi cavab ver. Daxili kodda konkret tip tut.",
+            "Xətanı həll edə bilmirsənsə, tutma — yuxarı qalxsın. Tutub jurnala yazıb yenidən atmaq üçün arqumentsiz raise işlət (traceback qorunur).",
+            "Öz iyerarxiyan: class TetbiqXetasi(Exception) → ondan törəyən konkret xətalar. Çağıran tərəf lazım olan səviyyədə tutur.",
+            "Resurs təmizliyi üçün finally əvəzinə kontekst meneceri (with) və ya contextlib.ExitStack işlət.",
+            "Python 3.11+: ExceptionGroup və except* — paralel tapşırıqlardan gələn bir neçə xətanı birlikdə emal edir; e.add_note() əlavə kontekst yazır.",
+            "assert yoxlama deyil: python -O ilə işə salınanda bütün assert-lər silinir. Giriş validasiyası və icazə yoxlaması üçün if + raise.",
+            "Təhlükəsizlik — məlumat sızması: traceback və str(e) daxili fayl yollarını, SQL mətnini, konfiqi, bəzən sirləri göstərir. İstifadəçiyə ümumi mesaj + xəta ID-si ver, təfərrüatı yalnız server jurnalına yaz. Production-da debug rejimini söndür.",
+            "Təhlükəsizlik — fail-open: xətada «icazə ver» məntiqi fəlakətdir. except: return True (icazə yoxlamasında) hər xətanı girişə çevirir. Xətada həmişə rədd et (fail-closed).",
+            "Təhlükəsizlik: jurnala parol, token, kart nömrəsi yazma — xəta mesajına düşən sorğu gövdəsini maskala. Giriş xətalarında «istifadəçi yoxdur» / «parol səhvdir» ayrımını bildirmə.",
+            "Təhlükəsizlik: geniş except hücum əlamətlərini (gözlənilməz tip, injection cəhdi) udur — monitorinq heç nə görmür. Gözlənilməz xətaları say və xəbərdarlıq qur.",
+          ]},
+          { t: "code", lang: "python", caption: "Sərhəddə: təfərrüat jurnala, istifadəçiyə ümumi mesaj", code: `import logging, uuid
+
+logging.basicConfig(level=logging.ERROR)
+log = logging.getLogger("tetbiq")
+
+def sorgu_emal_et(melumat):
+    try:
+        return {"netice": 100 / melumat["bolen"]}
+    except (KeyError, ZeroDivisionError):
+        return {"xeta": "Yanlış giriş"}            # gözlənilən — 400
+    except Exception:
+        xeta_id = uuid.uuid4().hex[:8]
+        log.exception("Gözlənilməz xəta %s", xeta_id)   # tam traceback jurnalda
+        return {"xeta": "Daxili xəta", "id": xeta_id}  # 500 — təfərrüatsız
+
+print(sorgu_emal_et({"bolen": 4}))
+print(sorgu_emal_et({"bolen": 0}))
+print(sorgu_emal_et(None))` },
+          { t: "qa", items: [
+            ["else və finally nə vaxt işləyir?", "else — try blokunda xəta olmadıqda; finally — həmişə (return və ya xəta olsa belə)."],
+            ["Niyə çılpaq except pisdir?", "KeyboardInterrupt/SystemExit daxil hər şeyi tutur, bug-ları gizlədir. Ən azı except Exception, daha yaxşısı konkret tip."],
+            ["EAFP və LBYL nədir?", "EAFP — əvvəl et, xətanı tut (Python üslubu); LBYL — əvvəl yoxla, sonra et. EAFP yarış vəziyyətindən qoruyur."],
+            ["Fail-closed nə deməkdir?", "Xəta və qeyri-müəyyənlik halında sistemin girişi rədd etməsi — təhlükəsiz default."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "int(\"abc\") hansı istisnanı verir?", options: ["TypeError", "ValueError", "KeyError"], answer: 1, why: "Tip (str) qəbul olunur, amma dəyəri ədədə çevrilmir." },
+          { t: "quiz", q: "finally bloku nə vaxt işləyir?", options: ["Yalnız xəta olanda", "Yalnız xəta olmayanda", "Həmişə"], answer: 2, why: "finally hər halda icra olunur — təmizlik üçün." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Bank hesabı funksiyaları yaz. 1) Öz istisnaların: BankXetasi(Exception) və ondan törəyən BalansCatmir, YanlisMebleg. 2) cixar(balans, mebleg): məbləğ ədəd deyilsə və ya ≤ 0-dırsa YanlisMebleg, balansdan çoxdursa BalansCatmir atsın, əks halda yeni balansı qaytarsın. 3) Üç çağırışı (uğurlu, mənfi məbləğ, çatmayan balans) try/except ilə sına — hər xəta üçün fərqli mesaj, sonda finally-də «əməliyyat bitdi» çap et.",
+      starter: `class BankXetasi(Exception):\n    pass\n\n# digər siniflər\n\ndef cixar(balans, mebleg):\n    pass\n\nfor mebleg in (30, -5, 500):\n    pass\n`,
+      expect: "İki sinif BankXetasi-dan törəyir; isinstance(mebleg, (int, float)) və mebleg <= 0 yoxlaması raise YanlisMebleg; mebleg > balans raise BalansCatmir; try/except-də konkret siniflər ayrı-ayrı tutulur (çılpaq except yox); finally var; assert validasiya üçün işlədilməyib.",
+    },
+  },
+  {
+    slug: "modullar",
+    title: "Modullar və paketlər",
+    intro: "Modul — içində Python kodu olan .py faylıdır. Kodu fayllara bölür, import ilə bir-birinə qoşursan. Paket — modulların qovluğudur. pip isə başqalarının yazdığı paketləri quraşdırır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "import",
+        blocks: [
+          { t: "analogy", text: "Modul — alət qutusudur. Bütün alətləri cibində gəzdirmirsən: lazım olanda qutunu gətirirsən (import math) və içindən aləti götürürsən (math.sqrt). Python-la birlikdə gələn qutular toplusu «standart kitabxana» adlanır — yüzlərlə hazır alət." },
+          { t: "code", lang: "python", code: `import math
+print(math.sqrt(16))            # 4.0
+print(math.pi)
+
+from random import randint, choice
+print(randint(1, 6))            # zər
+print(choice(["daş", "kağız", "qayçı"]))
+
+import datetime as dt           # ləqəb
+print(dt.date.today())
+
+from collections import Counter
+print(Counter("proqramlaşdırma").most_common(2))` },
+          { t: "terms", items: [
+            ["modul", "bir .py faylı; funksiyalar, siniflər, dəyişənlər saxlayır."],
+            ["import", "modulu yükləyib adını cari fayla gətirir."],
+            ["standart kitabxana", "Python ilə birlikdə gələn modullar: math, random, datetime, json, pathlib…"],
+            ["pip", "kənar paketləri quraşdıran alət: pip install requests."],
+          ]},
+          { t: "tip", text: "Öz faylına standart modulun adını vermə (random.py, json.py, math.py). Python əvvəl sənin faylını tapır və import random sənin faylını yükləyir — anlaşılmaz xətalar alırsan." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Öz modulun, __name__, paketlər və venv",
+        blocks: [
+          { t: "code", lang: "python", caption: "hesab.py — öz modulun", code: `"""Sadə hesablama funksiyaları."""
+
+def topla(a, b):
+    return a + b
+
+def orta(ededler):
+    return sum(ededler) / len(ededler)
+
+if __name__ == "__main__":
+    # yalnız birbaşa işə salınanda: python hesab.py
+    # import olunanda bu blok İŞLƏMİR
+    print(topla(2, 3))` },
+          { t: "code", lang: "text", caption: "Paket quruluşu", code: `layihe/
+  main.py                 ← from magaza.sebet import cem
+  magaza/
+    __init__.py           ← qovluğu paket edir (boş ola bilər)
+    sebet.py
+    odenis.py
+  requirements.txt        ← asılılıqlar: fastapi==0.115.0
+  .venv/                  ← virtual mühit (git-ə düşmür)` },
+          { t: "code", lang: "bash", caption: "Virtual mühit — hər layihəyə öz paketləri", code: `python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\\Scripts\\activate
+pip install requests
+pip freeze > requirements.txt    # versiyaları qeyd et
+pip install -r requirements.txt  # başqa kompüterdə eyni mühit` },
+          { t: "mistake", lang: "python", wrong: `from math import *
+from statistics import *
+# hansı ad haradan gəlir? eyni adlar bir-birini əzir`, right: `import math
+from statistics import mean, median`, why: "Ulduzlu import ad məkanını zibilləyir, adlar səssizcə toqquşur və kodun oxunuşu çətinləşir." },
+          { t: "mistake", lang: "python", wrong: `# hesab.py
+def topla(a, b):
+    return a + b
+
+print(topla(2, 3))   # import edən hər kəsdə çap olunur`, right: `if __name__ == "__main__":
+    print(topla(2, 3))`, why: "import modulun bütün üst səviyyə kodunu icra edir. Sınaq və işəsalma kodunu __main__ blokuna qoy." },
+          { t: "mistake", lang: "bash", wrong: `pip install requests        # qlobal Python-a`, right: `python -m venv .venv
+source .venv/bin/activate
+pip install requests`, why: "Qlobal quraşdırma layihələrin versiyalarını toqquşdurur. Virtual mühit hər layihəni təcrid edir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Import sistemi və təchizat zənciri təhlükəsizliyi",
+        blocks: [
+          { t: "list", items: [
+            "Modul bir dəfə icra olunur və sys.modules-də keşlənir; sonrakı import-lar həmin obyekti qaytarır. Ona görə modul səviyyəli dəyişən faktiki olaraq singleton-dur.",
+            "Axtarış sırası sys.path: skriptin qovluğu → PYTHONPATH → standart kitabxana → site-packages. Skript qovluğunun birinci olması «kölgələmə» (shadowing) probleminin səbəbidir.",
+            "Dairəvi import (a → b → a): yarımçıq modul görünür, AttributeError/ImportError alınır. Həll: ortaq kodu üçüncü modula çıxar və ya import-u funksiyanın içinə keçir.",
+            "Müasir layihə: pyproject.toml (metadata + asılılıqlar), src/ düzümü, kilid faylı (uv.lock, poetry.lock) — təkrarlana bilən quraşdırma. __all__ modulun açıq API-sini bildirir.",
+            "Ağır import-u gecikdir (funksiya daxilində) — işəsalma vaxtını azaldır; importlib.import_module dinamik yükləmə üçündür.",
+            "Təhlükəsizlik — təchizat zənciri (supply chain): pip install paketin quraşdırma kodunu SƏNİN hüquqlarınla icra edir. Typosquatting (requets, python-dateutil əvəzinə dateutil-python) real hücumdur. Adı dəqiq yoxla, populyarlığa və mənbəyə bax.",
+            "Təhlükəsizlik: versiyaları sancaqla (==) və heşlərlə quraşdır (pip install --require-hashes); pip-audit / Dependabot ilə məlum boşluqları izlə; istifadə etmədiyin asılılığı sil.",
+            "Təhlükəsizlik — dependency confusion: daxili paketin adı açıq PyPI-da da qeydiyyata alına bilər və pip onu seçər. Daxili indeks üçün --index-url işlət (--extra-index-url yox), adları rezerv et.",
+            "Təhlükəsizlik — dinamik import: importlib.import_module(istifadeci_girisi) və ya __import__ istifadəçi mətninə görə ixtiyari modul yükləyir → kod icrası. Yalnız ağ siyahıdan seç.",
+            "Təhlükəsizlik: sys.path-ə yazıla bilən qovluq (məs. /tmp, yükləmə qovluğu) əlavə etmə — ora atılan os.py sənin kodunun yerinə işləyər. Sirləri modulda sabit kimi saxlama — mühit dəyişənindən oxu.",
+          ]},
+          { t: "code", lang: "python", caption: "Dinamik yükləmə — yalnız ağ siyahıdan", code: `import importlib
+
+ICAZELI = {"json": "json", "csv": "csv"}
+
+def formatlayici_al(ad: str):
+    if ad not in ICAZELI:
+        raise ValueError("Naməlum format")
+    return importlib.import_module(ICAZELI[ad])
+
+print(formatlayici_al("json").dumps({"ok": True}))
+try:
+    formatlayici_al("os")
+except ValueError as e:
+    print("Rədd edildi:", e)` },
+          { t: "qa", items: [
+            ["if __name__ == \"__main__\" nə edir?", "Fayl birbaşa işə salınanda __name__ \"__main__\" olur; import olunanda modulun adı. Blok yalnız birbaşa işəsalmada icra olunur."],
+            ["Virtual mühit niyə lazımdır?", "Hər layihənin asılılıqlarını təcrid edir — versiya toqquşması olmur, mühit təkrarlana bilir."],
+            ["Typosquatting nədir?", "Populyar paketin adına oxşar adla zərərli paket yayımlamaq; yazı səhvi edən istifadəçi onu quraşdırır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "from math import sqrt-dan sonra necə çağırılır?", options: ["math.sqrt(9)", "sqrt(9)", "import.sqrt(9)"], answer: 1, why: "from ... import adı birbaşa cari fayla gətirir." },
+          { t: "quiz", q: "Layihənin paketlərini təcrid etmək üçün nə işlədilir?", options: ["Virtual mühit (venv)", "Qlobal pip", "__init__.py"], answer: 0, why: "venv hər layihəyə ayrı paket qovluğu verir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Standart kitabxana ilə kiçik alət yaz (bir fayl, amma modul kimi). Funksiyalar: 1) zer_at(n) — random ilə n zər atıb nəticələrin siyahısını qaytarsın; 2) statistika(ededler) — statistics modulundan mean və median ilə lüğət qaytarsın; 3) en_cox(ededler) — collections.Counter ilə ən çox düşən ədədi qaytarsın. Sınaq kodu yalnız fayl birbaşa işə salınanda işləsin: 20 zər at, statistikanı və ən çox düşəni çap et. Ulduzlu import işlətmə.",
+      starter: `import random\n\ndef zer_at(n):\n    pass\n\n# digər funksiyalar\n\nif __name__ == "__main__":\n    pass\n`,
+      expect: "random.randint(1, 6) n dəfə (comprehension); from statistics import mean, median (və ya import statistics); Counter(...).most_common(1)[0][0]; sınaq kodu if __name__ == \"__main__\": blokunda; from x import * yoxdur; funksiyalar return edir (print yox).",
+    },
+  },
+  {
+    slug: "oop",
+    title: "Siniflər və OOP",
+    intro: "Sinif (class) — məlumatı (atributlar) və onunla işləyən funksiyaları (metodlar) bir yerdə saxlayan qəlibdir. Obyekt — həmin qəlibdən yaradılan konkret nümunədir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "class, __init__, self",
+        blocks: [
+          { t: "analogy", text: "Sinif — peçenye qəlibidir, obyekt — peçenyenin özü. Bir qəliblə yüzlərlə peçenye bişirirsən: forması eynidir (metodlar), amma hərəsinin üstündəki bəzək fərqlidir (atributların dəyəri)." },
+          { t: "code", lang: "python", code: `class Telebe:
+    def __init__(self, ad, bal):      # obyekt yaradılanda işləyir
+        self.ad = ad                  # atribut
+        self.bal = bal
+
+    def kecdi(self):                  # metod
+        return self.bal >= 51
+
+    def tanit(self):
+        netice = "keçdi" if self.kecdi() else "kəsildi"
+        return f"{self.ad}: {self.bal} bal — {netice}"
+
+aysel = Telebe("Aysel", 92)           # obyekt (nümunə)
+murad = Telebe("Murad", 40)
+
+print(aysel.ad)                       # Aysel
+print(aysel.tanit())                  # Aysel: 92 bal — keçdi
+print(murad.tanit())                  # Murad: 40 bal — kəsildi` },
+          { t: "terms", items: [
+            ["sinif (class)", "obyekt yaratmaq üçün qəlib."],
+            ["obyekt / nümunə (instance)", "sinifdən yaradılmış konkret dəyər."],
+            ["__init__", "konstruktor — yeni obyektin atributlarını qurur."],
+            ["self", "metodun çağırıldığı obyektin özü; hər metodun ilk parametri."],
+            ["atribut / metod", "obyektin məlumatı / obyektin funksiyası."],
+          ]},
+          { t: "tip", text: "Sinif adları BöyükHərflə (CamelCase), metod və atributlar kiçik_hərflə (snake_case) yazılır." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "İrsiyyət, property, xüsusi metodlar, dataclass",
+        blocks: [
+          { t: "code", lang: "python", code: `class Hesab:
+    faiz = 0.05                           # sinif atributu — hamı üçün ortaq
+
+    def __init__(self, sahib, balans=0):
+        self.sahib = sahib
+        self._balans = balans             # _ : «daxilidir, toxunma» razılaşması
+
+    @property
+    def balans(self):                     # hesab.balans — mötərizəsiz oxunur
+        return self._balans
+
+    def yatir(self, mebleg):
+        if mebleg <= 0:
+            raise ValueError("Məbləğ müsbət olmalıdır")
+        self._balans += mebleg
+
+    def __repr__(self):                   # print və debug üçün
+        return f"Hesab({self.sahib!r}, balans={self._balans})"
+
+
+class EmanetHesabi(Hesab):                # irsiyyət
+    def __init__(self, sahib, balans=0, muddet=12):
+        super().__init__(sahib, balans)   # valideynin konstruktoru
+        self.muddet = muddet
+
+    def gelir(self):
+        return self._balans * self.faiz * self.muddet / 12
+
+
+h = EmanetHesabi("Aysel", 1000, muddet=6)
+h.yatir(500)
+print(h)                                  # Hesab('Aysel', balans=1500)
+print(h.balans, h.gelir())                # 1500 37.5
+print(isinstance(h, Hesab))               # True` },
+          { t: "code", lang: "python", caption: "dataclass — məlumat sinifləri üçün qısa yol", code: `from dataclasses import dataclass, field
+
+@dataclass
+class Mehsul:
+    ad: str
+    qiymet: float
+    etiketler: list[str] = field(default_factory=list)
+
+    def endirimli(self, faiz: float) -> float:
+        return round(self.qiymet * (1 - faiz / 100), 2)
+
+m = Mehsul("Klaviatura", 89.9)
+print(m)                                   # __repr__ hazırdır
+print(m == Mehsul("Klaviatura", 89.9))     # True — __eq__ hazırdır
+print(m.endirimli(10))` },
+          { t: "mistake", lang: "python", wrong: `class Sebet:
+    mehsullar = []            # sinif atributu — BÜTÜN səbətlər paylaşır
+
+    def elave_et(self, m):
+        self.mehsullar.append(m)`, right: `class Sebet:
+    def __init__(self):
+        self.mehsullar = []   # hər obyektin öz siyahısı`, why: "Sinif səviyyəsində dəyişən obyekt (list, dict) bütün nümunələr arasında ortaqdır: bir səbətə əlavə etdiyin məhsul hamısında görünür." },
+          { t: "mistake", lang: "python", wrong: `class Telebe:
+    def tanit():              # self unudulub
+        return "Salam"
+
+Telebe().tanit()  # TypeError: takes 0 positional arguments but 1 was given`, right: `class Telebe:
+    def tanit(self):
+        return "Salam"`, why: "Python obyekti metodun birinci arqumenti kimi avtomatik ötürür. Metodun ilk parametri həmişə self olmalıdır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Kompozisiya, protokollar, obyekt modeli və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "İrsiyyətdən çox kompozisiya: «Maşın mühərrikdir» yox, «Maşının mühərriki var». Dərin irsiyyət zənciri kövrəkdir; obyekti başqa obyektlərdən yığ.",
+            "Duck typing və Protocol: Python-da «interfeys» davranışdır — metodu varsa, uyğundur. typing.Protocol bunu tip yoxlayıcıya bildirir; abc.ABC + @abstractmethod isə məcburi edir.",
+            "Çoxlu irsiyyətdə metod axtarışı MRO (C3 linearizasiya) ilə gedir; super() valideyni yox, MRO-dakı növbəti sinfi çağırır. Sinif.__mro__ ilə bax.",
+            "Xüsusi (dunder) metodlar obyekti dilə inteqrasiya edir: __eq__ + __hash__, __lt__, __len__, __iter__, __enter__/__exit__, __call__. __eq__ yazıb __hash__ yazmasan, obyekt set/dict açarı ola bilmir.",
+            "__slots__ atributları sabitləyir: __dict__ yaranmır, milyonlarla obyektdə yaddaş xeyli azalır. @dataclass(frozen=True, slots=True) — dəyişməz, yüngül dəyər obyekti.",
+            "@classmethod alternativ konstruktor üçündür (Tarix.setirden(\"2026-01-05\")); @staticmethod sinfə məntiqi bağlı, amma self-siz funksiyadır.",
+            "Təhlükəsizlik — «gizli» atribut yoxdur: _ad yalnız razılaşmadır, __ad isə sadəcə adı dəyişir (_Sinif__ad) — hər ikisi oxuna bilir. İnkapsulyasiya təhlükəsizlik sərhədi DEYİL: sirri obyektdə «gizlətmək» onu qorumur.",
+            "Təhlükəsizlik — mass assignment: for k, v in sorgu.items(): setattr(istifadeci, k, v) hücumçuya is_admin=True yazmağa imkan verir. Yalnız ağ siyahıdakı sahələri mənimsət (və ya Pydantic modeli ilə qəbul et).",
+            "Təhlükəsizlik — __repr__/jurnal: avtomatik repr (dataclass) bütün sahələri çap edir — parol və token jurnala düşür. Həssas sahəyə field(repr=False) ver.",
+            "Təhlükəsizlik: getattr(obyekt, istifadeci_girisi)() ilə metodu adla çağırmaq istənilən metodu (sil, __class__, daxili köməkçilər) açır. İcazəli əməliyyatların lüğətini saxla. pickle ilə obyekt yükləmə kod icrasıdır.",
+            "Təhlükəsizlik: invariantları konstruktorda və setter-də yoxla (mənfi balans, boş ad) — obyekt heç vaxt yanlış vəziyyətdə olmasın; validasiyanı kənardan gözləmə.",
+          ]},
+          { t: "code", lang: "python", caption: "Təhlükəsiz yeniləmə və həssas sahə", code: `from dataclasses import dataclass, field
+
+@dataclass
+class Istifadeci:
+    ad: str
+    email: str
+    sifre_hesi: str = field(repr=False)     # jurnala düşmür
+    is_admin: bool = False
+
+    DEYISE_BILEN = frozenset({"ad", "email"})
+
+    def yenile(self, **deyisiklik):
+        for acar, deyer in deyisiklik.items():
+            if acar not in self.DEYISE_BILEN:
+                raise PermissionError(f"{acar} dəyişdirilə bilməz")
+            setattr(self, acar, deyer)
+
+u = Istifadeci("Aysel", "a@kod.az", "$argon2id$...")
+u.yenile(ad="Aysel M.")
+print(u)                                    # sifre_hesi görünmür
+try:
+    u.yenile(is_admin=True)
+except PermissionError as e:
+    print("Rədd edildi:", e)` },
+          { t: "qa", items: [
+            ["Sinif atributu ilə nümunə atributunun fərqi?", "Sinif atributu bütün obyektlər üçün ortaqdır; nümunə atributu (self.x) hər obyektin özündədir."],
+            ["İrsiyyət yoxsa kompozisiya?", "«-dır» (is-a) münasibəti real və sabitdirsə irsiyyət; əks halda kompozisiya — daha çevik və test üçün asandır."],
+            ["__repr__ və __str__ fərqi?", "__repr__ — proqramçı üçün birmənalı təsvir; __str__ — istifadəçi üçün oxunaqlı mətn. __str__ yoxdursa, __repr__ işlənir."],
+            ["Mass assignment nədir?", "Sorğudan gələn bütün sahələrin obyektə kor-koranə yazılması; hücumçu icazəsiz sahəni (rol) dəyişir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "self nədir?", options: ["Sinfin adı", "Metodun çağırıldığı obyekt", "Açar söz"], answer: 1, why: "self cari nümunəyə istinad edir." },
+          { t: "quiz", q: "Valideyn sinfin __init__-ini çağırmaq üçün?", options: ["parent.__init__()", "super().__init__(...)", "self.init()"], answer: 1, why: "super() valideyn (MRO-da növbəti) sinfə çıxış verir." },
+          { t: "quiz", q: "class A: siyahi = [] — iki obyekt yaradıb birinə append etdin. İkincidə?", options: ["Boşdur", "Eyni element görünür", "Xəta verir"], answer: 1, why: "Sinif atributu olan siyahı ortaqdır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Kitabxana modeli yaz. Kitab sinfi (dataclass ola bilər): ad, muellif, movcud=True. Kitabxana sinfi: kitablar siyahısı (hər obyektin öz siyahısı!), elave_et(kitab), icareye_ver(ad) — kitab yoxdursa və ya artıq icarədədirsə ValueError; qaytar(ad); movcud_kitablar property-si — mövcud kitabların adları. __len__ kitab sayını qaytarsın. Sonda 3 kitab əlavə et, birini icarəyə ver, mövcudları və len-i çap et, eyni kitabı yenidən icarəyə verməyə çalışıb xətanı tut.",
+      starter: `from dataclasses import dataclass\n\n@dataclass\nclass Kitab:\n    pass\n\nclass Kitabxana:\n    pass\n`,
+      expect: "Kitabxana.__init__-də self.kitablar = [] (sinif atributu yox); icareye_ver tapılmayanda və movcud False olanda raise ValueError; qaytar movcud-u True edir; @property movcud_kitablar comprehension ilə; __len__ var; sınaqda try/except ValueError; self bütün metodlarda var.",
+    },
+  },
 ];

@@ -8,8 +8,9 @@ import { csharp } from "./csharp";
 import { typescript } from "./typescript";
 import { react } from "./react";
 import { tailwind } from "./tailwind";
+import { nextjs } from "./nextjs";
 
-const ALL: Record<string, Lesson[]> = { javascript, html, python, css, sql, csharp, typescript, react, tailwind };
+const ALL: Record<string, Lesson[]> = { javascript, html, python, css, sql, csharp, typescript, react, tailwind, nextjs };
 
 export const getLesson = (lang: string, slug: string) =>
   ALL[lang]?.find((l) => l.slug === slug);

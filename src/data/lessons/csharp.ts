@@ -875,4 +875,685 @@ public sealed class SifarisXidmeti(IBildiris bildiris)
       expect: "abstract class + abstract decimal Maas(); törəmələrdə override və base(ad) konstruktor; decimal tip; foreach ilə polimorf çağırış; cəm Sum(i => i.Maas()) və ya dövr; new ilə gizlətmə yoxdur.",
     },
   },
+  {
+    slug: "interface",
+    title: "Interface və abstrakt siniflər",
+    intro: "Interface — müqavilədir: sinfin NƏ edə bilməli olduğunu deyir, NECƏ edəcəyini yox. Abstrakt sinif isə yarımçıq qəlibdir: ortaq kodu verir, qalanını törəmələrə həvalə edir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Müqavilə",
+        blocks: [
+          { t: "analogy", text: "Rozetka — interfeysdir. Ona ütü, telefon adapteri, soyuducu qoşa bilərsən: rozetkaya cihazın içi maraqlı deyil, təki ştepseli standarta uyğun olsun. Kodda da belədir: IOdenis interfeysini kart da, nağd da, kripto da həyata keçirə bilər — səbət üçün fərqi yoxdur." },
+          { t: "code", lang: "csharp", code: `public interface IOdenis
+{
+    bool Ode(decimal mebleg);        // yalnız imza — gövdə yoxdur
+}
+
+public class KartOdenisi : IOdenis
+{
+    public bool Ode(decimal mebleg)
+    {
+        Console.WriteLine($"Kartdan {mebleg} AZN çıxıldı");
+        return true;
+    }
+}
+
+public class NagdOdenis : IOdenis
+{
+    public bool Ode(decimal mebleg)
+    {
+        Console.WriteLine($"Nağd {mebleg} AZN alındı");
+        return true;
+    }
+}
+
+// İstifadə: səbət konkret sinfi tanımır
+IOdenis odenis = new KartOdenisi();
+odenis.Ode(49.90m);
+
+var usullar = new List<IOdenis> { new KartOdenisi(), new NagdOdenis() };
+foreach (var u in usullar) u.Ode(10m);` },
+          { t: "terms", items: [
+            ["interface", "üzvlərin imzalarından ibarət müqavilə; adı I ilə başlayır (IOdenis)."],
+            ["həyata keçirmək (implement)", "sinfin interfeysdəki bütün üzvlərə gövdə yazması."],
+            ["abstrakt sinif", "obyekti yaradıla bilməyən, törəmələr üçün əsas olan sinif."],
+            ["polimorfizm", "eyni çağırışın (u.Ode) fərqli siniflərdə fərqli işləməsi."],
+          ]},
+          { t: "tip", text: "Sinif yalnız BİR sinifdən törəyə bilər, amma İSTƏNİLƏN sayda interfeysi həyata keçirə bilər: class Fayl : Sened, IDisposable, IComparable<Fayl>." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Interface yoxsa abstrakt sinif?",
+        blocks: [
+          { t: "code", lang: "csharp", code: `// Abstrakt sinif: ortaq vəziyyət və kod + məcburi hissə
+public abstract class Bildiris
+{
+    public DateTime Yaradilib { get; } = DateTime.UtcNow;   // ortaq vəziyyət
+
+    public void Gonder(string metn)                          // ortaq alqoritm
+    {
+        if (string.IsNullOrWhiteSpace(metn))
+            throw new ArgumentException("Mətn boş ola bilməz");
+        Catdir(metn.Trim());
+    }
+
+    protected abstract void Catdir(string metn);             // törəmə yazmalıdır
+}
+
+public class EmailBildirisi : Bildiris
+{
+    protected override void Catdir(string metn) => Console.WriteLine($"Email: {metn}");
+}
+
+// Interface: bir-biri ilə əlaqəsi olmayan siniflərə ortaq bacarıq
+public interface IIxracOlunan
+{
+    string CsvKimi();
+}
+
+public class Telebe : IIxracOlunan, IComparable<Telebe>
+{
+    public string Ad { get; init; } = "";
+    public int Bal { get; init; }
+
+    public string CsvKimi() => $"{Ad};{Bal}";
+    public int CompareTo(Telebe? diger) => Bal.CompareTo(diger?.Bal ?? 0);
+}` },
+          { t: "code", lang: "text", caption: "Seçim cədvəli", code: `                       interface                 abstrakt sinif
+Vəziyyət (sahə)        yox                       var
+Konstruktor            yox                       var
+Çoxlu irsiyyət         bəli (çox interfeys)      xeyr (bir əsas sinif)
+Münasibət              «bacarır» (can-do)        «-dır» (is-a)
+Nə vaxt                əlaqəsiz siniflərə        yaxın qohum siniflərə
+                       ortaq müqavilə            ortaq kod + vəziyyət` },
+          { t: "mistake", lang: "csharp", wrong: `public class SifarisXidmeti
+{
+    private readonly SqlSifarisAnbari _anbar = new SqlSifarisAnbari();
+    // konkret sinfə bağlıdır: test üçün əsl baza lazımdır
+}`, right: `public class SifarisXidmeti
+{
+    private readonly ISifarisAnbari _anbar;
+    public SifarisXidmeti(ISifarisAnbari anbar) => _anbar = anbar;
+    // testdə saxta (fake) anbar verilir
+}`, why: "Konkret sinfə birbaşa bağlılıq kodu dəyişməyə və test etməyə qapayır. Interfeysdən asılı ol, konkret obyekti kənardan al (dependency injection)." },
+          { t: "mistake", lang: "csharp", wrong: `public interface IHeyvan
+{
+    void Uc();
+    void Uz();
+    void Qac();
+}
+public class Baliq : IHeyvan
+{
+    public void Uc() => throw new NotSupportedException();  // məcburi yalan
+    public void Uz() { }
+    public void Qac() => throw new NotSupportedException();
+}`, right: `public interface IUcan { void Uc(); }
+public interface IUzen { void Uz(); }
+
+public class Baliq : IUzen { public void Uz() { } }
+public class Ordek : IUcan, IUzen { public void Uc() { } public void Uz() { } }`, why: "«Kök» interfeys sinifləri lazımsız metodlar yazmağa məcbur edir. Kiçik, bir işə fokuslanmış interfeyslər yaz (Interface Segregation)." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Default metodlar, explicit implementation və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Default interface metodları (C# 8+): interfeysə gövdəli metod əlavə etmək olur — mövcud implementasiyaları sındırmadan müqaviləni genişləndirmək üçün. Vəziyyət yenə olmur.",
+            "Explicit implementation: void IDisposable.Dispose() — üzv yalnız interfeys tipi üzərindən görünür. İki interfeysdə eyni adlı metod olanda və ya API-ni təmiz saxlamaq üçün.",
+            "static abstract interfeys üzvləri (C# 11): generic riyaziyyat (INumber<T>) və T.Parse(...) kimi statik müqavilələr.",
+            "Vacib hazır interfeyslər: IEnumerable<T> (foreach), IDisposable / IAsyncDisposable (using), IComparable<T>, IEquatable<T>, IReadOnlyList<T> (yalnız oxuma görünüşü).",
+            "Interfeys çağırışı virtual dispatch-dir; isti dövrdə sealed sinif və ya generic constraint (where T : IOdenis) JIT-ə devirtualizasiya imkanı verir. Struct-ı interfeys tipinə mənimsətmək boxing-dir.",
+            "Abstrakt sinif + Template Method nümunəsi alqoritmin skeletini sabitləyir, addımları törəmələrə buraxır. Dərin irsiyyət əvəzinə interfeys + kompozisiya üstün tutulur.",
+            "Təhlükəsizlik — interfeys icazə sərhədi deyil: IReadOnlyList<T> qaytarmaq siyahını qorumur — çağıran onu List<T>-ə cast edib dəyişə bilər. Həqiqi qoruma üçün surət (ToArray), ImmutableArray və ya AsReadOnly().",
+            "Təhlükəsizlik — etibarsız implementasiya: plugin və ya kənar kitabxananın verdiyi IOdenis istənilən şey edə bilər (istisna atmaq, yalan true qaytarmaq, məlumatı kənara göndərmək). Kritik qərarı (ödəniş təsdiqi, icazə) kənar implementasiyanın sözünə həvalə etmə — nəticəni öz tərəfində yoxla.",
+            "Təhlükəsizlik — icazə yoxlamasını müqaviləyə qoyma, mərkəzə qoy: hər implementasiyanın «özü yoxlayacağına» güvənsən, biri unudacaq. Yoxlamanı abstrakt əsas sinifdəki sealed/qeyri-virtual metodda və ya dekoratorda et.",
+            "Təhlükəsizlik — virtual metodlar hücum səthidir: törəmə sinif təhlükəsizlik yoxlamasını override edib söndürə bilər. Kritik sinifləri sealed et, kritik metodları virtual etmə.",
+            "Təhlükəsizlik: tip adına görə dinamik yükləmə (Activator.CreateInstance(Type.GetType(istifadeci_girisi))) ixtiyari sinfin yaradılmasıdır. Yalnız ağ siyahıdakı tipləri qeydiyyatdan seç.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Yoxlama əsas sinifdə — törəmə onu ötürə bilmir", code: `public abstract class QorunanEmeliyyat
+{
+    // qeyri-virtual: override oluna bilməz
+    public void Icra(Istifadeci istifadeci)
+    {
+        if (!istifadeci.Rollar.Contains(TelebOlunanRol))
+            throw new UnauthorizedAccessException("İcazə yoxdur");
+
+        IcraEt(istifadeci);
+    }
+
+    protected abstract string TelebOlunanRol { get; }
+    protected abstract void IcraEt(Istifadeci istifadeci);
+}
+
+public sealed class HesabatSilme : QorunanEmeliyyat
+{
+    protected override string TelebOlunanRol => "admin";
+    protected override void IcraEt(Istifadeci istifadeci) => Console.WriteLine("Silindi");
+}` },
+          { t: "qa", items: [
+            ["Interface ilə abstrakt sinif fərqi?", "Interface — vəziyyətsiz müqavilə, çoxlu irsiyyət mümkündür; abstrakt sinif — vəziyyət, konstruktor və ortaq kod saxlaya bilir, amma yalnız bir əsas sinif olur."],
+            ["Niyə interfeysdən asılı olmaq yaxşıdır?", "Bağlılığı azaldır: implementasiyanı dəyişmək və testdə saxta obyekt vermək asanlaşır (Dependency Inversion)."],
+            ["Explicit interface implementation nədir?", "Üzvün yalnız interfeys tipi üzərindən çağırıla bilməsi; ad toqquşmasını həll edir və sinfin açıq API-sini təmiz saxlayır."],
+            ["IReadOnlyList<T> məlumatı qoruyurmu?", "Xeyr, yalnız görünüşdür — əsl obyektə cast etmək olar. Dəyişməzlik üçün immutable kolleksiya və ya surət lazımdır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Bir sinif neçə interfeysi həyata keçirə bilər?", options: ["Yalnız bir", "İstənilən sayda", "Ən çox iki"], answer: 1, why: "Sinif irsiyyəti təkdir, interfeys sayı məhdud deyil." },
+          { t: "quiz", q: "Ortaq sahə və konstruktor lazımdırsa, nə seçilir?", options: ["interface", "abstrakt sinif", "static sinif"], answer: 1, why: "Interfeysdə vəziyyət və konstruktor olmur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Fiqur sistemi yaz. IFiqur interfeysi: double Sahe(), double Perimetr(). IRenglenen interfeysi: string Reng { get; set; }. Sinflər: Duzbucaqli (hər iki interfeys), Daire (yalnız IFiqur). List<IFiqur>-də hamısının sahəsini çap et; yalnız IRenglenen olanların rəngini «is» pattern matching ilə çap et. Mənfi ölçü verilsə, konstruktor ArgumentOutOfRangeException atsın.",
+      starter: `public interface IFiqur\n{\n    // bura\n}\n\n// IRenglenen, Duzbucaqli, Daire\n\n// List<IFiqur> və dövr\n`,
+      expect: "İki interfeys (I prefiksi), Duzbucaqli : IFiqur, IRenglenen; Daire : IFiqur; Math.PI işlədilib; konstruktorda ölçü <= 0 yoxlaması və ArgumentOutOfRangeException; foreach ilə polimorf Sahe(); if (f is IRenglenen r) ilə rəng; kök interfeys (hər şey bir yerdə) yoxdur.",
+    },
+  },
+  {
+    slug: "xetalar",
+    title: "İstisnalar (exceptions)",
+    intro: "İstisna — proqramın normal axınını pozan xətadır: fayl tapılmadı, sıfıra bölmə, null obyekt. C#-da onlar try/catch ilə tutulur, throw ilə atılır, finally və using ilə resurslar təmizlənir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "try, catch, finally",
+        blocks: [
+          { t: "analogy", text: "Maşında təhlükəsizlik yastığı var. Normal sürüşdə o görünmür (try). Qəza olanda açılır və səni qoruyur (catch). Qəza olsa da, olmasa da, sonda mühərriki söndürürsən (finally). Yastıq qəzanın qarşısını almır — nəticəsini idarə edir." },
+          { t: "code", lang: "csharp", code: `try
+{
+    Console.Write("Ədəd daxil edin: ");
+    int eded = int.Parse(Console.ReadLine()!);
+    Console.WriteLine(100 / eded);
+}
+catch (FormatException)
+{
+    Console.WriteLine("Bu ədəd deyil!");
+}
+catch (DivideByZeroException)
+{
+    Console.WriteLine("Sıfıra bölmək olmaz!");
+}
+finally
+{
+    Console.WriteLine("Hesablama bitdi");   // həmişə işləyir
+}
+
+// Çox vaxt istisna əvəzinə TryParse daha yaxşıdır:
+if (int.TryParse("12a", out int netice))
+    Console.WriteLine(netice);
+else
+    Console.WriteLine("Çevrilmədi");` },
+          { t: "terms", items: [
+            ["exception", "xəta haqqında məlumat daşıyan obyekt (Message, StackTrace)."],
+            ["try", "xəta ola biləcək kod."],
+            ["catch", "müəyyən tip istisnanı tutan blok."],
+            ["finally", "xəta olsa da, olmasa da icra olunan blok."],
+            ["throw", "istisna atmaq."],
+          ]},
+          { t: "list", items: [
+            "NullReferenceException — null obyektin üzvünə müraciət.",
+            "ArgumentException / ArgumentNullException — metodun arqumenti yanlışdır.",
+            "InvalidOperationException — obyekt bu əməliyyat üçün uyğun vəziyyətdə deyil.",
+            "KeyNotFoundException, IndexOutOfRangeException — açar/indeks yoxdur.",
+            "FileNotFoundException, IOException — fayl əməliyyatları.",
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "throw, öz istisnan, using, filtr",
+        blocks: [
+          { t: "code", lang: "csharp", code: `public class BalansCatmirException : Exception
+{
+    public decimal Catmayan { get; }
+
+    public BalansCatmirException(decimal balans, decimal mebleg)
+        : base($"Balans {balans}, tələb olunan {mebleg}")
+    {
+        Catmayan = mebleg - balans;
+    }
+}
+
+public class Hesab
+{
+    public decimal Balans { get; private set; }
+
+    public void Cixar(decimal mebleg)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(mebleg);   // .NET 8+
+        if (mebleg > Balans)
+            throw new BalansCatmirException(Balans, mebleg);
+        Balans -= mebleg;
+    }
+}
+
+// using: blok bitəndə Dispose() avtomatik çağırılır (xəta olsa belə)
+using (var oxuyucu = new StreamReader("qeydler.txt"))
+{
+    Console.WriteLine(oxuyucu.ReadLine());
+}
+using var fayl = new StreamWriter("log.txt");   // qısa forma: metodun sonunda bağlanır
+
+// İstisna filtri
+try
+{
+    await client.GetStringAsync(url);
+}
+catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+{
+    Console.WriteLine("Səhifə tapılmadı");
+}` },
+          { t: "mistake", lang: "csharp", wrong: `try
+{
+    EmalEt();
+}
+catch (Exception)
+{
+    // heç nə — xəta izsiz itdi
+}`, right: `try
+{
+    EmalEt();
+}
+catch (IOException ex)
+{
+    _logger.LogError(ex, "Fayl emalı alınmadı");
+    throw;
+}`, why: "Boş catch xətanı gizlədir: proqram yanlış vəziyyətdə davam edir, bug-ın izi qalmır. Ya konkret tipi tut və mənalı reaksiya ver, ya da heç tutma." },
+          { t: "mistake", lang: "csharp", wrong: `catch (Exception ex)
+{
+    throw ex;   // stack trace sıfırlanır — xətanın əsl yeri itir
+}`, right: `catch (Exception ex)
+{
+    _logger.LogError(ex, "Xəta");
+    throw;      // orijinal stack trace qorunur
+}`, why: "throw ex; istisnanı yenidən «bu sətirdən» atır. Arqumentsiz throw; əsl çağırış zəncirini saxlayır. Yeni istisnaya büküləndə köhnəni innerException kimi ötür." },
+          { t: "mistake", lang: "csharp", wrong: `try
+{
+    yas = int.Parse(giris);      // səhv giriş — adi haldır
+}
+catch (FormatException) { yas = 0; }`, right: `if (!int.TryParse(giris, out int yas))
+    yas = 0;`, why: "İstisna bahalıdır (stack trace yığılır) və «istisnai» hallar üçündür. Gözlənilən vəziyyəti (səhv istifadəçi girişi) Try… metodları və şərtlə idarə et." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "İstisna strategiyası və məlumat sızması",
+        blocks: [
+          { t: "list", items: [
+            "Qayda: «at erkən, tut gec». Yanlış arqumenti metodun girişində rədd et (guard clause); istisnanı yalnız mənalı reaksiya verə biləcəyin səviyyədə tut — adətən tətbiqin sərhədində (middleware, işçi dövrü).",
+            "Tutulmalı olmayanlar: NullReferenceException, IndexOutOfRangeException — bunlar bug-dır, düzəldilməlidir. OutOfMemoryException/StackOverflowException-dan bərpa mümkün deyil.",
+            "Öz istisna iyerarxiyan: domen xətaları üçün əsas sinif (DomenException) və törəmələr. Hər yerdə Exception atma — çağıran nəyi tutacağını bilməlidir.",
+            "Gözlənilən uğursuzluqlar üçün alternativ: Result<T> nümunəsi və ya Try… metodu — axın açıq olur, istisna qiyməti ödənilmir.",
+            "async kodda: istisna Task-ın içində saxlanır və await zamanı atılır. await olunmayan Task-ın xətası itir; Task.WhenAll bir neçə xətanı AggregateException-da toplayır; async void-də tutulmayan istisna prosesi çökdürür.",
+            "finally və using təmizliyi istisna yolunda da işləyir; IAsyncDisposable üçün await using. finally-dən return etmə və orada istisna atma — orijinal xətanı əzir.",
+            "Performans: istisna atmaq adi return-dən yüz dəfələrlə bahalıdır. İsti yolda (hot path) axın idarəsi üçün işlətmə.",
+            "Təhlükəsizlik — məlumat sızması: ex.Message və ex.ToString() fayl yollarını, SQL mətnini, bağlantı sətrini, daxili sinif adlarını göstərir. İstifadəçiyə ümumi mesaj + korrelyasiya ID-si ver; təfərrüat yalnız jurnalda. ASP.NET-də production-da developer exception page söndürülməlidir, ProblemDetails qaytarılmalıdır.",
+            "Təhlükəsizlik — fail-closed: icazə yoxlamasında catch { return true; } hər xətanı girişə çevirir. Xətada həmişə rədd et. Təhlükəsizlik yoxlamasını try-ın içində «udulan» yerə qoyma.",
+            "Təhlükəsizlik — jurnal: istisna obyektinə və jurnala parol, token, kart nömrəsi düşməsin (sorğu gövdəsini bütöv loglama). İstifadəçi girişini jurnala yazanda sətir sonlarını təmizlə (log injection).",
+            "Təhlükəsizlik — DoS: hücumçu qəsdən istisna yolunu işə salan sorğular göndərərək CPU-nu yeyə bilər (bahalı stack trace, sinxron jurnal). Girişi erkən və ucuz yoxla, sorğu limiti qoy.",
+            "Təhlükəsizlik: giriş xətasında «istifadəçi yoxdur» və «parol səhvdir» üçün fərqli istisna mesajı vermə — hesab siyahıyaalmasına imkan yaradır.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Sərhəddə: təfərrüat jurnala, müştəriyə ümumi cavab", code: `app.UseExceptionHandler(xetaTetbiqi => xetaTetbiqi.Run(async context =>
+{
+    var xeta = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+    var id = Activity.Current?.Id ?? context.TraceIdentifier;
+
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    logger.LogError(xeta, "Gözlənilməz xəta {XetaId}", id);   // tam təfərrüat — yalnız jurnalda
+
+    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    await context.Response.WriteAsJsonAsync(new
+    {
+        title = "Daxili xəta baş verdi",
+        xetaId = id                                             // dəstək üçün
+    });
+}));` },
+          { t: "qa", items: [
+            ["throw ilə throw ex fərqi?", "throw; orijinal stack trace-i saxlayır; throw ex; onu cari sətirdən yenidən başladır — xətanın mənbəyi itir."],
+            ["finally nə vaxt işləyir?", "try bloku necə bitsə də (normal, return, istisna) — resurs təmizliyi üçün. using eyni işi IDisposable üçün avtomatik edir."],
+            ["İstisna nə vaxt işlədilməməlidir?", "Gözlənilən, tez-tez baş verən hallar üçün (səhv giriş, tapılmayan element) — TryParse, TryGetValue və ya Result tipi daha uyğundur."],
+            ["İstisna filtri (when) nə verir?", "Şərt ödənmirsə, catch işləmir və stack açılmır — eyni tip istisnanı vəziyyətə görə ayırmağa imkan verir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "int.Parse(\"abc\") hansı istisnanı atır?", options: ["NullReferenceException", "FormatException", "DivideByZeroException"], answer: 1, why: "Sətrin formatı ədədə uyğun deyil." },
+          { t: "quiz", q: "Tutulan istisnanı stack trace-i itirmədən yenidən atmaq üçün?", options: ["throw ex;", "throw;", "return ex;"], answer: 1, why: "Arqumentsiz throw orijinal izi saxlayır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Yaş yoxlayan kod yaz. 1) YasXetasiException sinfi (Exception-dan törəyir, Yas xüsusiyyəti var). 2) YasYoxla(string giris) metodu: int.TryParse alınmasa FormatException, yaş 0–150 aralığında deyilsə YasXetasiException atsın, əks halda yaşı qaytarsın. 3) Main-də \"25\", \"abc\", \"-3\" girişləri üçün try/catch: hər istisna tipi ayrıca tutulsun, fərqli mesaj çap olunsun, finally-də «yoxlama bitdi» yazılsın.",
+      starter: `public class YasXetasiException : Exception\n{\n    // bura\n}\n\nstatic int YasYoxla(string giris)\n{\n    // bura\n}\n\nforeach (var giris in new[] { "25", "abc", "-3" })\n{\n    // try/catch/finally\n}\n`,
+      expect: "YasXetasiException : Exception, base(mesaj) çağırır, Yas xüsusiyyəti; int.TryParse işlədilib; aralıq yoxlaması və throw new YasXetasiException; catch (FormatException) və catch (YasXetasiException ex) ayrı-ayrı (ümumi catch (Exception) yox və ya ən sonda); finally var; boş catch və throw ex; yoxdur.",
+    },
+  },
+  {
+    slug: "generics",
+    title: "Generics",
+    intro: "Generics — tipi parametr kimi ötürməkdir. Bir dəfə List<T> yazırsan, sonra List<int>, List<string>, List<Telebe> kimi işlədirsən: kod təkrarlanmır, tip təhlükəsizliyi isə itmir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "<T> — tip parametri",
+        blocks: [
+          { t: "analogy", text: "Generic sinif — üstünə etiket yapışdırılan qutudur. Qutunun forması birdir, amma etiketə «Alma» yazsan, içinə yalnız alma qoyulur; «Kitab» yazsan — yalnız kitab. Səhv şey qoymaq istəsən, anbardar (kompilyator) elə qapıda saxlayır." },
+          { t: "code", lang: "csharp", code: `var ededler = new List<int> { 3, 1, 2 };
+ededler.Add(5);
+// ededler.Add("salam");   // XƏTA: kompilyasiya zamanı tutulur
+
+var ballar = new Dictionary<string, int>
+{
+    ["Aysel"] = 92,
+    ["Murad"] = 65,
+};
+
+// Öz generic sinfin
+public class Qutu<T>
+{
+    private T _icindeki;
+
+    public Qutu(T deyer) => _icindeki = deyer;
+
+    public T Al() => _icindeki;
+    public void Qoy(T deyer) => _icindeki = deyer;
+}
+
+var ededQutusu = new Qutu<int>(42);
+int x = ededQutusu.Al();                 // cast lazım deyil
+
+var metnQutusu = new Qutu<string>("salam");
+string s = metnQutusu.Al();` },
+          { t: "terms", items: [
+            ["generic", "tip parametri qəbul edən sinif, metod və ya interfeys."],
+            ["T", "tip parametrinin şərti adı (Type); istifadədə konkret tiplə əvəz olunur."],
+            ["tip təhlükəsizliyi", "yanlış tipin kompilyasiya zamanı rədd edilməsi."],
+            ["List<T>, Dictionary<TKey, TValue>", "ən çox işlənən hazır generic kolleksiyalar."],
+          ]},
+          { t: "tip", text: "Köhnə ArrayList hər şeyi object kimi saxlayır: cast lazımdır, xəta yalnız icra zamanı çıxır. Həmişə generic kolleksiya işlət." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Generic metodlar və məhdudiyyətlər (constraints)",
+        blocks: [
+          { t: "code", lang: "csharp", code: `// Generic metod: T çağırışdan çıxarılır
+static T EnBoyuk<T>(T a, T b) where T : IComparable<T>
+    => a.CompareTo(b) >= 0 ? a : b;
+
+Console.WriteLine(EnBoyuk(3, 7));            // 7
+Console.WriteLine(EnBoyuk("alma", "nar"));   // nar
+
+// Məhdudiyyətlər
+public interface IVarliq { int Id { get; } }
+
+public class Anbar<T> where T : class, IVarliq, new()
+{
+    private readonly Dictionary<int, T> _melumat = new();
+
+    public void Elave(T varliq) => _melumat[varliq.Id] = varliq;
+
+    public T? Tap(int id) => _melumat.TryGetValue(id, out var v) ? v : null;
+
+    public T Yeni() => new T();                // new() məhdudiyyəti sayəsində
+}
+
+public class Mehsul : IVarliq
+{
+    public int Id { get; set; }
+    public string Ad { get; set; } = "";
+}
+
+var anbar = new Anbar<Mehsul>();
+anbar.Elave(new Mehsul { Id = 1, Ad = "Klaviatura" });
+Console.WriteLine(anbar.Tap(1)?.Ad);` },
+          { t: "code", lang: "text", caption: "Məhdudiyyət növləri", code: `where T : class          istinad tipi olmalıdır
+where T : struct         dəyər tipi olmalıdır
+where T : notnull        null ola bilməz
+where T : new()          parametrsiz konstruktoru olmalıdır
+where T : BazaSinif      həmin sinifdən törəməlidir
+where T : IInterfeys     interfeysi həyata keçirməlidir
+where T : unmanaged      idarə olunmayan sadə tip (int, double, sadə struct)` },
+          { t: "mistake", lang: "csharp", wrong: `public class Kes
+{
+    private readonly Dictionary<string, object> _d = new();
+    public object Al(string acar) => _d[acar];
+}
+var say = (int)kes.Al("say");    // cast; səhv tip — icra zamanı çökür`, right: `public class Kes<T>
+{
+    private readonly Dictionary<string, T> _d = new();
+    public T Al(string acar) => _d[acar];
+}
+int say = sayKesi.Al("say");`, why: "object ilə işləmək tip yoxlamasını icra zamanına saxlayır və dəyər tiplərində boxing yaradır. Generic həm təhlükəsiz, həm sürətlidir." },
+          { t: "mistake", lang: "csharp", wrong: `static T Topla<T>(T a, T b) => a + b;   // XƏTA: T-nin + operatoru olduğu bilinmir`, right: `static T Topla<T>(T a, T b) where T : INumber<T> => a + b;   // .NET 7+`, why: "Kompilyator T haqqında yalnız məhdudiyyətin dediyini bilir. Əməliyyat lazımdırsa, onu verən interfeysi məhdudiyyət kimi yaz." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Variance, reifikasiya, performans və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Kovariantlıq (out T): IEnumerable<Pisik> → IEnumerable<Heyvan> mənimsədilə bilir — T yalnız çıxışda işlənir. Kontravariantlıq (in T): IComparer<Heyvan> → IComparer<Pisik>. List<T> invariantdır: List<Pisik> List<Heyvan> deyil.",
+            "C# generic-ləri reifikasiya olunub: tip məlumatı icra zamanında qalır (typeof(T) işləyir) — Java-dakı tip silinməsindən (erasure) fərqli.",
+            "JIT hər dəyər tipi üçün ayrıca ixtisaslaşmış kod yaradır (List<int> boxing-siz işləyir), istinad tipləri isə bir kodu paylaşır. Ona görə List<int> ArrayList-dən qat-qat sürətlidir.",
+            "Generic sinifdə static sahə hər qapalı tip üçün ayrıdır: Kes<int>.Say və Kes<string>.Say müxtəlif dəyişənlərdir.",
+            "default(T) — istinad tipi üçün null, dəyər tipi üçün sıfır. T? nullable annotasiyası məhdudiyyətdən asılı olaraq fərqli davranır.",
+            "Generic riyaziyyat (INumber<T>, static abstract üzvlər) və generic atributlar (C# 11) kitabxana kodunu sadələşdirir. Həddən artıq generic kod isə oxunmaz olur — real təkrar olanda tətbiq et.",
+            "Təhlükəsizlik — deserializasiya: JsonSerializer.Deserialize<T> T-ni SƏN seçəndə təhlükəsizdir. Tipi girişdən götürmək (Type.GetType(sorgu.Tip), Newtonsoft TypeNameHandling.All, BinaryFormatter) hücumçuya ixtiyari sinfi yaratmağa imkan verir → uzaqdan kod icrası. BinaryFormatter-i heç işlətmə.",
+            "Təhlükəsizlik — generic anbar və icazə: Anbar<T>.Tap(id) kimi ümumi metod sahiblik yoxlamasını «unudur» — hər varlıq üçün eyni açıq qapı (IDOR). Filtri (istifadəçi/tenant) generic qatın özünə məcburi daxil et: where T : ISahibli.",
+            "Təhlükəsizlik — mass assignment: Yenile<T>(id, T melumat) kimi ümumi yeniləmə gövdədən gələn bütün sahələri (Rol, Balans) yazır. Hər əməliyyat üçün ayrıca giriş modeli (DTO) işlət.",
+            "Təhlükəsizlik — paylaşılan generic keş: Kes<T> açarında istifadəçi kimliyi yoxdursa, bir istifadəçinin məlumatı digərinə qayıdır. Açara kimliyi daxil et, ölçünü məhdudlaşdır.",
+            "Təhlükəsizlik: reflection ilə MakeGenericType/MakeGenericMethod-a istifadəçi girişindən gələn tip adı ötürmə — yalnız ağ siyahı.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Sahiblik filtri generic qatın içində", code: `public interface ISahibli
+{
+    int Id { get; }
+    int SahibId { get; }
+}
+
+public class QorunanAnbar<T> where T : class, ISahibli
+{
+    private readonly List<T> _melumat = new();
+    private readonly int _cariIstifadeciId;
+
+    public QorunanAnbar(int cariIstifadeciId) => _cariIstifadeciId = cariIstifadeciId;
+
+    // filtrsiz oxuma yolu YOXDUR
+    public T? Tap(int id) =>
+        _melumat.FirstOrDefault(x => x.Id == id && x.SahibId == _cariIstifadeciId);
+
+    public IReadOnlyList<T> Hamisi() =>
+        _melumat.Where(x => x.SahibId == _cariIstifadeciId).ToArray();
+}` },
+          { t: "qa", items: [
+            ["Generics nə verir?", "Kodun təkrar istifadəsi + kompilyasiya zamanı tip təhlükəsizliyi + dəyər tiplərində boxing-in olmaması."],
+            ["Constraint nə üçündür?", "T-nin hansı tiplər ola biləcəyini məhdudlaşdırır və kompilyatora T üzərində hansı üzvlərin çağırıla biləcəyini bildirir."],
+            ["Kovariantlıq və kontravariantlıq nədir?", "out T — daha törəmə tipdən əsas tipə çevrilmə (çıxış mövqeyi); in T — əksinə (giriş mövqeyi)."],
+            ["Niyə List<Pisik> List<Heyvan>-a mənimsədilmir?", "List həm oxuyur, həm yazır: icazə verilsəydi, pişik siyahısına it əlavə etmək mümkün olardı. IEnumerable<out T> yalnız oxuduğu üçün təhlükəsizdir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "List<int>-ə \"salam\" əlavə etsən nə olar?", options: ["İcra zamanı xəta", "Kompilyasiya xətası", "0 kimi əlavə olunur"], answer: 1, why: "Generic tip yoxlaması kompilyasiya zamanı aparılır." },
+          { t: "quiz", q: "where T : new() nə deməkdir?", options: ["T yeni versiyadır", "T-nin parametrsiz konstruktoru var", "T interfeysdir"], answer: 1, why: "Bu məhdudiyyət new T() yazmağa imkan verir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) Generic Yigin<T> (stack) sinfi yaz: Qoy(T), T Cixar() (boşdursa InvalidOperationException), bool TryCixar(out T? deyer), int Say, bool Bosdur. Daxildə List<T> işlət. 2) Generic metod: static T EnKicik<T>(IEnumerable<T> elementler) where T : IComparable<T> — boş kolleksiyada ArgumentException atsın. 3) Yigin<int> və Yigin<string> ilə sına; EnKicik-i ədədlər və sətirlər üçün çağır.",
+      starter: `public class Yigin<T>\n{\n    private readonly List<T> _elementler = new();\n\n    // bura\n}\n\n// EnKicik<T>\n\n// sınaq\n`,
+      expect: "Yigin<T>-də Qoy Add ilə, Cixar son elementi qaytarıb silir, boşda throw new InvalidOperationException; TryCixar out parametri və bool; Say və Bosdur xüsusiyyət; EnKicik-də where T : IComparable<T> və CompareTo müqayisəsi, boşda ArgumentException; object və cast işlədilməyib; iki fərqli tip arqumenti ilə sınaq.",
+    },
+  },
+  {
+    slug: "linq",
+    title: "LINQ",
+    intro: "LINQ (Language Integrated Query) — kolleksiyalar üzərində sorğu yazmağın C# yoludur: filtrlə, seç, sırala, qruplaşdır. Dövr və şərtlərin əvəzinə nə istədiyini yazırsan.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Where, Select, OrderBy",
+        blocks: [
+          { t: "analogy", text: "LINQ — konveyer xəttidir. Lentə meyvələr düzülüb. Birinci işçi çürükləri atır (Where), ikincisi qalanları soyur (Select), üçüncüsü ölçüyə görə düzür (OrderBy). Hər işçi bir iş görür, məhsul bir stansiyadan o birinə keçir." },
+          { t: "code", lang: "csharp", code: `var telebeler = new List<Telebe>
+{
+    new("Aysel", 92, "Bakı"),
+    new("Murad", 65, "Gəncə"),
+    new("Leyla", 78, "Bakı"),
+    new("Tural", 45, "Sumqayıt"),
+};
+
+var kecenler = telebeler
+    .Where(t => t.Bal >= 51)            // filtr
+    .OrderByDescending(t => t.Bal)      // sıralama
+    .Select(t => t.Ad);                 // yalnız ad
+
+foreach (var ad in kecenler)
+    Console.WriteLine(ad);              // Aysel, Leyla, Murad
+
+Console.WriteLine(telebeler.Count(t => t.Seher == "Bakı"));   // 2
+Console.WriteLine(telebeler.Average(t => t.Bal));              // 70
+Console.WriteLine(telebeler.Max(t => t.Bal));                  // 92
+Console.WriteLine(telebeler.Any(t => t.Bal < 50));             // True
+Console.WriteLine(telebeler.First(t => t.Seher == "Gəncə").Ad);
+
+public record Telebe(string Ad, int Bal, string Seher);` },
+          { t: "terms", items: [
+            ["LINQ", "kolleksiyalar üçün sorğu metodları toplusu (System.Linq)."],
+            ["lambda", "qısa anonim funksiya: t => t.Bal >= 51."],
+            ["Where", "şərtə uyğun elementləri saxlayır."],
+            ["Select", "hər elementi yeni formaya çevirir (proyeksiya)."],
+            ["OrderBy / OrderByDescending", "artan / azalan sıra."],
+          ]},
+          { t: "tip", text: "LINQ SQL-ə çox oxşayır: Where = WHERE, Select = SELECT, OrderBy = ORDER BY, GroupBy = GROUP BY, Join = JOIN." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "GroupBy, Join, proyeksiya və gecikmiş icra",
+        blocks: [
+          { t: "code", lang: "csharp", code: `// Qruplaşdırma
+var seherler = telebeler
+    .GroupBy(t => t.Seher)
+    .Select(q => new
+    {
+        Seher = q.Key,
+        Say = q.Count(),
+        Orta = q.Average(t => t.Bal),
+    })
+    .OrderByDescending(x => x.Orta);
+
+foreach (var s in seherler)
+    Console.WriteLine($"{s.Seher}: {s.Say} tələbə, orta {s.Orta:F1}");
+
+// Lüğətə çevirmək, hissələrə bölmək, səhifələmək
+Dictionary<string, int> ballar = telebeler.ToDictionary(t => t.Ad, t => t.Bal);
+var ilkIki = telebeler.OrderBy(t => t.Ad).Skip(0).Take(2).ToList();
+var adlar = string.Join(", ", telebeler.Select(t => t.Ad));
+
+// Təhlükəsiz axtarış
+Telebe? tapilan = telebeler.FirstOrDefault(t => t.Ad == "Kamran");   // null
+Console.WriteLine(tapilan?.Ad ?? "tapılmadı");
+
+// SelectMany: iç-içə kolleksiyanı düzləşdirir
+var sifarisler = new[] { new[] { "qələm", "dəftər" }, new[] { "çanta" } };
+var butunMehsullar = sifarisler.SelectMany(s => s).Distinct().ToList();
+
+// Sorğu sintaksisi (eyni nəticə)
+var bakililar = from t in telebeler
+                where t.Seher == "Bakı"
+                orderby t.Ad
+                select t.Ad;` },
+          { t: "p", text: "Gecikmiş icra (deferred execution): Where, Select kimi metodlar dərhal heç nə hesablamır — yalnız «resepti» qurur. Hesablama nəticə tələb olunanda başlayır: foreach, ToList(), Count(), First()." },
+          { t: "mistake", lang: "csharp", wrong: `var kecenler = telebeler.Where(t => t.Bal >= 51);   // hələ hesablanmayıb
+
+Console.WriteLine(kecenler.Count());                 // 1-ci dəfə gəzilir
+foreach (var t in kecenler) { }                      // 2-ci dəfə
+var siyahi = kecenler.ToList();                      // 3-cü dəfə`, right: `var kecenler = telebeler.Where(t => t.Bal >= 51).ToList();   // bir dəfə hesabla
+
+Console.WriteLine(kecenler.Count);
+foreach (var t in kecenler) { }`, why: "Gecikmiş sorğu hər gəzintidə yenidən icra olunur. Mənbə baza və ya bahalı hesablamadırsa, eyni iş üç dəfə görülür. Nəticə bir neçə dəfə lazımdırsa, ToList() ilə sabitlə." },
+          { t: "mistake", lang: "csharp", wrong: `var t = telebeler.First(t => t.Ad == "Kamran");   // yoxdur → InvalidOperationException`, right: `var t = telebeler.FirstOrDefault(t => t.Ad == "Kamran");
+if (t is null) { /* tapılmadı */ }`, why: "First və Single element tapmasa istisna atır. Elementin olmaya biləcəyi halda …OrDefault işlət və null-u yoxla." },
+          { t: "mistake", lang: "csharp", wrong: `if (telebeler.Where(t => t.Bal > 90).Count() > 0) { }`, right: `if (telebeler.Any(t => t.Bal > 90)) { }`, why: "Count() bütün kolleksiyanı gəzir. Any() ilk uyğun elementdə dayanır — daha sürətli və niyyəti aydın." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "IEnumerable və IQueryable, performans, təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "IEnumerable<T> — yaddaşda, delegatlarla icra olunur (LINQ to Objects). IQueryable<T> — ifadə ağacı (expression tree) qurur və provayder (EF Core) onu SQL-ə çevirir.",
+            "Sərhəd vacibdir: AsEnumerable() və ya ToList()-dən sonrakı hər şey yaddaşda işləyir. db.Sifarisler.ToList().Where(...) bütün cədvəli yükləyir; db.Sifarisler.Where(...).ToList() isə filtri bazada edir.",
+            "EF Core tərcümə edə bilmədiyi metodu (öz C# funksiyan) sorğuda görsə, istisna atır — sorğunu SQL-ə çevrilən ifadələrlə yaz və ya şüurlu şəkildə AsEnumerable() ilə client tərəfə keç.",
+            "N+1: dövr içində naviqasiya xüsusiyyətinə müraciət hər sətir üçün ayrıca sorğu göndərir. Include / proyeksiya (Select ilə DTO) işlət; yalnız lazım olan sütunları seç.",
+            "Yalnız oxuma sorğularında AsNoTracking() dəyişiklik izləməsini söndürür — yaddaş və vaxt qazancı.",
+            "LINQ to Objects qiyməti: hər operator iterator və delegat ayırır. İsti dövrdə adi for/Span daha sürətlidir — amma əvvəl ölç. .NET 9-da bir çox LINQ metodu xeyli optimallaşdırılıb.",
+            "Yeni metodlar: Chunk, DistinctBy, MinBy/MaxBy, Zip (üçlü), CountBy, AggregateBy, Index.",
+            "Closure tələsi: lambda dəyişənin özünü tutur, dəyərini yox. Gecikmiş sorğu icra olunanda dəyişən artıq dəyişmiş ola bilər.",
+            "Təhlükəsizlik — injection: LINQ → SQL tərcüməsi dəyərləri parametr kimi göndərir, ona görə adi LINQ injection-dan qoruyur. Təhlükə xam SQL-dədir: FromSqlRaw($\"... WHERE Ad = '{ad}'\") — injection. FromSqlInterpolated / FromSql (parametrləşdirir) işlət. Dynamic LINQ-ə istifadəçi sətri verməmək lazımdır.",
+            "Təhlükəsizlik — sıralama/filtr sahəsi: OrderBy sütununu istifadəçidən gələn adla reflection/dinamik ifadə ilə qurma — gizli sütuna görə sıralama məlumat sızdırır (məs. ParolHesi üzrə sıralayıb simvol-simvol çıxarmaq). Yalnız ağ siyahıdakı sahələr.",
+            "Təhlükəsizlik — limitsiz nəticə (DoS): ToList() öncəsi həmişə Take(maksimum). Səhifə ölçüsünü serverdə məhdudlaşdır; istifadəçi «pageSize=10000000» göndərə bilər.",
+            "Təhlükəsizlik — icazə filtri bazada: db.Senedler.ToList().Where(s => s.SahibId == id) bütün sənədləri yaddaşa çəkir, filtr unudulanda isə hamısını qaytarır. Filtri IQueryable üzərində yaz; çoxkirayəçili sistemdə EF Core qlobal sorğu filtri (HasQueryFilter) işlət.",
+            "Təhlükəsizlik — artıq məlumat: varlığı (entity) birbaşa qaytarma — Select ilə DTO-ya proyeksiya et ki, ParolHesi və daxili sahələr cavaba düşməsin.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Təhlükəsiz və səmərəli sorğu (EF Core)", code: `private static readonly Dictionary<string, Expression<Func<Sifaris, object>>> Siralamalar = new()
+{
+    ["tarix"] = s => s.Tarix,
+    ["mebleg"] = s => s.Mebleg,
+};
+
+public async Task<List<SifarisDto>> SifarisleriAl(int istifadeciId, string siralama, int sehife, int olcu)
+{
+    olcu = Math.Clamp(olcu, 1, 100);                         // üst hədd
+    if (!Siralamalar.TryGetValue(siralama, out var acar))    // ağ siyahı
+        acar = Siralamalar["tarix"];
+
+    return await _db.Sifarisler
+        .AsNoTracking()
+        .Where(s => s.IstifadeciId == istifadeciId)          // icazə filtri — bazada
+        .OrderByDescending(acar)
+        .Skip((Math.Max(sehife, 1) - 1) * olcu)
+        .Take(olcu)
+        .Select(s => new SifarisDto(s.Id, s.Tarix, s.Mebleg)) // yalnız lazımi sütunlar
+        .ToListAsync();
+}` },
+          { t: "qa", items: [
+            ["Gecikmiş icra nədir?", "Sorğu təyin olunanda yox, nəticəsi gəzilən anda icra olunur; hər gəzintidə yenidən hesablanır."],
+            ["IEnumerable ilə IQueryable fərqi?", "IEnumerable yaddaşda delegatlarla işləyir; IQueryable ifadə ağacını provayderə verir və sorğu mənbədə (SQL) icra olunur."],
+            ["First, FirstOrDefault, Single fərqi?", "First — ilk uyğun, yoxdursa istisna; FirstOrDefault — yoxdursa default; Single — dəqiq bir element olmalıdır, əks halda istisna."],
+            ["Select ilə SelectMany fərqi?", "Select hər elementi birə-bir çevirir; SelectMany hər elementdən kolleksiya alıb hamısını bir ardıcıllığa düzləşdirir."],
+            ["LINQ SQL injection-dan qoruyurmu?", "Bəli, dəyərlər parametr kimi ötürülür. Risk xam SQL sətirlərini birləşdirəndə və dinamik sorğu qurulanda yaranır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Yalnız şərtə uyğun elementləri saxlayan metod?", options: ["Select", "Where", "OrderBy"], answer: 1, why: "Where filtrləyir, Select çevirir." },
+          { t: "quiz", q: "«Ən azı biri varmı?» üçün ən uyğunu?", options: ["Count() > 0", "Any()", "First()"], answer: 1, why: "Any ilk uyğun elementdə dayanır." },
+          { t: "quiz", q: "var q = siyahi.Where(...); — bu sətirdə filtr icra olunur?", options: ["Bəli, dərhal", "Xeyr, nəticə gəziləndə", "Yalnız debug-da"], answer: 1, why: "LINQ sorğuları gecikmiş icra olunur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Məhsullar siyahısı üzərində LINQ sorğuları yaz: 1) stokda olan (Stok > 0) məhsulların adları, qiymətə görə artan; 2) ən bahalı 3 məhsul; 3) kateqoriyaya görə qruplaşdır: kateqoriya, məhsul sayı, orta qiymət; 4) ümumi anbar dəyəri (Qiymet × Stok cəmi); 5) «Monitor» adlı məhsulu təhlükəsiz tap və yoxdursa «tapılmadı» çap et; 6) qiyməti 100-dən baha məhsul varmı? Hər nəticəni çap et.",
+      starter: `var mehsullar = new List<Mehsul>\n{\n    new("Klaviatura", "Aksesuar", 89m, 12),\n    new("Siçan", "Aksesuar", 35m, 0),\n    new("Noutbuk", "Kompüter", 1850m, 4),\n    new("Planşet", "Kompüter", 640m, 7),\n    new("Qulaqlıq", "Səs", 120m, 20),\n};\n\n// sorğular\n\npublic record Mehsul(string Ad, string Kateqoriya, decimal Qiymet, int Stok);\n`,
+      expect: "1) Where + OrderBy + Select; 2) OrderByDescending + Take(3); 3) GroupBy + Select anonim tip (Key, Count(), Average); 4) Sum(m => m.Qiymet * m.Stok); 5) FirstOrDefault + null yoxlaması (First yox); 6) Any (Count() > 0 yox); foreach/for ilə əl filtri yoxdur; decimal saxlanılıb.",
+    },
+  },
 ];

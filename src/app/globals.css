@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
-@theme {
+@theme inline {
   --color-accent: var(--accent);
+}
+
+@theme {
   --color-blue-team: #38bdf8;
   --color-red-team: #f43f5e;
   --color-ink: #05070d;
@@ -51,3 +54,7 @@ body {
 .tok-n { color: #fbbf24; }
 .tok-c { color: #64748b; font-style: italic; }
 .tok-t { color: #7dd3fc; }
+
+/* CodeMirror — sayt fonuna uyğun */
+.cm-editor, .cm-editor .cm-gutters { background-color: #080b13 !important; }
+.cm-editor .cm-activeLine, .cm-editor .cm-activeLineGutter { background-color: #0f1625 !important; }

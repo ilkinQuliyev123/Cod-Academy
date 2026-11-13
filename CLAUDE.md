@@ -43,8 +43,8 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
 - [x] Karyera yolu `/[track]/yol` (`src/data/career.ts`): Junior/Middle/Senior, addımlar, layihələr, imtahan (`/mesq?imtahan=backend-junior`; AI «NƏTİCƏ: ✅» → `markPassed`). Yoxlama: `node --experimental-strip-types scripts/check-data.mjs`.
 
 ## QALAN İŞLƏR (sıra ilə)
-1. **Dərslər (əsas iş).** 234 mövzudan 5-i hazırdır: `javascript` (giris, deyisenler, funksiyalar), `html` (giris), `python` (giris). Karyera sırası ilə yaz:
-   - Junior Front: HTML (teqler→semantik), CSS (giris→responsive), JS (tipler→hadiseler).
+1. **Dərslər (əsas iş).** 234 mövzudan 9-u hazırdır: `javascript` (giris, deyisenler, funksiyalar), `html` (giris, teqler, struktur, metn, linkler), `python` (giris). Növbəti: html sekiller, siyahilar, cedveller, formalar, semantik. Karyera sırası ilə yaz:
+   - Junior Front: HTML (sekiller→semantik), CSS (giris→responsive), JS (tipler→hadiseler).
    - Junior Back: C# (giris→oop), SQL (giris→cedvel), Python (deyisenler→funksiyalar).
    - Sonra Middle, sonra Senior (`career.ts`-dəki `steps` sırası).
    - Hər dil üçün `src/data/lessons/<dil>.ts` yarat, `index.ts`-də `ALL`-a əlavə et. Qəlib yuxarıda («Məzmun quruluşu»). Hər dərsə `exercise` əlavə et.

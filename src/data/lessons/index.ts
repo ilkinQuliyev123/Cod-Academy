@@ -2,8 +2,9 @@ import type { Lesson } from "../types";
 import { javascript } from "./javascript";
 import { html } from "./html";
 import { python } from "./python";
+import { css } from "./css";
 
-const ALL: Record<string, Lesson[]> = { javascript, html, python };
+const ALL: Record<string, Lesson[]> = { javascript, html, python, css };
 
 export const getLesson = (lang: string, slug: string) =>
   ALL[lang]?.find((l) => l.slug === slug);

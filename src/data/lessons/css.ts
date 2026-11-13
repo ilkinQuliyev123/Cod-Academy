@@ -408,4 +408,626 @@ h1   { font-size: 2.5rem; }  /* 2.5 × 16 = 40px */
       expect: "h1 font-size clamp(2rem, ..., 3.5rem) və ortada rem+vw; p font-size 1rem, max-width 65ch; .konteyner width min(100% - 2rem, 60rem) və margin-inline: auto (və ya margin 0 auto); html font-size px ilə sabitlənməyib.",
     },
   },
+  {
+    slug: "renger",
+    title: "Rənglər və fon",
+    intro: "Rəng yazmağın yolları (hex, rgb, hsl, oklch), şəffaflıq, qradiyent və fon şəkilləri. Kontrast — gözəllikdən əvvəl oxunaqlılıqdır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Rəng yazılışları",
+        blocks: [
+          { t: "analogy", text: "Rəssam palitrası: hex — boya qutusunun kodu (#38bdf8), rgb — üç boya qarışığı (qırmızı, yaşıl, göy), hsl — «hansı rəng, nə qədər doymuş, nə qədər açıq» sualına cavab." },
+          { t: "code", lang: "css", code: `.a { color: red; }                    /* ad */
+.b { color: #38bdf8; }                /* hex: RR GG BB (00–ff) */
+.c { color: rgb(56 189 248); }        /* 0–255 */
+.d { color: rgb(56 189 248 / 50%); }  /* 50% şəffaf */
+.e { color: hsl(199 93% 60%); }       /* çalar, doyma, açıqlıq */
+.f { background-color: #0c111c; }` },
+          { t: "terms", items: [
+            ["color", "mətnin rəngi."],
+            ["background-color", "fonun rəngi."],
+            ["hex", "16-lıq say sistemində rəng kodu: #rrggbb, qısa #rgb."],
+            ["alpha / opacity", "şəffaflıq: 0 — görünməz, 1 (100%) — tam."],
+            ["hue (çalar)", "rəng çarxında bucaq: 0 qırmızı, 120 yaşıl, 240 göy."],
+          ]},
+          { t: "tip", text: "hsl ilə rəng ailəsi yaratmaq asandır: eyni hue, yalnız açıqlığı dəyiş — hsl(199 93% 30%), 50%, 70%." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Qradiyent, fon şəkli, opacity",
+        blocks: [
+          { t: "code", lang: "css", code: `.hero {
+  background: linear-gradient(135deg, #062a43, #05070d 70%);
+}
+.isiq {
+  background: radial-gradient(circle at top, #38bdf833, transparent 60%);
+}
+.banner {
+  background-image: url("dag.webp");
+  background-size: cover;       /* sahəni doldur, kəsilə bilər */
+  background-position: center;
+  background-repeat: no-repeat;
+}` },
+          { t: "list", items: [
+            "Qradiyent şəkil sayılır — background-image (və ya background) ilə yazılır, background-color ilə yox.",
+            "cover — boş yer qalmır, contain — şəkil tam görünür, amma boşluq qala bilər.",
+            "Bir neçə fon vergüllə üst-üstə qoyulur: birinci yazılan ən üstdədir.",
+          ]},
+          { t: "mistake", lang: "css", wrong: `.kart { opacity: 0.5; }  /* yalnız fonu solğun etmək istəyirdik */`, right: `.kart { background: rgb(12 17 28 / 50%); }`, why: "opacity bütün elementi — mətni, uşaqları da — şəffaf edir. Yalnız fon üçün rəngin alpha kanalını işlət." },
+          { t: "mistake", lang: "css", wrong: `.duyme { color: #777; background: #555; }`, right: `.duyme { color: #fff; background: #0369a1; }`, why: "Kontrast çox aşağıdır — oxumaq çətindir. WCAG AA: adi mətn üçün ən azı 4.5:1, böyük mətn üçün 3:1. DevTools-da rəng seçicisi nisbəti göstərir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Müasir rəng sistemləri və dizayn tokenləri",
+        blocks: [
+          { t: "code", lang: "css", code: `:root {
+  --accent: oklch(0.75 0.14 230);
+  --accent-soft: color-mix(in oklch, var(--accent) 20%, transparent);
+  color-scheme: dark light;
+}
+@media (prefers-color-scheme: light) {
+  :root { --accent: oklch(0.55 0.16 230); }
+}` },
+          { t: "list", items: [
+            "oklch qavrayış baxımından bərabərdir: eyni L dəyərli rənglər gözə eyni parlaqlıqda görünür (hsl-də sarı və göy fərqli görünür). Palitra yaratmaq üçün ideal.",
+            "color-mix() ilə preprocessor olmadan açıq/tünd variant yarat.",
+            "color-scheme brauzerə scrollbar və form elementlərini də tünd çəkməyi deyir.",
+            "Rəngi heç vaxt TƏK məlumat daşıyıcısı etmə (məs. yalnız qırmızı = səhv) — rəng korları üçün ikon/mətn əlavə et.",
+            "Təhlükəsizlik: istifadəçiyə öz CSS-ini (profil rəngi, tema) yazmağa icazə verirsənsə, yalnız rəng dəyərini qəbul et və yoxla (regex/whitelist). Sərbəst CSS url() ilə məlumat sızdıra (CSS exfiltration) və saxta elementləri üstə çəkə bilər (clickjacking).",
+          ]},
+          { t: "qa", items: [
+            ["opacity ilə rgba fərqi?", "opacity elementi və bütün uşaqlarını, rgba/alpha yalnız o rəng xassəsini şəffaf edir."],
+            ["WCAG AA kontrast tələbi?", "Adi mətn 4.5:1, böyük (24px+ və ya 18.66px qalın) 3:1."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Yalnız fonu yarımşəffaf etmək üçün?", options: ["opacity: 0.5", "background: rgb(0 0 0 / 50%)", "visibility: half"], answer: 1, why: "Alpha kanalı yalnız fona təsir edir." },
+          { t: "quiz", q: "hsl(0 100% 50%) hansı rəngdir?", options: ["göy", "qırmızı", "yaşıl"], answer: 1, why: "Hue 0° — qırmızı." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Tünd .hero bölməsi yarat: 135° bucaqla iki rəngli linear-gradient fon, ağ başlıq, alpha ilə yarımşəffaf fonlu .etiket (opacity işlətmədən).",
+      starter: `<style>\n\n</style>\n<section class="hero">\n  <span class="etiket">Yeni</span>\n  <h1>Rənglər</h1>\n</section>\n`,
+      expect: "hero-da linear-gradient(135deg, ...); h1 ağ və kontrast yaxşı; .etiket fonu rgb/hsl alpha ilə, opacity işlədilməyib.",
+    },
+  },
+  {
+    slug: "tipografiya",
+    title: "Tipografiya",
+    intro: "Mətn saytın 90%-idir. Şrift, ölçü, sətir aralığı və sətir uzunluğu düzgün olanda sayt «bahalı» görünür və rahat oxunur.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Şrift xassələri",
+        blocks: [
+          { t: "analogy", text: "Yaxşı tipografiya — yaxşı səs operatoru kimidir: işini düzgün görəndə heç kim fərq etmir, səhv edəndə hamı əziyyət çəkir." },
+          { t: "code", lang: "css", code: `body {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+}
+h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.qeyd {
+  font-style: italic;
+  text-align: center;
+  text-transform: uppercase;
+  text-decoration: underline;
+}` },
+          { t: "terms", items: [
+            ["font-family", "şrift adı; vergüllə ehtiyat şriftlər (fallback) sırası."],
+            ["sans-serif / serif / monospace", "ümumi ailələr: ayaqsız, ayaqlı, eyni enli (kod üçün)."],
+            ["font-weight", "qalınlıq: 100–900; 400 normal, 700 qalın."],
+            ["line-height", "sətir hündürlüyü; vahidsiz yazılır (1.6 = şriftin 1.6 qatı)."],
+            ["letter-spacing", "hərflər arası məsafə."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Oxunaqlılıq qaydaları",
+        blocks: [
+          { t: "list", items: [
+            "Əsas mətn 16px-dən kiçik olmasın.",
+            "Sətir uzunluğu 45–75 simvol: max-width: 65ch.",
+            "Mətndə line-height 1.5–1.7, başlıqlarda 1.1–1.3.",
+            "Böyük başlıqlarda letter-spacing bir az mənfi, kiçik UPPERCASE etiketlərdə müsbət.",
+            "Bir saytda 2 şrift ailəsi kifayətdir (mətn + kod/başlıq).",
+          ]},
+          { t: "code", lang: "css", code: `@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter.woff2") format("woff2");
+  font-weight: 100 900;   /* variable font: bütün qalınlıqlar bir faylda */
+  font-display: swap;
+}` },
+          { t: "mistake", lang: "css", wrong: `p { line-height: 20px; }`, right: `p { line-height: 1.6; }`, why: "Piksel sətir hündürlüyü şrift böyüyəndə böyümür — sətirlər üst-üstə minir. Vahidsiz dəyər uşaqlara da nisbət kimi keçir." },
+          { t: "mistake", lang: "css", wrong: `body { font-family: "Comic Sans", "Papyrus"; }`, right: `body { font-family: "Inter", system-ui, sans-serif; }`, why: "Ümumi ailə (sans-serif) ilə bitməyən siyahıda şrift tapılmasa brauzer default (çox vaxt serif) şrifti götürür." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Şrift yükləmə performansı",
+        blocks: [
+          { t: "p", text: "Şrift yüklənənə qədər brauzer ya mətni gizlədir (FOIT), ya ehtiyat şriftlə göstərib sonra dəyişir (FOUT). font-display: swap ikincisini seçir — mətn dərhal görünür. Amma şriftlər fərqli ölçüdə olduğu üçün dəyişmə layout shift (CLS) yaradır." },
+          { t: "list", items: [
+            "Yalnız WOFF2, yalnız lazım olan dil dəstləri (unicode-range / subset): Azərbaycanca üçün latin + latin-ext (ə, ğ, ı, ş).",
+            "Kritik şrifti <link rel=\"preload\" as=\"font\" crossorigin> ilə yüklə.",
+            "size-adjust, ascent-override ilə ehtiyat şrifti əsas şriftə uyğunlaşdır → CLS sıfıra yaxın. next/font bunu avtomatik edir.",
+            "Variable font bir faylda bütün qalınlıqları saxlayır — 4–5 fayl əvəzinə 1 sorğu.",
+            "Təhlükəsizlik və məxfilik: üçüncü tərəf şrift CDN-i hər ziyarətçinin IP-sini həmin şirkətə ötürür (Avropada GDPR cəriməsi olub). Şriftləri öz serverində saxla (self-host).",
+          ]},
+          { t: "qa", items: [
+            ["font-display: swap nə edir?", "Şrift gələnə qədər ehtiyat şriftlə mətni göstərir, gələndə dəyişir."],
+            ["line-height niyə vahidsiz yazılır?", "Uşaq elementlər hesablanmış piksel yox, nisbət alır — öz şrift ölçüsünə uyğunlaşır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Oxunaqlı sətir uzunluğu üçün?", options: ["width: 100%", "max-width: 65ch", "font-size: 12px"], answer: 1, why: "65 simvol göz üçün rahat uzunluqdur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Məqalə stili: body üçün system-ui ilə bitən şrift siyahısı və line-height 1.6; article max-width 65ch və mərkəzdə; h1 qalın (800), line-height 1.1, letter-spacing mənfi.",
+      starter: `<style>\n\n</style>\n<article>\n  <h1>Tipografiya</h1>\n  <p>Uzun bir paraqraf: yaxşı tipografiya oxucunu yormur və mətni rahat izləməyə imkan verir.</p>\n</article>\n`,
+      expect: "font-family ümumi ailə ilə bitir; body line-height vahidsiz 1.5–1.7; article max-width 65ch və margin auto; h1 font-weight 800, line-height ~1.1, letter-spacing mənfi.",
+    },
+  },
+  {
+    slug: "display",
+    title: "Display və axın",
+    intro: "display elementin necə yer tutduğunu deyir: tam sətir (block), mətn kimi (inline), yoxsa öz uşaqlarını düzən konteyner (flex, grid).",
+    sections: [
+      {
+        level: "baslangic",
+        title: "block, inline, inline-block, none",
+        blocks: [
+          { t: "analogy", text: "block — kitab rəfindəki kitab: hər biri tam rəfi tutur, növbəti altdan başlayır. inline — cümlədəki söz: yan-yana düzülür, sətir dolanda aşağı keçir. inline-block — sözlərin arasında qoyulmuş kiçik qutu: yan-yana durur, amma öz ölçüsü var." },
+          { t: "code", lang: "css", code: `div, p, h1, section { display: block; }   /* default */
+span, a, strong      { display: inline; }  /* default */
+
+.etiket { display: inline-block; padding: 4px 8px; }
+.gizli  { display: none; }   /* yer tutmur, ekran oxuyucu da görmür */` },
+          { t: "terms", items: [
+            ["normal axın (normal flow)", "elementlərin CSS olmadan yuxarıdan aşağı, soldan sağa düzülməsi."],
+            ["block", "tam en tutur, yeni sətirdən başlayır, width/height/margin işləyir."],
+            ["inline", "məzmun qədər yer tutur, width/height və şaquli margin işləmir."],
+            ["inline-block", "yan-yana durur + ölçü verilə bilir."],
+            ["none", "element render olunmur."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Gizlətməyin 3 yolu",
+        blocks: [
+          { t: "code", lang: "css", code: `.a { display: none; }        /* yer yox, oxuyucu yox, klik yox */
+.b { visibility: hidden; }   /* yer QALIR, görünmür, oxuyucu yox */
+.c { opacity: 0; }           /* yer qalır, KLİKLƏNİR, oxuyucu oxuyur */
+
+/* Yalnız ekran oxuyucu üçün görünən mətn */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}` },
+          { t: "mistake", lang: "css", wrong: `.menyu { opacity: 0; }  /* bağlı menyu */`, right: `.menyu { visibility: hidden; opacity: 0; }\n.menyu.acig { visibility: visible; opacity: 1; }`, why: "opacity: 0 olan menyu görünməz, amma kliklənir və Tab ilə fokuslanır — istifadəçi görünməz linklərə düşür." },
+          { t: "mistake", lang: "css", wrong: `a { width: 200px; height: 40px; }`, right: `a { display: inline-block; width: 200px; height: 40px; }`, why: "inline element ölçü qəbul etmir." },
+          { t: "tip", text: "HTML hidden atributu = display: none. Amma CSS-də display: flex yazsan hidden «sınır» — [hidden] { display: none !important } reset-i bunun üçündür." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Formatlama kontekstləri",
+        blocks: [
+          { t: "p", text: "display əslində iki şeyi təyin edir: xarici (outer) — element valideynin axınında necə davranır (block/inline), daxili (inner) — uşaqlarını necə düzür (flow, flex, grid). display: inline-flex = xaricdən inline, daxildən flex. Yeni sintaksis bunu açıq yazır: display: inline flex." },
+          { t: "list", items: [
+            "BFC (block formatting context) — float-ları saxlayan, margin collapse-ı dayandıran müstəqil sahə. display: flow-root ən təmiz yolla BFC yaradır.",
+            "display: contents — elementin qutusunu silir, uşaqlar birbaşa nənəyə qoşulur. Diqqət: bəzi brauzerlərdə semantika (button, list) itə bilər.",
+            "display dəyişikliyi layout-u tam yenidən hesablatdırır; animasiyada istifadə etmə.",
+            "content-visibility: auto — ekrandan kənar bölmələrin render-ini təxirə salır, uzun səhifələrdə böyük qazanc.",
+            "Təhlükəsizlik: display: none ilə gizlənən məlumat GİZLİ DEYİL — HTML-də qalır, «View Source» ilə görünür. Həssas məlumatı serverdə filtrlə.",
+          ]},
+          { t: "qa", items: [
+            ["display: none ilə visibility: hidden fərqi?", "none yer tutmur və layout-dan çıxır; hidden yer tutur, sadəcə görünmür."],
+            ["BFC nədir, necə yaradılır?", "Müstəqil layout sahəsi; flow-root, overflow: hidden, flex/grid uşaqları, position: absolute ilə."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Hansı element default olaraq block-dur?", options: ["<span>", "<a>", "<p>"], answer: 2, why: "p, div, h1 block; span, a inline." },
+          { t: "quiz", q: "Element görünməsin, amma yeri qalsın:", options: ["display: none", "visibility: hidden", "width: 0"], answer: 1, why: "visibility: hidden yeri saxlayır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Üç .etiket span-ı yan-yana, padding-li və ölçülü düz (inline-block). .gizli class-ını yer tutmayan, .sr-only class-ını yalnız ekran oxuyucunun görəcəyi şəkildə yaz.",
+      starter: `<style>\n\n</style>\n<span class="etiket">HTML</span>\n<span class="etiket">CSS</span>\n<span class="etiket">JS</span>\n<p class="gizli">Gizli</p>\n<button>🔍<span class="sr-only">Axtar</span></button>\n`,
+      expect: ".etiket display: inline-block və padding; .gizli display: none; .sr-only position absolute, 1px ölçü, overflow hidden, clip(-path).",
+    },
+  },
+  {
+    slug: "position",
+    title: "Position",
+    intro: "position elementi normal axından çıxarıb istədiyin yerə «yapışdırır»: relative, absolute, fixed, sticky. Modal, dropdown, sticky header — hamısı bununla qurulur.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "5 dəyər",
+        blocks: [
+          { t: "analogy", text: "static — sırada duran adam. relative — sırada yerini saxlayıb bir addım kənara çəkilən adam. absolute — sıradan çıxıb otaqda (ən yaxın «yerləşmiş» valideyndə) istədiyi yerə gedən adam. fixed — pəncərəyə yapışdırılmış stiker: otaq sürüşsə də, yerində qalır. sticky — sırada gedir, divara çatanda yapışır." },
+          { t: "code", lang: "css", code: `.kart { position: relative; }        /* uşaqlar üçün istinad nöqtəsi */
+.kart .nisan {
+  position: absolute;
+  top: 8px; right: 8px;              /* kartın küncündən */
+}
+.chat-duymesi {
+  position: fixed;
+  bottom: 24px; right: 24px;         /* ekranın küncündən */
+}
+.header {
+  position: sticky;
+  top: 0;                            /* yuxarı çatanda yapış */
+  z-index: 10;
+}` },
+          { t: "terms", items: [
+            ["static", "default; top/left işləmir."],
+            ["relative", "öz yerinə nəzərən sürüşür, yeri boş qalmır."],
+            ["absolute", "axından çıxır; ən yaxın position-u static OLMAYAN valideynə nəzərən yerləşir."],
+            ["fixed", "viewport-a (ekrana) nəzərən; sürüşmədə qalır."],
+            ["sticky", "scroll konteynerində həddə çatana qədər normal, sonra yapışır."],
+            ["top/right/bottom/left", "ofset (inset) xassələri."],
+            ["z-index", "üst-üstə düşəndə hansı yuxarıda olsun."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Tipik naxışlar və səhvlər",
+        blocks: [
+          { t: "code", lang: "css", code: `/* Tam ekran örtük (overlay) */
+.overlay { position: fixed; inset: 0; background: rgb(0 0 0 / 60%); }
+
+/* Mərkəzləşdirmə */
+.modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  translate: -50% -50%;
+}` },
+          { t: "mistake", lang: "css", wrong: `.nisan { position: absolute; top: 0; right: 0; }\n/* valideyndə position yoxdur */`, right: `.kart { position: relative; }\n.nisan { position: absolute; top: 0; right: 0; }`, why: "Valideyn yerləşməyibsə, absolute element bütün səhifənin küncünə uçur. Valideynə position: relative ver." },
+          { t: "mistake", lang: "css", wrong: `.header { position: sticky; }`, right: `.header { position: sticky; top: 0; }`, why: "sticky üçün hədd (top/bottom) mütləqdir. Valideyndə overflow: hidden olsa da sticky işləmir." },
+          { t: "tip", text: "inset: 0 = top: 0; right: 0; bottom: 0; left: 0." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Stacking context və z-index müharibələri",
+        blocks: [
+          { t: "p", text: "z-index yalnız eyni stacking context daxilində müqayisə olunur. position + z-index, opacity < 1, transform, filter, isolation: isolate yeni kontekst yaradır. Valideyni z-index: 1 olan elementin uşağı z-index: 9999 olsa belə, qonşu kontekstdəki z-index: 2-nin üstünə çıxa bilməz." },
+          { t: "list", items: [
+            "z-index-ləri miqyasla təyin et (dizayn tokenləri): --z-dropdown: 10, --z-header: 20, --z-modal: 50, --z-toast: 60.",
+            "Komponentə isolation: isolate ver — daxili z-index-lər çölə sızmasın.",
+            "transform olan valideyn fixed uşaq üçün yeni istinad olur — modal «ekrana» yox, valideynə yapışır. Ona görə modallar portal ilə body-ə render olunur.",
+            "Müasir alternativ: <dialog> elementi və popover atributu brauzerin «top layer»-ində açılır — z-index lazım deyil.",
+            "Təhlükəsizlik — clickjacking: başqa sayt sənin saytını şəffaf iframe-də absolute yerləşdirib düymənin üstünə öz «oyununu» qoya bilər. Qoruma: CSP frame-ancestors 'none' / X-Frame-Options: DENY (bu saytda var).",
+          ]},
+          { t: "qa", items: [
+            ["z-index: 9999 niyə işləmir?", "Element başqa stacking context-in içindədir və ya position-u static-dir."],
+            ["absolute element nəyə nəzərən yerləşir?", "position-u static olmayan ən yaxın əcdada (containing block), yoxsa ilkin konteynerə."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Sürüşdürəndə ekranın küncündə qalan «yuxarı qayıt» düyməsi üçün?", options: ["absolute", "fixed", "relative"], answer: 1, why: "fixed viewport-a bağlıdır." },
+          { t: "quiz", q: "Kartın küncünə nişan qoymaq üçün kart hansı position almalıdır?", options: ["static", "relative", "sticky"], answer: 1, why: "relative valideyn absolute uşaq üçün istinad olur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Kart yarat: sağ yuxarı küncündə absolute 'YENİ' nişanı. Səhifənin yuxarısına sticky header, sağ aşağı küncə fixed düymə qoy.",
+      starter: `<style>\n\n</style>\n<header class="header">Logo</header>\n<div class="kart">\n  <span class="nisan">YENİ</span>\n  <h2>Kurs</h2>\n</div>\n<button class="yuxari">↑</button>\n<div style="height:2000px"></div>\n`,
+      expect: ".kart position: relative; .nisan absolute + top/right; .header sticky + top: 0 + z-index; .yuxari fixed + bottom/right.",
+    },
+  },
+  {
+    slug: "flexbox",
+    title: "Flexbox",
+    intro: "Flexbox bir istiqamətdə (sətir və ya sütun) elementləri düzmək, aralarına boşluq qoymaq və mərkəzləşdirmək üçündür. Menyular, kartlar, düymə qrupları — gündəlik işin yarısı.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Konteyner və elementlər",
+        blocks: [
+          { t: "analogy", text: "Flex konteyner — avtobusun oturacaq sırasıdır. justify-content sərnişinləri sıra boyunca (əsas ox) yerləşdirir: hamı qabağa, hamı arxaya, bərabər aralıqla. align-items isə hər oturacaqda necə oturduqlarını (çarpaz ox): yuxarıda, ortada, aşağıda." },
+          { t: "code", lang: "css", code: `.konteyner {
+  display: flex;
+  flex-direction: row;          /* əsas ox: üfüqi (default) */
+  justify-content: space-between; /* əsas ox boyunca */
+  align-items: center;          /* çarpaz ox boyunca */
+  gap: 16px;                    /* elementlər arası boşluq */
+}
+
+/* Mükəmməl mərkəzləşdirmə */
+.merkez { display: flex; justify-content: center; align-items: center; }` },
+          { t: "terms", items: [
+            ["flex container", "display: flex verilən valideyn."],
+            ["flex item", "onun BİRBAŞA uşaqları."],
+            ["main axis (əsas ox)", "flex-direction istiqaməti: row — üfüqi, column — şaquli."],
+            ["cross axis (çarpaz ox)", "əsas oxa perpendikulyar."],
+            ["justify-content", "əsas oxda paylanma: flex-start, center, space-between, space-around, space-evenly."],
+            ["align-items", "çarpaz oxda düzülüş: stretch (default), center, flex-start, flex-end."],
+            ["gap", "elementlər arası məsafə."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "flex: grow, shrink, basis və wrap",
+        blocks: [
+          { t: "code", lang: "css", code: `.sidebar { flex: 0 0 250px; }  /* böyümə, kiçilmə, 250px sabit */
+.mezmun  { flex: 1; }          /* qalan bütün yeri tut */
+
+.kartlar { display: flex; flex-wrap: wrap; gap: 1rem; }
+.kartlar > * { flex: 1 1 240px; }  /* min ~240px, yer varsa böyü, sığmasa alt sətrə keç */
+
+.navbar .cixis { margin-left: auto; }  /* sağa it */` },
+          { t: "list", items: [
+            "flex: grow shrink basis. flex: 1 = «qalan yerdən bərabər pay al».",
+            "flex-wrap: wrap — sığmayan elementlər yeni sətrə keçir (default nowrap — sıxılır).",
+            "margin-left: auto flex-də qalan bütün boşluğu udur — elementi kənara itələyir.",
+            "align-self — tək bir elementin çarpaz oxda yerini dəyişir.",
+            "column istiqamətində oxlar dəyişir: justify-content şaquli, align-items üfüqi işləyir.",
+          ]},
+          { t: "mistake", lang: "css", wrong: `.kart { margin-right: 16px; }\n.kart:last-child { margin-right: 0; }`, right: `.kartlar { display: flex; gap: 16px; }`, why: "gap yalnız elementlər ARASINA boşluq qoyur — kənarlarda artıq margin, son element üçün xüsusi qayda lazım deyil." },
+          { t: "mistake", lang: "css", wrong: `.mezmun { flex: 1; }\n/* uzun kod sətri konteyneri partladır */`, right: `.mezmun { flex: 1; min-width: 0; }`, why: "Flex elementin default min-width: auto-dur — məzmunundan kiçik ola bilmir. Uzun söz/kod/cədvəl daşıb layout-u sındırır. min-width: 0 bunu həll edir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Flex alqoritmi və nə vaxt Grid",
+        blocks: [
+          { t: "p", text: "Brauzer əvvəl hər elementin flex-basis-ini (və ya məzmun ölçüsünü) hesablayır, cəmini konteynerlə müqayisə edir. Boş yer qalırsa, onu flex-grow nisbətində paylayır; yer çatmırsa, flex-shrink × basis nisbətində kiçildir (böyük element daha çox kiçilir). min/max-width bu prosesi məhdudlaşdırır və yenidən paylanma dövrü başlayır." },
+          { t: "list", items: [
+            "Flex — bir ölçülü, məzmundan çıxan (content-out) layout: menyu, alət paneli, element sırası.",
+            "Grid — iki ölçülü, layout-dan çıxan (layout-in): səhifə skeleti, kart torları, sütunların düzlənməsi.",
+            "order ilə vizual sıranı dəyişmək klaviatura/ekran oxuyucu sırasını DƏYİŞMİR — fokus «tullanır». HTML sırasını düzgün yaz.",
+            "flex-basis: 0 vs auto: flex: 1 (basis 0%) elementləri məzmundan asılı olmayaraq bərabər edir; flex: auto məzmuna görə.",
+            "Təhlükəsizlik/UX: istifadəçi məzmunu (uzun URL, ad) layout-u sındıra bilər — overflow-wrap: anywhere və min-width: 0 ilə qoru; sınmış layout bəzən düymələri görünməz edir.",
+          ]},
+          { t: "qa", items: [
+            ["justify-content ilə align-items fərqi?", "Biri əsas ox, digəri çarpaz ox boyunca düzür."],
+            ["flex: 1 nəyin qısaltmasıdır?", "flex-grow: 1; flex-shrink: 1; flex-basis: 0%."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Elementi həm üfüqi, həm şaquli mərkəzə qoymaq üçün flex-də?", options: ["justify-content + align-items: center", "text-align: center", "margin: center"], answer: 0, why: "İki oxun hər birində center." },
+          { t: "quiz", q: "flex-direction: column olanda justify-content hansı istiqamətdə işləyir?", options: ["üfüqi", "şaquli", "işləmir"], answer: 1, why: "Əsas ox şaquli olur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Navbar: solda loqo, ortada 3 link, sağda 'Giriş' düyməsi (margin-left: auto). Altında flex-wrap ilə 3 kart: hər biri min ~200px, bərabər böyüsün, aralarında gap.",
+      starter: `<style>\n\n</style>\n<nav class="navbar">\n  <b>Logo</b>\n  <a href="#">Ana</a><a href="#">Dərslər</a><a href="#">Əlaqə</a>\n  <button class="giris">Giriş</button>\n</nav>\n<div class="kartlar">\n  <div class="kart">1</div><div class="kart">2</div><div class="kart">3</div>\n</div>\n`,
+      expect: ".navbar display flex, align-items center, gap; .giris margin-left: auto; .kartlar flex + flex-wrap: wrap + gap; .kart flex: 1 1 ~200px; margin hack-ları yoxdur.",
+    },
+  },
+  {
+    slug: "grid",
+    title: "CSS Grid",
+    intro: "Grid iki ölçülü layout sistemidir: sətirlər VƏ sütunlar birlikdə. Səhifə skeleti və kart torları üçün ən güclü alət.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Sütunlar, sətirlər, fr",
+        blocks: [
+          { t: "analogy", text: "Grid — şahmat taxtası və ya Excel cədvəlidir: əvvəl xətləri çəkirsən (sütun və sətirlər), sonra elementləri xanalara qoyursan. Bir element bir neçə xananı tuta bilər." },
+          { t: "code", lang: "css", code: `.tor {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;   /* 3 bərabər sütun */
+  /* qısa: repeat(3, 1fr) */
+  gap: 1rem;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 250px 1fr;     /* sabit sidebar + qalan yer */
+}
+.genis { grid-column: span 2; }         /* 2 sütun tut */` },
+          { t: "terms", items: [
+            ["grid-template-columns", "sütunların sayı və eni."],
+            ["grid-template-rows", "sətirlərin hündürlüyü."],
+            ["fr", "fraction — qalan boş yerin bir payı."],
+            ["repeat(n, x)", "eyni ölçünü n dəfə təkrarla."],
+            ["grid-column: span 2", "element 2 sütun en tutsun."],
+            ["track", "bir sütun və ya sətir."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Responsive tor və adlı sahələr",
+        blocks: [
+          { t: "code", lang: "css", code: `/* Media query olmadan responsive kartlar */
+.kartlar {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Səhifə skeleti — sahə adları ilə */
+.sehife {
+  display: grid;
+  grid-template-areas:
+    "header header"
+    "sidebar main"
+    "footer footer";
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100dvh;
+}
+.sehife > header { grid-area: header; }
+.sehife > aside  { grid-area: sidebar; }
+.sehife > main   { grid-area: main; }
+.sehife > footer { grid-area: footer; }` },
+          { t: "list", items: [
+            "minmax(240px, 1fr) — sütun ən azı 240px, yer varsa böyüyür.",
+            "auto-fill boş sütunları saxlayır, auto-fit onları yığıb elementləri genişləndirir.",
+            "grid-template-areas layout-u «şəkil kimi» göstərir — oxumaq çox asandır.",
+            "place-items: center — grid-də bir sətirlə mərkəzləşdirmə.",
+          ]},
+          { t: "mistake", lang: "css", wrong: `grid-template-columns: 33.33% 33.33% 33.33%;\ngap: 20px;  /* üfüqi scroll yaranır */`, right: `grid-template-columns: repeat(3, 1fr);\ngap: 20px;`, why: "Faiz + gap 100%-i keçir. fr gap çıxılandan SONRA qalan yeri bölür." },
+          { t: "mistake", lang: "css", wrong: `grid-template-columns: repeat(3, 1fr);\n/* uzun kod sütunu partladır */`, right: `grid-template-columns: repeat(3, minmax(0, 1fr));`, why: "1fr əslində minmax(auto, 1fr)-dir — məzmundan kiçilə bilmir. minmax(0, 1fr) həqiqi bərabər sütun verir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Subgrid, implicit tor və a11y",
+        blocks: [
+          { t: "code", lang: "css", code: `.kartlar { display: grid; grid-template-columns: repeat(3, 1fr); }
+.kart {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;   /* başlıq, mətn, düymə BÜTÜN kartlarda eyni sətirdə */
+}` },
+          { t: "list", items: [
+            "Implicit grid: elementlər təyin olunmuş sətirlərdən çox olanda brauzer yeni sətirlər yaradır; ölçüsünü grid-auto-rows idarə edir.",
+            "grid-auto-flow: dense boşluqları doldurur, amma vizual sıra DOM sırasından ayrılır — klaviatura istifadəçisi üçün çaşdırıcıdır.",
+            "subgrid — iç-içə elementlər valideynin xətlərinə düzlənir; kart torlarının «qeyri-bərabər hündürlük» problemi həll olunur.",
+            "Grid xətlərinə ad vermək: [main-start] 1fr [main-end] — mürəkkəb layout-da oxunaqlıdır.",
+            "Təhlükəsizlik: layout-u heç vaxt «gizli» məlumatı vizual olaraq örtmək üçün işlətmə (məs. qiyməti başqa elementlə üstələmək) — DOM-da qalır, maşınlar və ekran oxuyucular onu oxuyur; aldadıcı UI həm də hüquqi problemdir (dark patterns).",
+          ]},
+          { t: "qa", items: [
+            ["auto-fill ilə auto-fit fərqi?", "auto-fit boş track-ları 0-a yığır və elementlər genişlənir; auto-fill boş track-ları saxlayır."],
+            ["Flex yoxsa Grid?", "Bir ölçü və məzmundan asılı ölçülər — flex; iki ölçü və layout-dan gələn ölçülər — grid. Çox vaxt birlikdə."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "grid-template-columns: 200px 1fr 1fr; konteyner 800px-dir (gap yoxdur). 1fr neçə pikseldir?", options: ["200px", "300px", "266px"], answer: 1, why: "(800 − 200) / 2 = 300." },
+          { t: "quiz", q: "Media query olmadan responsive kart toru üçün?", options: ["repeat(3, 1fr)", "repeat(auto-fill, minmax(240px, 1fr))", "flex: 1"], answer: 1, why: "Sütun sayı ekran eninə görə avtomatik dəyişir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "grid-template-areas ilə səhifə skeleti (header, sidebar, main, footer) qur; main-in içində auto-fill + minmax ilə responsive kart toru yarat.",
+      starter: `<style>\n\n</style>\n<div class="sehife">\n  <header>Header</header>\n  <aside>Menyu</aside>\n  <main>\n    <div class="kartlar">\n      <div>1</div><div>2</div><div>3</div><div>4</div>\n    </div>\n  </main>\n  <footer>Footer</footer>\n</div>\n`,
+      expect: ".sehife display grid, grid-template-areas 3 sətir, uşaqlarda grid-area; .kartlar repeat(auto-fill|auto-fit, minmax(..., 1fr)) və gap.",
+    },
+  },
+  {
+    slug: "responsive",
+    title: "Responsive dizayn və media query",
+    intro: "Sayt 360px telefonda da, 2560px monitorda da yaxşı görünməlidir. Mobile-first yanaşma, media query, container query və responsive şəkillər.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Mobile-first və media query",
+        blocks: [
+          { t: "analogy", text: "Su qabın formasını alır. Responsive sayt da ekranın formasını alır. Mobile-first — əvvəl ən kiçik stəkan üçün düşünmək, sonra böyük qablara «əlavələr» etmək; tərsi (böyükdən kiçiyə sıxmaq) həmişə daha çətindir." },
+          { t: "code", lang: "css", code: `/* 1. Default — telefon */
+.kartlar { display: grid; gap: 1rem; }
+
+/* 2. 640px və daha geniş — planşet */
+@media (min-width: 640px) {
+  .kartlar { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* 3. 1024px və daha geniş — kompüter */
+@media (min-width: 1024px) {
+  .kartlar { grid-template-columns: repeat(3, 1fr); }
+}` },
+          { t: "terms", items: [
+            ["media query", "şərtli CSS: «ekran bu qədər genişdirsə, bu stili tətbiq et»."],
+            ["breakpoint", "layout-un dəyişdiyi en (640, 768, 1024, 1280...)."],
+            ["min-width", "bu endən BÖYÜK ekranlar üçün (mobile-first)."],
+            ["max-width", "bu endən KİÇİK ekranlar üçün (desktop-first)."],
+          ]},
+          { t: "tip", text: "head-də <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> olmasa, media query-lər telefonda işləmir!" },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Breakpoint-i məzmun seçir",
+        blocks: [
+          { t: "list", items: [
+            "Breakpoint-i cihaz adına (iPhone) görə yox, dizaynın «sındığı» yerə görə seç: brauzeri dartıb bax.",
+            "Fluid tipografiya (clamp) + auto-fill grid çox breakpoint-i lazımsız edir.",
+            "Toxunma ekranı üçün düymələr ən azı 44×44px.",
+            "Hover yalnız siçan olanda: @media (hover: hover) { .kart:hover { ... } }.",
+            "Animasiyanı sevməyənlər üçün: @media (prefers-reduced-motion: reduce).",
+          ]},
+          { t: "code", lang: "css", code: `img, video { max-width: 100%; height: auto; }  /* şəkil heç vaxt daşmasın */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition: none !important; }
+}` },
+          { t: "mistake", lang: "css", wrong: `.konteyner { width: 1200px; }`, right: `.konteyner { width: min(100% - 2rem, 1200px); margin-inline: auto; }`, why: "Sabit en telefonda üfüqi scroll yaradır. Maksimum en ver, kiçik ekranda sıxılsın." },
+          { t: "mistake", lang: "css", wrong: `@media (max-width: 768px) { ... }\n@media (min-width: 768px) { ... }`, right: `@media (width < 768px) { ... }\n@media (width >= 768px) { ... }`, why: "768px-də iki qayda eyni anda işləyir. Yeni range sintaksisi (<, >=) sərhədi dəqiq edir və oxunaqlıdır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Container query və müasir responsive",
+        blocks: [
+          { t: "code", lang: "css", code: `.kart-yeri { container-type: inline-size; }
+
+/* Kart ekrana yox, OLDUĞU YERƏ görə dəyişir */
+@container (min-width: 420px) {
+  .kart { display: grid; grid-template-columns: 140px 1fr; }
+}` },
+          { t: "list", items: [
+            "Container query komponenti həqiqətən təkrar istifadə olunan edir: eyni kart sidebar-da dar, main-də geniş formada.",
+            "Responsive təkcə en deyil: qısa ekranlar (height), landscape telefonlar, zoom 200–400% (WCAG 1.4.10 Reflow: 320px endə üfüqi scroll olmamalıdır).",
+            "Mobil üçün daha az məlumat yüklə: srcset/sizes, lazy loading, ağır JS komponentlərini şərti yüklə — CSS ilə gizlətmək yükləməni dayandırmır.",
+            "dvh/svh/lvh — mobil ünvan çubuğunun açılıb-yığılmasını nəzərə alan vahidlər.",
+            "Təhlükəsizlik: mobil versiyada CSS ilə gizlədilən admin düyməsi, debug məlumatı və s. HTML-də qalır — yetki yoxlaması həmişə serverdə olmalıdır, «görünmür» = «qorunur» DEYİL.",
+          ]},
+          { t: "qa", items: [
+            ["Media query ilə container query fərqi?", "Media — viewport-a (ekrana), container — elementin valideyn konteynerinin ölçüsünə baxır."],
+            ["Mobile-first niyə tövsiyə olunur?", "Sadə baza üzərinə əlavə etmək asandır, mobil cihaz lazımsız CSS-i ləğv etmək məcburiyyətində qalmır, prioritetlər düzgün qoyulur."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Mobile-first yanaşmada hansı media query işlədilir?", options: ["max-width", "min-width", "orientation"], answer: 1, why: "Default telefon üçündür, böyük ekranlar min-width ilə əlavə olunur." },
+          { t: "quiz", q: "viewport meta teqi olmasa nə olur?", options: ["Heç nə", "Telefonda media query-lər düzgün işləmir", "CSS yüklənmir"], answer: 1, why: "Brauzer səhifəni ~980px kimi render edib kiçildir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Mobile-first kart toru: telefonda 1 sütun, 640px+ 2 sütun, 1024px+ 3 sütun. Şəkillər daşmasın; .konteyner maks 1100px və mərkəzdə; hover effekti yalnız (hover: hover) cihazlarda.",
+      starter: `<style>\n\n</style>\n<div class="konteyner">\n  <div class="kartlar">\n    <div class="kart">1</div><div class="kart">2</div><div class="kart">3</div>\n  </div>\n</div>\n`,
+      expect: "default 1 sütun; @media min-width (və ya >=) 640 → 2, 1024 → 3 sütun; img max-width 100%; .konteyner min(...,1100px) + margin auto; :hover @media (hover: hover) içində.",
+    },
+  },
 ];

@@ -18,6 +18,13 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
 - Animasiya: `motion/react`, yumşaq spring; 1.2 s-dən uzun animasiya olmasın. `prefers-reduced-motion`-a hörmət et.
 - Mobil birinci: hər səhifə 360 px-də yoxlanmalıdır.
 
+## Təhlükəsizlik (dəyişmə, yalnız gücləndir)
+- `next.config.ts`: CSP + HSTS, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, COOP, `poweredByHeader: false`. CSP-də `unsafe-eval`/`wasm-unsafe-eval`/`blob:` məşq runner-ləri üçün LAZIMDIR — silsən JS/Python/SQL sınır. Dəyişəndən sonra 5 runner-i Playwright ilə yoxla.
+- HTML önizləmə: `sandbox="allow-scripts"` — `allow-same-origin` ƏLAVƏ ETMƏ.
+- `/api/agent`: Origin yoxlaması (başqa sayt → 403), body ≤ 40 KB, `lang/topic/exam` ağ siyahıdan, mesajlar tip yoxlamalı, IP limiti 15/dəq (Map ölçüsü məhdud), sistem promptunda prompt-injection qadağası. Açar yalnız serverdə.
+- Markdown render: innerHTML YOX, yalnız daxili linklər.
+- İmtahan nəticəsi localStorage-dadır (saxtalaşdırıla bilər) — sertifikat verilsə serverdə yoxlanmalıdır.
+
 ## Kod qaydaları
 - Server Component default; `"use client"` yalnız interaktiv hissədə (animasiya, state, brauzer API).
 - Komponent bir iş görür, 150 sətirdən uzun olmasın. Adlar ingiliscə (kod), mətnlər Azərbaycanca (UI).
@@ -43,7 +50,7 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
 - [x] Karyera yolu `/[track]/yol` (`src/data/career.ts`): Junior/Middle/Senior, addımlar, layihələr, imtahan (`/mesq?imtahan=backend-junior`; AI «NƏTİCƏ: ✅» → `markPassed`). Yoxlama: `node --experimental-strip-types scripts/check-data.mjs`.
 
 ## QALAN İŞLƏR (sıra ilə)
-1. **Dərslər (əsas iş).** 234 mövzudan 14-ü hazırdır: `javascript` (giris, deyisenler, funksiyalar), `html` (Junior hissəsi tam: giris→semantik), `python` (giris). Növbəti: CSS giris, selektorlar, kaskad, box-model, vahidler. Karyera sırası ilə yaz:
+1. **Dərslər (əsas iş).** 234 mövzudan 19-u hazırdır: `javascript` (giris, deyisenler, funksiyalar), `html` (Junior hissəsi tam: giris→semantik), `css` (giris, selektorlar, kaskad, box-model, vahidler), `python` (giris). Növbəti: CSS renger, tipografiya, display, position, flexbox, grid, responsive. Karyera sırası ilə yaz:
    - Junior Front: CSS (giris→responsive), JS (tipler→hadiseler).
    - Junior Back: C# (giris→oop), SQL (giris→cedvel), Python (deyisenler→funksiyalar).
    - Sonra Middle, sonra Senior (`career.ts`-dəki `steps` sırası).
@@ -55,6 +62,7 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
 
 ## İstifadəçi haqqında qeydlər
 - Böyük işləri təsdiqsiz görmə — əvvəl soruş, tövsiyə ver.
+- **DƏRSLƏR ÜÇÜN İCAZƏ VAR: «bitirənə qədər davam elə, möhkəm yaz»** — partiyalar arasında soruşma, bütün 234 dərsi bitirənə qədər yaz (hər partiyadan sonra build + commit + bu faylı yenilə; zip-i bir neçə partiyada bir göndər). Hər dərsin senior hissəsində mövzuya aid TƏHLÜKƏSİZLİK məqamı olsun (XSS, injection, CSRF, sirlər və s.).
 - Nəticəni zip kimi istəyir: HƏMİŞƏ EYNİ ad: `rm -f kod-akademiyasi.zip && git archive --format=zip -o kod-akademiyasi.zip HEAD` → SendUserFile (versiya nömrəsi YOX — istifadəçi istəyi). Kompüterinə birbaşa çıxış yoxdur.
 - Commit müəllifi: `-c user.name="ilkinQuliyev123" -c user.email="noreply@users.noreply.github.com"`.
 - Yoxlama serveri: `npx next start -p 3100` (köhnəsini əvvəl `pkill -f "next-server|next start"`), Playwright ilə ekran şəkli.

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { EditorView, basicSetup } from "codemirror";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
-import { EditorState, type Extension } from "@codemirror/state";
+import { EditorState, Prec, type Extension } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 
 async function langExt(editor: string): Promise<Extension> {
@@ -47,7 +47,8 @@ export default function Editor({ value, editor, onChange, onRun, resetKey }: {
           doc: value,
           extensions: [
             basicSetup,
-            keymap.of([indentWithTab, { key: "Mod-Enter", run: () => (cb.current.onRun(), true) }]),
+            Prec.highest(keymap.of([{ key: "Mod-Enter", run: () => (cb.current.onRun(), true) }])),
+            keymap.of([indentWithTab]),
             oneDark, theme, lang,
             EditorView.updateListener.of((u) => u.docChanged && cb.current.onChange(u.state.doc.toString())),
           ],

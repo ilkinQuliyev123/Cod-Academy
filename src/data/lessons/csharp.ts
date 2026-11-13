@@ -1,0 +1,878 @@
+import type { Lesson } from "../types";
+
+export const csharp: Lesson[] = [
+  {
+    slug: "giris",
+    title: "C# və .NET nədir? İlk proqram",
+    intro: "C# Microsoft-un güclü, tipli, obyekt yönümlü dilidir. .NET platformasında işləyir: veb API (ASP.NET Core), masaüstü, oyun (Unity), bulud xidmətləri.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "İlk proqram",
+        blocks: [
+          { t: "analogy", text: "C# — sənin yazdığın resept, .NET — mətbəx (sobalar, qablar, aşpazlar). Resepti (kodu) kompilyator əvvəlcə ümumi dilə (IL) tərcümə edir, sonra mətbəx (CLR) onu sənin kompüterinə uyğun bişirir." },
+          { t: "code", lang: "csharp", code: `// Program.cs — müasir (top-level) yazılış
+Console.WriteLine("Salam, dünya!");
+
+string ad = "Aysel";
+Console.WriteLine($"Xoş gəldin, {ad}!");` },
+          { t: "code", lang: "csharp", code: `// Klassik yazılış — böyük layihələrdə görəcəksən
+namespace KodAkademiyasi;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        Console.WriteLine("Salam!");
+    }
+}`, caption: "Hər iki forma eyni işi görür" },
+          { t: "terms", items: [
+            ["Console.WriteLine", "konsola yazır və yeni sətrə keçir."],
+            ["$\"...{ad}\"", "string interpolasiya — dəyişəni mətnin içinə qoyur."],
+            ["namespace", "sinifləri qruplaşdıran ad sahəsi (qovluq kimi)."],
+            ["class", "kodun əsas «qutusu» — C#-da hər şey sinif içindədir."],
+            ["static void Main", "proqramın başlanğıc nöqtəsi."],
+            [";", "hər əmrin sonu — məcburidir."],
+          ]},
+          { t: "tip", text: "Quraşdırma: .NET SDK yüklə → terminalda: dotnet new console -n IlkProqram → cd IlkProqram → dotnet run." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Necə işləyir və nə ilə yazılır",
+        blocks: [
+          { t: "list", items: [
+            "C# kompilyasiya olunan dildir: xəta kod İŞƏ DÜŞMƏMİŞ tapılır (Python/JS-dən fərqli).",
+            "Tipli (statically typed): hər dəyişənin tipi var, string-ə ədəd yazmaq olmur.",
+            "Böyük/kiçik hərfə həssasdır: Console ≠ console.",
+            "IDE: Visual Studio, JetBrains Rider və ya VS Code + C# Dev Kit.",
+            "Adlandırma: sinif və metodlar PascalCase (WriteLine), dəyişənlər camelCase (tamAd).",
+          ]},
+          { t: "mistake", lang: "csharp", wrong: `console.writeline("Salam")`, right: `Console.WriteLine("Salam");`, why: "C# hərfə həssasdır və nöqtəli vergül tələb edir. Kompilyator bunu dərhal göstərir." },
+          { t: "mistake", lang: "csharp", wrong: `Console.WriteLine('Salam');`, right: `Console.WriteLine("Salam");`, why: "Tək dırnaq yalnız TƏK simvol (char) üçündür: 'A'. Mətn — cüt dırnaq." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "CLR, IL, JIT və AOT",
+        blocks: [
+          { t: "p", text: "Roslyn kompilyatoru C#-ı IL-ə (Intermediate Language) çevirir və .dll faylına yazır. İcrada CLR (Common Language Runtime) IL-i JIT (Just-In-Time) ilə maşın koduna çevirir; tez-tez çağırılan metodları tiered compilation ilə yenidən optimallaşdırır. Native AOT isə əvvəlcədən maşın kodu yaradır — sürətli başlanğıc, kiçik yaddaş (serverless, konteynerlər)." },
+          { t: "list", items: [
+            "CLR yaddaşı özü idarə edir (Garbage Collector) — C++-dakı kimi delete yazmırsan.",
+            "Type safety və massiv sərhəd yoxlaması buffer overflow kimi yaddaş zəifliklərinin böyük hissəsini aradan qaldırır (unsafe blokları istisna).",
+            ".NET açıq mənbəlidir, Linux/macOS/Windows-da işləyir; LTS versiyaları 3 il dəstəklənir — istehsalda LTS seç.",
+            "Təhlükəsizlik: NuGet paketlərini yoxla (dotnet list package --vulnerable), sirləri appsettings.json-a yox, User Secrets / mühit dəyişənləri / Key Vault-a yaz.",
+          ]},
+          { t: "qa", items: [
+            ["IL və JIT nədir?", "IL — platformadan asılı olmayan ara kod; JIT onu icra zamanı konkret prosessorun koduna çevirir."],
+            ["C# ilə .NET fərqi?", "C# dildir, .NET isə runtime (CLR), standart kitabxana və alətlərdən ibarət platformadır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "C#-da mətn hansı dırnaqla yazılır?", options: ["'mətn'", "\"mətn\"", "`mətn`"], answer: 1, why: "Cüt dırnaq — string, tək dırnaq — char." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "ad, şəhər və yaş dəyişənləri yarat və interpolasiya ilə \"Mən Aysel, Bakıdanam, 25 yaşım var.\" çap et. Sonra gələn il neçə yaşın olacağını ayrıca sətirdə yaz.",
+      starter: `// C# (məşq səhifəsində işə salınmır — AI yoxlayır)\nstring ad = "Aysel";\n\n`,
+      expect: "string, int tipləri düzgün; Console.WriteLine($\"...{ad}...\") interpolasiya; nöqtəli vergüllər; yaş + 1 hesablanır.",
+    },
+  },
+  {
+    slug: "deyisenler",
+    title: "Dəyişənlər və tiplər",
+    intro: "C#-da hər dəyişənin tipi var və dəyişmir. Bu, səhvləri kod işə düşməmiş tutur. int, double, decimal, string, bool, var və null-lar.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Əsas tiplər",
+        blocks: [
+          { t: "analogy", text: "C# dəyişəni etiketli qabdır: «Yalnız süd» yazılmış butulkaya şirə tökə bilməzsən. Tip — qabın üstündəki yazıdır, kompilyator — qapıdakı yoxlayıcı." },
+          { t: "code", lang: "csharp", code: `int yas = 25;               // tam ədəd
+long ehali = 10_200_000L;   // böyük tam ədəd
+double boy = 1.68;          // kəsr (sürətli, təxmini)
+decimal qiymet = 19.99m;    // pul üçün (dəqiq)
+bool aktiv = true;
+char herf = 'A';
+string ad = "Aysel";
+
+var seher = "Bakı";         // tip avtomatik: string
+const double PI = 3.14159;  // sabit
+
+Console.WriteLine($"{ad}, {yas}, {qiymet:C}");` },
+          { t: "terms", items: [
+            ["int / long", "32 / 64 bitlik tam ədəd."],
+            ["double", "64 bitlik kəsr (elmi hesablamalar)."],
+            ["decimal", "128 bitlik dəqiq onluq — pul. Sonunda m."],
+            ["bool", "true / false (kiçik hərflə)."],
+            ["var", "tipi kompilyator çıxarır — amma tip yenə sabitdir."],
+            ["const", "kompilyasiya zamanı sabit."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Çevirmə və null",
+        blocks: [
+          { t: "code", lang: "csharp", code: `int a = 10;
+double b = a;               // gizli çevirmə — itki yoxdur
+int c = (int)9.8;           // açıq (cast) — 9, kəsr atılır
+
+int yas = int.Parse("25");
+if (int.TryParse("abc", out int netice))
+    Console.WriteLine(netice);
+else
+    Console.WriteLine("Ədəd deyil");
+
+string? email = null;       // ? — null ola bilər
+int? bal = null;            // nullable int
+Console.WriteLine(email ?? "email yoxdur");
+Console.WriteLine(email?.Length);` },
+          { t: "mistake", lang: "csharp", wrong: `int yas = int.Parse(Console.ReadLine());`, right: `if (!int.TryParse(Console.ReadLine(), out int yas))\n{\n    Console.WriteLine("Yanlış yaş");\n    return;\n}`, why: "İstifadəçi «abc» yazsa Parse FormatException atır və proqram çökür. TryParse uğuru bool kimi qaytarır." },
+          { t: "mistake", lang: "csharp", wrong: `double cem = 0.1 + 0.2;  // 0.30000000000000004`, right: `decimal cem = 0.1m + 0.2m;  // 0.3`, why: "double ikilik sistemdədir və pulda xəta toplanır. Maliyyə üçün decimal." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Value vs reference, overflow, nullable reference types",
+        blocks: [
+          { t: "p", text: "Value tiplər (int, double, bool, struct) dəyərin özünü saxlayır və kopyalanır. Reference tiplər (string, class, massiv) heap-dəki obyektə istinad saxlayır. string reference tipdir, amma immutable-dır — ona görə dəyər kimi davranır." },
+          { t: "code", lang: "csharp", code: `int max = int.MaxValue;
+int dasdi = max + 1;               // -2147483648 — səssiz overflow!
+// checked { int x = max + 1; }     // OverflowException
+
+#nullable enable
+string ad = null;                  // xəbərdarlıq: null təyin olunur` },
+          { t: "list", items: [
+            "Default olaraq tam ədəd overflow-u yoxlanmır — «checked» kontekst və ya layihədə <CheckForOverflowUnderflow> aç.",
+            "Nullable reference types (NRT) yeni layihələrdə aktivdir: string? və string fərqlidir — NullReferenceException-ların çoxunu kompilyator tutur.",
+            "Təhlükəsizlik: overflow real zəiflik ola bilər — məs. miqdar × qiymət daşır və mənfi məbləğ olur, ödəniş yoxlaması keçilir. Pul və miqdar hesablamalarında checked və sərhəd yoxlaması.",
+            "Təhlükəsizlik: istifadəçidən gələn rəqəmi həmişə TryParse + aralıq yoxlaması (0 < miqdar <= 100) ilə qəbul et.",
+          ]},
+          { t: "qa", items: [
+            ["decimal və double fərqi?", "double ikilik, sürətli, təxmini; decimal onluq, dəqiq, yavaş — pul üçün."],
+            ["var dinamik tipdir?", "Xeyr. Tip kompilyasiya zamanı çıxarılır və dəyişmir; dinamik olan dynamic-dir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Pul məbləği üçün tip:", options: ["double", "decimal", "float"], answer: 1, why: "decimal onluq hesabda dəqiqdir." },
+          { t: "quiz", q: "(int)7.9 nəticəsi:", options: ["8", "7", "xəta"], answer: 1, why: "Cast kəsri atır, yuvarlaqlaşdırmır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Mətn kimi verilən \"12\" miqdarı və 4.75m qiyməti ilə ümumi məbləği hesabla. Miqdarı TryParse ilə çevir, uğursuzsa xəbər ver. Nəticəni decimal ilə və 2 rəqəmlə çap et. Endirim kodu string? olsun və ?? ilə \"yoxdur\" göstər.",
+      starter: `string miqdarMetn = "12";\ndecimal qiymet = 4.75m;\nstring? endirimKodu = null;\n\n// bura\n`,
+      expect: "int.TryParse(miqdarMetn, out int miqdar) uğursuzluq halı ilə; decimal cem = miqdar * qiymet → 57.00; {cem:F2} və ya :C; endirimKodu ?? \"yoxdur\"; double işlədilməyib.",
+    },
+  },
+  {
+    slug: "operatorlar",
+    title: "Operatorlar",
+    intro: "C# operatorları JS və Python-a bənzəyir, amma tipli dünyada: int / int tam bölmədir, == tipləri çevirmir, ?? və ?. null ilə işləməyi asanlaşdırır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Riyazi, müqayisə, məntiqi",
+        blocks: [
+          { t: "analogy", text: "C# kalkulyatoru «tip»ə baxır: iki tam ədədi bölsən, cavab da tam olur (7 / 2 = 3) — sanki kalkulyator kəsr düyməsini gizlədib. Kəsr istəyirsənsə, ədədlərdən biri kəsr olmalıdır." },
+          { t: "code", lang: "csharp", code: `Console.WriteLine(7 + 2);    // 9
+Console.WriteLine(7 / 2);    // 3   — int / int
+Console.WriteLine(7 / 2.0);  // 3.5
+Console.WriteLine(7 % 2);    // 1
+
+int say = 5;
+say++;          // 6
+say += 10;      // 16
+
+bool netice = say > 10 && say < 20;   // true
+bool ya = say == 0 || say == 16;      // true
+bool deyil = !netice;                 // false` },
+          { t: "terms", items: [
+            ["/", "bölmə; hər iki tərəf tamdırsa nəticə tam."],
+            ["%", "qalıq."],
+            ["&& / || / !", "və / və ya / deyil (qısa dövrəli)."],
+            ["==, !=", "bərabər / bərabər deyil."],
+            ["++ / --", "1 artır / azalt."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Ternary, null operatorları, string müqayisəsi",
+        blocks: [
+          { t: "code", lang: "csharp", code: `int bal = 75;
+string status = bal >= 50 ? "keçdi" : "kəsildi";
+
+string? ad = null;
+string goster = ad ?? "Qonaq";     // null-dursa sağ tərəf
+ad ??= "Qonaq";                    // null-dursa təyin et
+int? uzunluq = ad?.Length;         // ad null-dursa null
+
+string a = "salam", b = "SALAM";
+Console.WriteLine(a == b);   // false
+Console.WriteLine(string.Equals(a, b, StringComparison.OrdinalIgnoreCase)); // true
+
+object x = 5;
+if (x is int n && n > 3) Console.WriteLine($"int: {n}");  // pattern` },
+          { t: "mistake", lang: "csharp", wrong: `double orta = (90 + 85 + 70) / 3;  // 81, 81.67 yox`, right: `double orta = (90 + 85 + 70) / 3.0;`, why: "Bölmə int-lər arasında baş verir, kəsr itir, SONRA double-a yazılır." },
+          { t: "mistake", lang: "csharp", wrong: `if (ad.ToLower() == "admin")`, right: `if (string.Equals(ad, "admin", StringComparison.OrdinalIgnoreCase))`, why: "ToLower yeni string yaradır və mədəniyyətdən asılıdır (Türk/Azərbaycan İ problemi: \"ADMIN\".ToLower() tr-TR-də «admın» olur!). Ordinal müqayisə həm sürətli, həm proqnozlaşdırılandır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Operator overloading və mədəniyyət tələsi",
+        blocks: [
+          { t: "code", lang: "csharp", code: `public readonly record struct Pul(decimal Mebleg, string Valyuta)
+{
+    public static Pul operator +(Pul a, Pul b) =>
+        a.Valyuta == b.Valyuta
+            ? new Pul(a.Mebleg + b.Mebleg, a.Valyuta)
+            : throw new InvalidOperationException("Valyutalar fərqlidir");
+}
+
+var cem = new Pul(10m, "AZN") + new Pul(5m, "AZN");  // Pul { Mebleg = 15, Valyuta = AZN }` },
+          { t: "list", items: [
+            "Operator overloading domen tiplərini (Pul, Vektor) təbii edir; == overload edəndə Equals və GetHashCode da yazılmalıdır (record bunu avtomatik edir).",
+            "&& və || qısa dövrəlidir; & və | hər iki tərəfi hesablayır (bool-da da) — yan təsirli metodlarda fərq var.",
+            "Təhlükəsizlik — «Turkish I» problemi real zəifliklərə səbəb olub: ad.ToUpper() == \"ADMIN\" yoxlaması tr/az mədəniyyətdə fərqli işləyir və filtrlər keçilir. Təhlükəsizlik müqayisələrində həmişə StringComparison.Ordinal(IgnoreCase).",
+            "Təhlükəsizlik: token/HMAC müqayisəsində == yox, CryptographicOperations.FixedTimeEquals — timing hücumuna qarşı.",
+          ]},
+          { t: "qa", items: [
+            ["?? və ?. nə edir?", "?? null olanda alternativ dəyər verir; ?. obyekt null-dursa xəta atmadan null qaytarır."],
+            ["Niyə Ordinal müqayisə?", "Mədəniyyətdən asılı deyil, sürətlidir və təhlükəsizlik yoxlamalarında proqnozlaşdırılandır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "C#-da 9 / 2 = ?", options: ["4.5", "4", "5"], answer: 1, why: "İki int — tam bölmə." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Üç imtahan balının ortasını (kəsrlə) hesabla; 50+ olarsa ternary ilə \"Keçdi\", yoxsa \"Kəsildi\". string? ləqəb null olanda ?? ilə \"Tələbə\" göstər. İstifadəçi adının \"admin\" olub-olmadığını hərfə həssas olmadan, Ordinal ilə yoxla.",
+      starter: `int b1 = 72, b2 = 45, b3 = 60;\nstring? leqeb = null;\nstring istifadeci = "ADMIN";\n\n// bura\n`,
+      expect: "/ 3.0 və ya (double) ilə orta 59; ternary; leqeb ?? \"Tələbə\"; string.Equals(..., StringComparison.OrdinalIgnoreCase) — ToLower müqayisəsi yox.",
+    },
+  },
+  {
+    slug: "sertler",
+    title: "Şərtlər",
+    intro: "if/else, switch və C#-ın güclü switch ifadəsi (switch expression) və pattern matching ilə qərar vermək.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "if / else if / else",
+        blocks: [
+          { t: "analogy", text: "Hava proqnozu: əgər yağış yağırsa — çətir götür, yox əgər günəşlidirsə — eynək, əks halda — gödəkçə. İlk doğru şərt qalib gəlir." },
+          { t: "code", lang: "csharp", code: `int bal = 78;
+
+if (bal >= 90)
+{
+    Console.WriteLine("Əla");
+}
+else if (bal >= 70)
+{
+    Console.WriteLine("Yaxşı");
+}
+else
+{
+    Console.WriteLine("Çalış");
+}` },
+          { t: "terms", items: [
+            ["if (şərt)", "şərt bool olmalıdır — C#-da if (5) yazmaq olmaz."],
+            ["else if", "növbəti şərt."],
+            ["{ }", "blok; tək sətirdə də yazmaq tövsiyə olunur."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "switch ifadəsi və pattern-lər",
+        blocks: [
+          { t: "code", lang: "csharp", code: `string gun = "Şənbə";
+switch (gun)
+{
+    case "Şənbə":
+    case "Bazar":
+        Console.WriteLine("İstirahət");
+        break;
+    default:
+        Console.WriteLine("İş günü");
+        break;
+}
+
+// Switch expression — dəyər qaytarır
+int bal = 83;
+string qiymet = bal switch
+{
+    >= 90 => "A",
+    >= 75 => "B",
+    >= 60 => "C",
+    < 0 or > 100 => "Yanlış",
+    _ => "F",
+};
+Console.WriteLine(qiymet);  // B` },
+          { t: "mistake", lang: "csharp", wrong: `if (bal = 100) { }`, right: `if (bal == 100) { }`, why: "C# burada xəta verir (int bool deyil) — JS-dən fərqli olaraq bu bug kompilyasiyadan keçmir. Yaxşı xəbərdir!" },
+          { t: "mistake", lang: "csharp", wrong: `case "A":\n    Console.WriteLine("A");\ncase "B":`, right: `case "A":\n    Console.WriteLine("A");\n    break;\ncase "B":`, why: "C#-da kodu olan case-dən növbətiyə «düşmək» qadağandır — break, return və ya goto case lazımdır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Pattern matching dərinliyi",
+        blocks: [
+          { t: "code", lang: "csharp", code: `record Sifaris(string Status, decimal Mebleg, string? Kupon);
+
+static decimal Endirim(Sifaris s) => s switch
+{
+    { Status: "ləğv" } => 0,
+    { Mebleg: > 500, Kupon: not null } => s.Mebleg * 0.15m,
+    { Mebleg: > 500 } => s.Mebleg * 0.10m,
+    _ => 0,
+};
+
+object v = new[] { 1, 2, 3 };
+if (v is int[] { Length: > 2 } arr && arr[0] == 1) Console.WriteLine("uyğun");` },
+          { t: "list", items: [
+            "Property, relational (>, <), logical (and, or, not), list ([1, .., 3]) pattern-ləri — mürəkkəb if zəncirlərini deklarativ edir.",
+            "Kompilyator switch expression-da bütün halların əhatə olunmadığını xəbərdar edir — enum-larda unudulmuş hal tutulur.",
+            "Guard clause: metodun əvvəlində ArgumentNullException.ThrowIfNull(x) və uyğunsuz halda return.",
+            "Təhlükəsizlik: yetki qərarlarını dağınıq if-lərlə yox, mərkəzləşdirilmiş siyasətlə ver (ASP.NET Core Authorization policies) — bir if unudulsa bütün endpoint açıq qalır. Default — QADAĞAN (deny by default).",
+          ]},
+          { t: "qa", items: [
+            ["switch statement və expression fərqi?", "Statement əmrləri icra edir, expression dəyər qaytarır, daha qısadır və exhaustiveness yoxlanır."],
+            ["«Deny by default» nədir?", "İcazə açıq verilməyibsə, giriş qadağandır — unudulmuş qayda açıq qapı yaratmır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "switch expression-da «hər şey qalan» halı:", options: ["default", "_", "else"], answer: 1, why: "Expression formasında _ (discard) işlədilir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Temperatur (int) üçün switch expression yaz: 0-dan aşağı \"Şaxta\", 0–15 \"Soyuq\", 16–25 \"Mülayim\", 26+ \"İsti\". Sonra bal (0–100) üçün if/else ilə qiymət ver; aralıq xaricində əvvəlcə guard ilə xəbərdarlıq.",
+      starter: `int temp = 18;\nint bal = 87;\n\n// bura\n`,
+      expect: "temp switch { < 0 => ..., <= 15 => ..., <= 25 => ..., _ => ... } → Mülayim; bal üçün əvvəl if (bal < 0 || bal > 100) yoxlanır; == və bool şərtlər düzgün.",
+    },
+  },
+  {
+    slug: "dovrler",
+    title: "Dövrlər",
+    intro: "for, while, do-while və foreach. C#-da foreach kolleksiyaları gəzməyin əsas yoludur.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "for və foreach",
+        blocks: [
+          { t: "analogy", text: "for — saatla məşq: «10 dəfə təkrar». foreach — səbətdəki hər almanı bir-bir götürmək: neçə alma olduğunu düşünmürsən." },
+          { t: "code", lang: "csharp", code: `for (int i = 1; i <= 5; i++)
+{
+    Console.WriteLine($"Addım {i}");
+}
+
+string[] dersler = { "HTML", "CSS", "C#" };
+foreach (string d in dersler)
+{
+    Console.WriteLine(d);
+}
+
+int pul = 100;
+while (pul > 0)
+{
+    pul -= 30;
+}
+
+do
+{
+    Console.WriteLine("Ən azı bir dəfə");
+} while (false);` },
+          { t: "terms", items: [
+            ["for (başla; şərt; addım)", "sayğaclı dövr."],
+            ["foreach (tip x in kolleksiya)", "hər elementi gəzir."],
+            ["while", "şərt doğru olduqca."],
+            ["do...while", "əvvəl icra, sonra yoxla."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "break, continue və tipik səhvlər",
+        blocks: [
+          { t: "code", lang: "csharp", code: `for (int i = 1; i <= 20; i++)
+{
+    if (i % 2 == 0) continue;
+    if (i > 9) break;
+    Console.Write($"{i} ");   // 1 3 5 7 9
+}
+
+int[] ededler = { 4, 8, 15, 16, 23, 42 };
+int cem = 0;
+foreach (var n in ededler) cem += n;
+Console.WriteLine(cem);  // 108` },
+          { t: "mistake", lang: "csharp", wrong: `foreach (var ad in adlar)\n{\n    if (ad == "") adlar.Remove(ad);\n}`, right: `adlar.RemoveAll(ad => ad == "");`, why: "foreach zamanı kolleksiyanı dəyişmək InvalidOperationException atır. RemoveAll və ya geriyə doğru for." },
+          { t: "mistake", lang: "csharp", wrong: `for (int i = 0; i <= arr.Length; i++)`, right: `for (int i = 0; i < arr.Length; i++)`, why: "Son indeks Length - 1-dir. <= IndexOutOfRangeException verir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Iterator-lar, yield və performans",
+        blocks: [
+          { t: "code", lang: "csharp", code: `static IEnumerable<int> Cutler(int max)
+{
+    for (int i = 0; i <= max; i += 2)
+        yield return i;     // tənbəl — tələb olunanda bir-bir verir
+}
+
+foreach (var c in Cutler(10)) Console.Write($"{c} ");` },
+          { t: "list", items: [
+            "foreach IEnumerable/GetEnumerator ilə işləyir; massiv və List<T>-də kompilyator onu sürətli for-a çevirir.",
+            "yield return tənbəl ardıcıllıq yaradır — milyonlarla sətri yaddaşa yükləmədən emal etmək.",
+            "Böyük dövrlərdə string += əvəzinə StringBuilder; dövr içində LINQ zəncirləri qurma (allocation).",
+            "Span<T> ilə massiv dilimləri kopyalamadan gəzilir — yüksək performanslı kod.",
+            "Təhlükəsizlik: istifadəçidən gələn sayla dövr (pageSize, count) — yuxarı hədd qoy və CancellationToken ilə uzun dövrləri dayandırıla bilən et; yoxsa bir sorğu serveri yükləyər (DoS).",
+          ]},
+          { t: "qa", items: [
+            ["foreach-də kolleksiyanı niyə dəyişmək olmaz?", "Enumerator versiyanı izləyir; dəyişiklik onu etibarsız edir və istisna atılır."],
+            ["yield return nə edir?", "Metodu tənbəl iterator-a çevirir: hər element tələb olunanda hesablanır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Ən azı bir dəfə icra olunan dövr:", options: ["while", "do...while", "for"], answer: 1, why: "Şərt sonda yoxlanır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) 1–30 FizzBuzz (for). 2) int massivində ən böyük ədədi foreach ilə tap (Max() işlətmədən). 3) Faktorialı while ilə hesabla (n = 10, long tip).",
+      starter: `int[] ededler = { 12, 7, 45, 3, 29 };\n\n// 1)\n// 2)\n// 3)\n`,
+      expect: "FizzBuzz-da 15 əvvəl yoxlanır; foreach ilə max 45; long faktorial 3628800; i < Length, sonsuz dövr yoxdur.",
+    },
+  },
+  {
+    slug: "metodlar",
+    title: "Metodlar",
+    intro: "Metod — C#-da funksiyadır, həmişə sinif içində yaşayır. Qaytarma tipi, parametrlər, overloading, ref/out və ifadə gövdəli metodlar.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Metod yazmaq",
+        blocks: [
+          { t: "analogy", text: "Metod — müqaviləli işçidir: «mənə iki ədəd ver (parametrlər, tipləri ilə), sənə bir ədəd qaytarım (qaytarma tipi)». Müqaviləni pozmaq (string vermək) kompilyator tərəfindən qadağandır." },
+          { t: "code", lang: "csharp", code: `static int Topla(int a, int b)
+{
+    return a + b;
+}
+
+static void Salamla(string ad)        // void — heç nə qaytarmır
+{
+    Console.WriteLine($"Salam, {ad}!");
+}
+
+static double Sahe(double r) => Math.PI * r * r;   // ifadə gövdəli
+
+Console.WriteLine(Topla(3, 4));   // 7
+Salamla("Aysel");
+Console.WriteLine(Sahe(2).ToString("F2"));` },
+          { t: "terms", items: [
+            ["static", "obyekt yaratmadan çağırılan metod."],
+            ["int (əvvəldə)", "qaytarma tipi."],
+            ["void", "heç nə qaytarmır."],
+            ["parametr", "tipi ilə: int a."],
+            ["=>", "tək ifadəli metodun qısa yazılışı."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Default, adlı arqumentlər, overloading, out",
+        blocks: [
+          { t: "code", lang: "csharp", code: `static decimal Endirim(decimal qiymet, int faiz = 10) => qiymet * (100 - faiz) / 100;
+Console.WriteLine(Endirim(200m));             // 180
+Console.WriteLine(Endirim(faiz: 25, qiymet: 200m));  // adlı arqumentlər
+
+// Overloading — eyni ad, fərqli parametrlər
+static int Max(int a, int b) => a > b ? a : b;
+static double Max(double a, double b) => a > b ? a : b;
+
+// out — bir neçə nəticə
+static bool Bol(int a, int b, out int netice)
+{
+    if (b == 0) { netice = 0; return false; }
+    netice = a / b;
+    return true;
+}
+if (Bol(10, 2, out var n)) Console.WriteLine(n);
+
+// Tuple qaytarmaq — daha müasir
+static (int Min, int Max) Hedler(int[] a) => (a.Min(), a.Max());` },
+          { t: "mistake", lang: "csharp", wrong: `static int Yoxla(int x)\n{\n    if (x > 0) return 1;\n}`, right: `static int Yoxla(int x)\n{\n    if (x > 0) return 1;\n    return 0;\n}`, why: "Bütün yollar dəyər qaytarmalıdır — kompilyator «not all code paths return a value» xətası verir." },
+          { t: "mistake", lang: "csharp", wrong: `static void Hesabla(List<int> l, int a, int b, int c, int d, bool x, bool y) {...}`, right: `record HesabSecimi(int A, int B, int C, int D, bool X, bool Y);\nstatic void Hesabla(List<int> l, HesabSecimi s) {...}`, why: "Çox parametrli metod oxunmur və səhv sıra ilə çağırılır. Parametrləri obyektə yığ." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "ref, in, params, local funksiyalar",
+        blocks: [
+          { t: "code", lang: "csharp", code: `static void Iki(ref int x) => x *= 2;     // çağıranın dəyişənini dəyişir
+int d = 5; Iki(ref d);                       // d = 10
+
+static int Cem(params int[] ededler) => ededler.Sum();
+Cem(1, 2, 3);
+
+static int Fakt(int n)
+{
+    return n < 0 ? throw new ArgumentOutOfRangeException(nameof(n)) : Hesab(n);
+    static int Hesab(int k) => k <= 1 ? 1 : k * Hesab(k - 1);   // local function
+}` },
+          { t: "list", items: [
+            "Value tiplər default olaraq kopya ilə ötürülür; ref/out/in istinad verir. Böyük struct-ları in ilə ötürmək kopyalamanı aradan qaldırır.",
+            "Overload həllində gizli çevirmələr gözlənilməz metodu seçə bilər (int → long vs double) — eyni adda çox overload-dan çəkin.",
+            "Saf metodlar test olunur; yan təsirləri (DB, fayl, saat) interfeys arxasına çıxar (dependency injection).",
+            "Təhlükəsizlik: public metodlarda arqumentləri yoxla (ArgumentNullException.ThrowIfNull, ArgumentOutOfRangeException.ThrowIfNegative) — «fail fast». Xəta mesajlarında həssas dəyərləri (parol, token) yazma.",
+          ]},
+          { t: "qa", items: [
+            ["ref və out fərqi?", "ref — dəyişən əvvəlcədən dəyər almalıdır; out — metod mütləq dəyər verməlidir."],
+            ["Overloading nədir?", "Eyni adlı, fərqli parametr siyahılı metodlar; kompilyator arqumentlərə görə seçir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Heç nə qaytarmayan metodun tipi:", options: ["null", "void", "empty"], answer: 1, why: "void — «boş»." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) Ortalama(params int[] ballar) — double qaytarsın, boş massivdə 0. 2) Qiymet(int bal) — switch expression ilə hərf qaytarsın. 3) TryBol(int a, int b, out double netice) — sıfıra bölmədə false. Main-də hamısını çağır.",
+      starter: `static double Ortalama(params int[] ballar)\n{\n    // bura\n}\n\n// Qiymet, TryBol\n\nConsole.WriteLine(Ortalama(80, 90, 75));\n`,
+      expect: "Ortalama boş halda 0, (double)Sum / Length → 81.67; Qiymet switch expression; TryBol out parametrli, b == 0 → false; bütün yollar return edir.",
+    },
+  },
+  {
+    slug: "massiv-kolleksiya",
+    title: "Massivlər və kolleksiyalar",
+    intro: "Massiv (sabit ölçü), List<T> (dinamik), Dictionary<K,V> (açar-dəyər), HashSet<T> (unikal). Düzgün kolleksiya seçmək — həm sürət, həm təmiz kod.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Massiv və List<T>",
+        blocks: [
+          { t: "analogy", text: "Massiv — 10 yerlik avtobus: yer sayı sabitdir. List — elastik avtobus: sərnişin gəldikcə uzanır. Dictionary — qarderob: nömrəni (açar) verirsən, paltarını (dəyər) dərhal alırsan." },
+          { t: "code", lang: "csharp", code: `int[] ballar = { 90, 75, 88 };
+string[] adlar = new string[3];      // 3 boş (null) yer
+Console.WriteLine(ballar[0]);        // 90
+Console.WriteLine(ballar.Length);    // 3
+
+var dersler = new List<string> { "HTML", "CSS" };
+dersler.Add("C#");
+dersler.Remove("CSS");
+dersler.Insert(0, "Git");
+Console.WriteLine(dersler.Count);    // 3
+Console.WriteLine(dersler.Contains("C#"));  // true
+dersler.Sort();` },
+          { t: "terms", items: [
+            ["T[]", "massiv — ölçüsü yaradılanda sabitlənir."],
+            ["List<T>", "ölçüsü dəyişən siyahı; T — elementlərin tipi (generic)."],
+            ["Length / Count", "massivin / List-in element sayı."],
+            ["Add / Remove / Insert", "əlavə / silmə / yerə qoyma."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Dictionary, HashSet, Queue, Stack",
+        blocks: [
+          { t: "code", lang: "csharp", code: `var telefonlar = new Dictionary<string, string>
+{
+    ["Aysel"] = "050-111-22-33",
+    ["Murad"] = "055-444-55-66",
+};
+telefonlar["Leyla"] = "070-777-88-99";
+
+if (telefonlar.TryGetValue("Aysel", out var nomre))
+    Console.WriteLine(nomre);
+
+foreach (var (ad, tel) in telefonlar)
+    Console.WriteLine($"{ad}: {tel}");
+
+var unikal = new HashSet<string> { "C#", "SQL", "C#" };   // 2 element
+
+var novbe = new Queue<string>();   novbe.Enqueue("1-ci"); novbe.Dequeue();   // FIFO
+var yigin = new Stack<int>();      yigin.Push(1); yigin.Pop();               // LIFO` },
+          { t: "mistake", lang: "csharp", wrong: `var tel = telefonlar["Orxan"];  // KeyNotFoundException`, right: `if (telefonlar.TryGetValue("Orxan", out var tel)) { ... }`, why: "Olmayan açarı indekslə oxumaq istisna atır. TryGetValue həm təhlükəsiz, həm bir axtarışdır." },
+          { t: "mistake", lang: "csharp", wrong: `if (list.Contains(x)) ... // 100 000 elementli List, dövr içində`, right: `var set = list.ToHashSet();\nif (set.Contains(x)) ...`, why: "List.Contains O(n), HashSet.Contains O(1). Dövr içində fərq saniyələrlə ölçülür." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Daxili quruluş, capacity, immutable kolleksiyalar",
+        blocks: [
+          { t: "list", items: [
+            "List<T> daxildə massivdir: dolanda 2 dəfə böyük yeni massiv yaradılıb kopyalanır. Ölçünü bilirsənsə new List<T>(capacity) — lazımsız kopyalamalar olmur.",
+            "Dictionary hash cədvəlidir; açar tipinin GetHashCode/Equals-ı düzgün olmalıdır. String açarlar üçün StringComparer.OrdinalIgnoreCase verə bilərsən.",
+            "API-dən kolleksiya qaytaranda IReadOnlyList<T> / IReadOnlyCollection<T> — çağıran daxili siyahını dəyişə bilməsin.",
+            "Çoxaxınlı (multi-thread) mühitdə adi Dictionary təhlükəsiz deyil — ConcurrentDictionary.",
+            "Collection expressions (C# 12): int[] a = [1, 2, 3]; List<int> l = [..a, 4];",
+            "Təhlükəsizlik: istifadəçi açarları ilə dolan Dictionary-yə limit qoy (məs. sorğu başına açar sayı) — hash toqquşma və yaddaş DoS-u. .NET string hash-ini təsadüfiləşdirir, amma ölçü limiti yenə lazımdır.",
+          ]},
+          { t: "qa", items: [
+            ["Massiv və List<T> fərqi?", "Massiv sabit ölçülüdür, List dinamik böyüyür (daxildə massiv saxlayır)."],
+            ["Nə vaxt HashSet?", "Unikallıq və sürətli «varmı?» yoxlaması lazım olanda."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Ad → telefon saxlamaq üçün:", options: ["List<string>", "Dictionary<string, string>", "string[]"], answer: 1, why: "Açar-dəyər cütü." },
+          { t: "quiz", q: "List-in element sayı:", options: [".Length", ".Count", ".Size"], answer: 1, why: "Massivdə Length, kolleksiyalarda Count." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) List<int> ballardan 70-dən aşağıları sil (RemoveAll) və qalanların ortasını tap. 2) Mətndəki sözlərin tezliyini Dictionary<string,int> ilə say (TryGetValue və ya GetValueOrDefault). 3) Təkrarlanan email-ləri HashSet ilə tap.",
+      starter: `var ballar = new List<int> { 92, 65, 78, 55, 88 };\nstring metn = "kod yaz kod oxu kod paylaş";\nstring[] emailler = { "a@x.az", "b@x.az", "a@x.az" };\n\n// 1)\n// 2)\n// 3)\n`,
+      expect: "RemoveAll(b => b < 70) → [92, 78, 88], orta 86; Dictionary say[s] = say.GetValueOrDefault(s) + 1 → kod: 3; HashSet.Add false qaytaranda təkrar → a@x.az.",
+    },
+  },
+  {
+    slug: "sinifler",
+    title: "Siniflər və obyektlər",
+    intro: "Sinif (class) — obyektin çertyojudur: hansı məlumatı (xassələr) və davranışı (metodlar) var. C# tamamilə siniflər üzərində qurulub.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Sinif, obyekt, konstruktor",
+        blocks: [
+          { t: "analogy", text: "Sinif — avtomobilin zavod çertyojudur. Obyekt — həmin çertyojla yığılmış konkret maşın: birinin rəngi qırmızı, digərininki ağ. Konstruktor — yığım xətti: maşın çıxanda ona başlanğıc parametrləri verir." },
+          { t: "code", lang: "csharp", code: `public class Telebe
+{
+    public string Ad { get; set; }
+    public int Yas { get; private set; }
+
+    public Telebe(string ad, int yas)    // konstruktor
+    {
+        Ad = ad;
+        Yas = yas;
+    }
+
+    public void Tanit() => Console.WriteLine($"Mən {Ad}, {Yas} yaşım var.");
+    public void AdGunu() => Yas++;
+}
+
+var t = new Telebe("Aysel", 20);
+t.Tanit();
+t.AdGunu();
+Console.WriteLine(t.Yas);   // 21
+// t.Yas = 50;   // xəta: set private-dir` },
+          { t: "terms", items: [
+            ["class", "çertyoj."],
+            ["obyekt (instance)", "new ilə yaradılan konkret nüsxə."],
+            ["property { get; set; }", "xassə — oxuma/yazma icazələri ilə."],
+            ["konstruktor", "sinif adı ilə eyni metod — obyekt yaradılanda işləyir."],
+            ["public / private", "çöldən görünür / yalnız sinif daxilində."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Primary constructor, init, static, record",
+        blocks: [
+          { t: "code", lang: "csharp", code: `// C# 12 primary constructor
+public class Hesab(string sahib, decimal balans)
+{
+    public string Sahib { get; } = sahib;
+    public decimal Balans { get; private set; } = balans;
+
+    public void Medaxil(decimal mebleg)
+    {
+        if (mebleg <= 0) throw new ArgumentException("Məbləğ müsbət olmalıdır");
+        Balans += mebleg;
+    }
+}
+
+public class Kurs
+{
+    public required string Ad { get; init; }   // yalnız yaradılanda
+    public static int Say { get; private set; } // bütün obyektlər üçün ortaq
+    public Kurs() => Say++;
+}
+var k = new Kurs { Ad = "C#" };
+
+public record Noqte(int X, int Y);   // dəyər bərabərliyi, immutable
+Console.WriteLine(new Noqte(1, 2) == new Noqte(1, 2));  // true` },
+          { t: "mistake", lang: "csharp", wrong: `public class Hesab\n{\n    public decimal Balans;   // hər kəs yaza bilər\n}\nhesab.Balans = -1000000;`, right: `public decimal Balans { get; private set; }\npublic void Mexaric(decimal m) { /* yoxla, sonra çıx */ }`, why: "Açıq sahə (field) obyektin qaydalarını pozmağa imkan verir. Vəziyyəti metodlarla, yoxlama ilə dəyiş — inkapsulyasiya." },
+          { t: "tip", text: "class — istinad bərabərliyi (eyni obyektdirmi), record — dəyər bərabərliyi (dəyərlər eynidirmi). DTO və dəyər obyektləri üçün record." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Yaddaş, bərabərlik, dizayn",
+        blocks: [
+          { t: "list", items: [
+            "class obyektləri heap-də yaranır, GC təmizləyir; dəyişən yalnız istinad saxlayır — iki dəyişən eyni obyektə işarə edə bilər.",
+            "Equals/GetHashCode-u override etməyən class Dictionary açarı kimi istinadla müqayisə olunur.",
+            "Konstruktorda invariant-ları təmin et: obyekt heç vaxt «yarımçıq» vəziyyətdə olmamalıdır (məs. mənfi balans).",
+            "sealed — irsiyyət lazım deyilsə; JIT optimallaşdırmasına da kömək edir.",
+            "Təhlükəsizlik — over-posting: ASP.NET-də birbaşa domen/Entity sinfini request modeli kimi qəbul etmə; istifadəçi IsAdmin = true göndərə bilər. Ayrıca DTO (record) işlət, yalnız icazəli sahələr.",
+            "Təhlükəsizlik: ToString()-i override edəndə parol, token kimi sahələri daxil etmə — log-lara sızır. record avtomatik ToString bütün xassələri yazır — həssas record-larda override et.",
+          ]},
+          { t: "qa", items: [
+            ["class və record fərqi?", "class istinad bərabərliyi və default mutable; record dəyər bərabərliyi, with ifadəsi, adətən immutable."],
+            ["Property ilə field fərqi?", "Field birbaşa dəyişəndir; property get/set metodlarıdır — yoxlama, yalnız-oxuma, gələcək dəyişikliklər mümkün."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Obyekt hansı açar sözlə yaradılır?", options: ["create", "new", "make"], answer: 1, why: "new Telebe(...)." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "BankHesabi sinfi yaz: Sahib (yalnız oxuma), Balans (private set), Medaxil(m) və Mexaric(m) metodları. Mənfi/sıfır məbləğ və balansdan çox məxaric üçün istisna at. 2 əməliyyat edib balansı çap et.",
+      starter: `public class BankHesabi\n{\n    // bura\n}\n\nvar h = new BankHesabi("Aysel", 100m);\n`,
+      expect: "Balans { get; private set; } decimal; Medaxil/Mexaric-də mebleg <= 0 və balansdan çox halda ArgumentException/InvalidOperationException; konstruktor Sahib və başlanğıc balansı təyin edir; public field yoxdur.",
+    },
+  },
+  {
+    slug: "oop",
+    title: "OOP: inkapsulyasiya, irsiyyət, polimorfizm",
+    intro: "Obyekt yönümlü proqramlaşdırmanın 4 sütunu: inkapsulyasiya, abstraksiya, irsiyyət, polimorfizm. Müsahibələrin ən çox soruşulan mövzusu.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "4 sütun sadə dillə",
+        blocks: [
+          { t: "analogy", text: "Avtomobil: İnkapsulyasiya — mühərrik kapotun altındadır, sən yalnız pedal və sükanı görürsən. Abstraksiya — «sür» deyirsən, yanacağın necə yandığını bilmirsən. İrsiyyət — elektromobil də avtomobildir, əsas xüsusiyyətləri miras alır. Polimorfizm — «sür» əmri benzin və elektrik maşınında fərqli işləyir, amma əmr eynidir." },
+          { t: "code", lang: "csharp", code: `public class Heyvan
+{
+    public string Ad { get; }
+    public Heyvan(string ad) => Ad = ad;
+    public virtual string SesVer() => "...";
+}
+
+public class It : Heyvan
+{
+    public It(string ad) : base(ad) { }
+    public override string SesVer() => "Hav!";
+}
+
+public class Pisik : Heyvan
+{
+    public Pisik(string ad) : base(ad) { }
+    public override string SesVer() => "Miyav!";
+}
+
+List<Heyvan> heyvanlar = [new It("Toplan"), new Pisik("Mırmır")];
+foreach (var h in heyvanlar)
+    Console.WriteLine($"{h.Ad}: {h.SesVer()}");   // polimorfizm` },
+          { t: "terms", items: [
+            [": Heyvan", "irsiyyət — It Heyvan-dan törəyir."],
+            ["base(ad)", "valideyn sinfin konstruktorunu çağırır."],
+            ["virtual", "«bu metodu törəmə sinif dəyişə bilər»."],
+            ["override", "valideynin virtual metodunu yenidən yazmaq."],
+            ["polimorfizm", "eyni çağırış, obyektin həqiqi tipinə görə fərqli davranış."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "abstract, protected, sealed",
+        blocks: [
+          { t: "code", lang: "csharp", code: `public abstract class Fiqur
+{
+    public abstract double Sahe();                 // gövdəsiz — törəmələr MƏCBURDUR
+    public override string ToString() => $"{GetType().Name}: {Sahe():F2}";
+}
+
+public sealed class Daire(double r) : Fiqur
+{
+    public override double Sahe() => Math.PI * r * r;
+}
+
+public sealed class Duzbucaqli(double en, double uz) : Fiqur
+{
+    public override double Sahe() => en * uz;
+}
+
+Fiqur[] fiqurlar = [new Daire(1), new Duzbucaqli(2, 3)];
+Console.WriteLine(fiqurlar.Sum(f => f.Sahe()));
+// new Fiqur();  // xəta: abstract sinifdən obyekt yaratmaq olmaz` },
+          { t: "list", items: [
+            "abstract sinif — natamam çertyoj: ortaq kod + məcburi metodlar.",
+            "protected — sinifin özü və törəmələri görür, çöl yox.",
+            "sealed — bu sinifdən törəmək olmaz.",
+            "C#-da sinif yalnız BİR sinifdən törəyə bilər, amma bir neçə interfeysi tətbiq edə bilər.",
+          ]},
+          { t: "mistake", lang: "csharp", wrong: `public class It : Heyvan\n{\n    public new string SesVer() => "Hav!";\n}\nHeyvan h = new It("T");\nh.SesVer();  // "..." !`, right: `public override string SesVer() => "Hav!";`, why: "new metodu gizlədir (hiding), override etmir — valideyn tipi ilə çağırılanda köhnə metod işləyir. Polimorfizm üçün virtual + override." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Composition over inheritance və LSP",
+        blocks: [
+          { t: "p", text: "Dərin irsiyyət zəncirləri (A → B → C → D) kövrəkdir: valideyndə dəyişiklik bütün törəmələri sındırır (fragile base class). Müasir tövsiyə: «irsiyyət əvəzinə tərkib» (composition) — davranışı interfeyslər və daxili obyektlər vasitəsilə birləşdir. İrsiyyəti yalnız həqiqi «is-a» əlaqəsi və ortaq invariantlar olanda işlət." },
+          { t: "code", lang: "csharp", code: `// İrsiyyət əvəzinə tərkib
+public interface IBildiris { void Gonder(string mesaj); }
+public sealed class EmailBildiris : IBildiris { public void Gonder(string m) { /* ... */ } }
+public sealed class SmsBildiris : IBildiris { public void Gonder(string m) { /* ... */ } }
+
+public sealed class SifarisXidmeti(IBildiris bildiris)
+{
+    public void Tamamla() => bildiris.Gonder("Sifarişiniz hazırdır");
+}` },
+          { t: "list", items: [
+            "Liskov prinsipi (LSP): törəmə sinif valideynin yerinə qoyulanda proqram düzgün işləməlidir. Kvadrat : Düzbucaqlı klassik pozuntudur (eni dəyişəndə hündürlük də dəyişir).",
+            "virtual çağırışlar bir az bahalıdır (vtable); sealed siniflərdə JIT çağırışı birbaşa edə bilər.",
+            "Konstruktorda virtual metod çağırma — törəmə sinif hələ tam qurulmayıb.",
+            "Təhlükəsizlik: yetki yoxlamasını virtual metodda saxlayıb törəmə sinfə «override» imkanı vermə — törəmə yoxlamanı söndürə bilər. Kritik yoxlamaları sealed/qeyri-virtual metodlarda və ya ayrıca servisdə saxla.",
+            "Təhlükəsizlik: JSON deserializasiyasında polimorfik tip adını ($type) istifadəçidən qəbul etmək (Newtonsoft TypeNameHandling.All) uzaqdan kod icrasına yol açıb — System.Text.Json-da yalnız açıq [JsonDerivedType] ağ siyahısı ilə.",
+          ]},
+          { t: "qa", items: [
+            ["OOP-un 4 prinsipi?", "İnkapsulyasiya, abstraksiya, irsiyyət, polimorfizm."],
+            ["abstract class və interface fərqi?", "abstract class vəziyyət (sahə) və konstruktor saxlaya bilər, tək irsiyyət; interface müqavilədir, bir sinif çoxunu tətbiq edə bilər."],
+            ["Niyə composition over inheritance?", "Daha az asılılıq, daha çevik dəyişiklik, test zamanı asan əvəzləmə (mock)."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Valideynin metodunu törəmə sinifdə dəyişmək üçün valideyndə nə yazılmalıdır?", options: ["static", "virtual", "sealed"], answer: 1, why: "virtual + törəmədə override." },
+          { t: "quiz", q: "abstract sinifdən obyekt yaratmaq olar?", options: ["Bəli", "Xeyr", "Yalnız static"], answer: 1, why: "abstract sinif natamamdır — yalnız törəmələri yaradılır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "abstract İsci sinfi (Ad, abstract decimal Maas()). Törəmələr: SaatliqIsci (saat × tarif) və AyliqIsci (sabit maaş + bonus). List<Isci>-də hamısının maaşını polimorfizmlə çap et və cəmini hesabla.",
+      starter: `public abstract class Isci\n{\n    // bura\n}\n\n// SaatliqIsci, AyliqIsci\n\n// List<Isci> və cəm\n`,
+      expect: "abstract class + abstract decimal Maas(); törəmələrdə override və base(ad) konstruktor; decimal tip; foreach ilə polimorf çağırış; cəm Sum(i => i.Maas()) və ya dövr; new ilə gizlətmə yoxdur.",
+    },
+  },
+];

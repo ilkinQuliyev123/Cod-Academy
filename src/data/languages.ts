@@ -159,9 +159,9 @@ export const LANGUAGES: Language[] = [
   },
 ];
 
-export const TRACKS: Record<TrackId, { name: string; team: string; tagline: string }> = {
-  frontend: { name: "Front End", team: "Blue Team", tagline: "İstifadəçinin gördüyü dünya" },
-  backend: { name: "Back End", team: "Red Team", tagline: "Pərdə arxasındakı güc" },
+export const TRACKS: Record<TrackId, { name: string; tagline: string }> = {
+  frontend: { name: "Front End", tagline: "İstifadəçinin gördüyü dünya" },
+  backend: { name: "Back End", tagline: "Pərdə arxasındakı güc" },
 };
 
 export const langsOf = (track: TrackId) => LANGUAGES.filter((l) => l.track === track);

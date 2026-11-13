@@ -21,7 +21,7 @@ export default function Header({ track }: { track: TrackId }) {
           href={`/${track}`}
           className="shrink-0 rounded border border-accent/40 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-accent"
         >
-          {TRACKS[track].team}
+          {TRACKS[track].name}
         </Link>
         <div className="flex-1" />
         <Link href={`/${track}/yol`} className={`shrink-0 text-sm ${active === "yol" ? "text-accent" : "text-slate-400 hover:text-white"}`}>

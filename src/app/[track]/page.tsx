@@ -9,7 +9,7 @@ export default async function TrackPage({ params }: PageProps<"/[track]">) {
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-12 grid-bg">
-      <p className="font-mono text-xs uppercase tracking-[0.4em] text-accent">{t.team}</p>
+      <p className="font-mono text-xs uppercase tracking-[0.4em] text-accent">Bölmə</p>
       <h1 className="mt-2 text-4xl md:text-6xl font-black glow">{t.name}</h1>
       <p className="mt-3 max-w-xl text-slate-400">
         {t.tagline}. Dili seç — hər mövzu başlanğıcdan senior səviyyəsinə qədər izah olunur.

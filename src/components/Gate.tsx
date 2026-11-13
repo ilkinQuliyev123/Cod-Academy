@@ -1,110 +1,138 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence, MotionConfig } from "motion/react";
+import { motion, AnimatePresence, MotionConfig, useAnimationControls } from "motion/react";
 import type { TrackId } from "@/data/types";
 import { TRACKS } from "@/data/languages";
 
-const COLORS: Record<TrackId, string> = { frontend: "#38bdf8", backend: "#f43f5e" };
-const CODE: Record<TrackId, string[]> = {
-  frontend: ["<div>", "flex", "useState", ":hover", "<button/>", "grid", "fetch()", "props"],
-  backend: ["SELECT *", "async Task", "@Controller", "def api()", "JOIN", "std::vector", "JWT", "200 OK"],
+const C: Record<TrackId, { main: string; dark: string; mark: string }> = {
+  frontend: { main: "#38bdf8", dark: "#062a43", mark: "</>" },
+  backend: { main: "#f43f5e", dark: "#43061a", mark: "{ }" },
 };
 
-/** Bir tərəf: Blue Team (front) və ya Red Team (back) */
-function Side({ id, hover, setHover, pick }: {
-  id: TrackId; hover: TrackId | null; setHover: (t: TrackId | null) => void; pick: (t: TrackId) => void;
+/** Diaqonal bölgü: s = yuxarıdakı kəsişmə nöqtəsi (%) */
+const clip = (side: TrackId, s: number, mobile: boolean) => {
+  const b = s - 10; // aşağıda 10% maili
+  if (mobile)
+    return side === "frontend"
+      ? `polygon(0% 0%, 100% 0%, 100% ${b}%, 0% ${s}%)`
+      : `polygon(0% ${s}%, 100% ${b}%, 100% 100%, 0% 100%)`;
+  return side === "frontend"
+    ? `polygon(0% 0%, ${s}% 0%, ${b}% 100%, 0% 100%)`
+    : `polygon(${s}% 0%, 100% 0%, 100% 100%, ${b}% 100%)`;
+};
+
+function useMobile() {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const q = matchMedia("(max-width: 767px)");
+    const on = () => setM(q.matches);
+    on();
+    q.addEventListener("change", on);
+    return () => q.removeEventListener("change", on);
+  }, []);
+  return m;
+}
+
+const spring = { type: "spring", stiffness: 140, damping: 18, delay: 0.15 } as const;
+
+function Side({ id, split, mobile, onHover, onPick }: {
+  id: TrackId; split: number; mobile: boolean; onHover: (h: boolean) => void; onPick: () => void;
 }) {
-  const c = COLORS[id];
-  const grow = hover === id ? 1.35 : hover ? 0.65 : 1;
+  const c = C[id];
+  const left = id === "frontend";
   return (
     <motion.button
-      onMouseEnter={() => setHover(id)}
-      onMouseLeave={() => setHover(null)}
-      onFocus={() => setHover(id)}
-      onClick={() => pick(id)}
-      animate={{ flexGrow: grow }}
-      transition={{ type: "spring", stiffness: 120, damping: 20 }}
-      className="relative flex-1 basis-0 overflow-hidden grid-bg outline-none cursor-pointer min-h-[50vh] md:min-h-0"
-      style={{ background: `radial-gradient(circle at ${id === "frontend" ? "30%" : "70%"} 50%, ${c}22, #05070d 70%)` }}
+      aria-label={TRACKS[id].name}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+      onFocus={() => onHover(true)}
+      onBlur={() => onHover(false)}
+      onClick={onPick}
+      initial={mobile ? { y: left ? "-100%" : "100%" } : { x: left ? "-100%" : "100%" }}
+      animate={{ x: 0, y: 0, clipPath: clip(id, split, mobile) }}
+      transition={{ x: spring, y: spring, clipPath: { type: "spring", stiffness: 120, damping: 20 } }}
+      className="absolute inset-0 cursor-pointer outline-none"
+      style={{ background: `linear-gradient(${left ? 115 : 245}deg, ${c.dark} 0%, #05070d 75%)` }}
     >
-      {/* Uçan kod parçaları */}
-      {CODE[id].map((w, i) => (
-        <motion.span
-          key={w}
-          className="absolute font-mono text-xs md:text-sm opacity-30 select-none"
-          style={{ color: c, left: `${8 + ((i * 37) % 80)}%` }}
-          initial={{ y: "110vh" }}
-          animate={{ y: "-10vh" }}
-          transition={{ duration: 9 + (i % 4) * 2, repeat: Infinity, delay: i * 1.1, ease: "linear" }}
-        >
-          {w}
-        </motion.span>
-      ))}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full gap-4 px-4">
-        <span className="font-mono text-xs tracking-[0.4em] uppercase" style={{ color: c }}>
-          {TRACKS[id].team}
-        </span>
+      {/* Diaqonal zolaqlar */}
+      <div
+        className="absolute inset-0 opacity-[0.07]"
+        style={{ backgroundImage: `repeating-linear-gradient(${left ? 60 : -60}deg, ${c.main} 0 2px, transparent 2px 22px)` }}
+      />
+      {/* Nəhəng simvol */}
+      <span
+        className={`absolute select-none font-mono font-black leading-none opacity-[0.08] ${mobile ? (left ? "right-4 top-6" : "left-4 bottom-6") : left ? "left-[4%] top-1/2 -translate-y-1/2" : "right-[4%] top-1/2 -translate-y-1/2"}`}
+        style={{ color: c.main, fontSize: mobile ? "38vw" : "26vw" }}
+      >
+        {c.mark}
+      </span>
+      {/* Ad */}
+      <motion.div
+        initial={{ opacity: 0, x: left ? -120 : 120 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.75, type: "spring", stiffness: 200, damping: 16 }}
+        className={`absolute flex flex-col ${mobile ? `inset-x-0 items-center ${left ? "top-[16%]" : "bottom-[16%]"}` : `top-1/2 -translate-y-1/2 ${left ? "left-[8%] items-start" : "right-[8%] items-end"}`}`}
+      >
         <h2
-          className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight text-white"
-          style={{ textShadow: `0 0 30px ${c}, 0 0 80px ${c}66` }}
+          className="font-black italic leading-[0.85] tracking-tighter text-white"
+          style={{ fontSize: mobile ? "16vw" : "8.5vw", textShadow: `0 0 40px ${c.main}, 0 0 100px ${c.main}88, 6px 6px 0 ${c.dark}` }}
         >
-          {TRACKS[id].name.toUpperCase()}
+          {left ? <>FRONT<br />END</> : <>BACK<br />END</>}
         </h2>
-        <p className="text-slate-400">{TRACKS[id].tagline}</p>
-        <motion.span
-          animate={{ opacity: hover === id ? 1 : 0.4 }}
-          className="mt-4 rounded-full border px-6 py-2 font-mono text-sm"
-          style={{ borderColor: c, color: c }}
-        >
-          [ seç → ]
-        </motion.span>
-      </div>
+        <span className="mt-4 h-1.5 w-24 -skew-x-12" style={{ background: c.main, boxShadow: `0 0 20px ${c.main}` }} />
+        <p className="mt-3 text-sm text-slate-300 md:text-base">{TRACKS[id].tagline}</p>
+      </motion.div>
     </motion.button>
   );
 }
 
-/** Lift qapısı: söz ortadan iki yarıya bölünüb yanlara açılır */
+/** Lift qapısı: bölmənin rəngində iki qanad ortadan aralanır */
 export function Doors({ track, open, onDone }: { track: TrackId; open: boolean; onDone?: () => void }) {
-  const c = COLORS[track];
+  const c = C[track];
   const word = (
-    <div className="w-screen h-full flex flex-col items-center justify-center gap-3">
-      <span className="font-mono text-xs tracking-[0.4em] uppercase" style={{ color: c }}>{TRACKS[track].team}</span>
-      <h2 className="text-5xl md:text-8xl font-black text-white" style={{ textShadow: `0 0 30px ${c}` }}>
+    <div className="flex h-full w-screen items-center justify-center">
+      <h2 className="font-black italic tracking-tighter text-white" style={{ fontSize: "min(14vw, 9rem)", textShadow: `0 0 40px ${c.main}` }}>
         {TRACKS[track].name.toUpperCase()}
       </h2>
     </div>
   );
-  const door = "fixed top-0 h-full w-1/2 overflow-hidden z-50 grid-bg";
-  const bg = { background: `linear-gradient(180deg, #0c111c, #05070d)` };
-  const t = { delay: 0.25, duration: 1.1, ease: [0.7, 0, 0.2, 1] as const };
+  const ease = [0.7, 0, 0.2, 1] as const;
+  const t = open ? { delay: 0.25, duration: 1.1, ease } : { duration: 0.6, ease };
   return (
     <>
-      <motion.div className={`${door} left-0`} style={bg} initial={{ x: open ? 0 : "-100%" }} animate={{ x: open ? "-100%" : 0 }} transition={open ? t : { duration: 0.7, ease: [0.7, 0, 0.2, 1] }} onAnimationComplete={onDone}>
-        <div className="absolute left-0 top-0 h-full">{word}</div>
-        <div className="absolute right-0 top-0 h-full w-[3px]" style={{ background: c, boxShadow: `0 0 20px ${c}` }} />
-      </motion.div>
-      <motion.div className={`${door} right-0`} style={bg} initial={{ x: open ? 0 : "100%" }} animate={{ x: open ? "100%" : 0 }} transition={open ? t : { duration: 0.7, ease: [0.7, 0, 0.2, 1] }}>
-        <div className="absolute right-0 top-0 h-full">{word}</div>
-        <div className="absolute left-0 top-0 h-full w-[3px]" style={{ background: c, boxShadow: `0 0 20px ${c}` }} />
-      </motion.div>
-      {/* Ortadakı skan xətti */}
-      <motion.div
-        className="fixed inset-x-0 z-[60] h-[2px]"
-        style={{ background: c, boxShadow: `0 0 24px ${c}` }}
-        initial={{ top: "0%", opacity: 1 }}
-        animate={{ top: "100%", opacity: 0 }}
-        transition={{ duration: 0.9, delay: open ? 0 : 0.7, ease: "easeInOut" }}
-      />
+      {(["left", "right"] as const).map((side) => (
+        <motion.div
+          key={side}
+          className={`fixed top-0 z-50 h-full w-1/2 overflow-hidden ${side === "left" ? "left-0" : "right-0"}`}
+          style={{ background: `linear-gradient(180deg, ${c.dark}, #05070d)` }}
+          initial={{ x: open ? 0 : side === "left" ? "-100%" : "100%" }}
+          animate={{ x: open ? (side === "left" ? "-100%" : "100%") : 0 }}
+          transition={t}
+          onAnimationComplete={side === "left" ? onDone : undefined}
+        >
+          <div className={`absolute top-0 h-full ${side === "left" ? "left-0" : "right-0"}`}>{word}</div>
+          <div className={`absolute top-0 h-full w-[3px] ${side === "left" ? "right-0" : "left-0"}`} style={{ background: c.main, boxShadow: `0 0 24px ${c.main}` }} />
+        </motion.div>
+      ))}
     </>
   );
 }
 
 export default function Gate() {
   const router = useRouter();
+  const mobile = useMobile();
+  const shake = useAnimationControls();
   const [hover, setHover] = useState<TrackId | null>(null);
   const [picked, setPicked] = useState<TrackId | null>(null);
+  const split = hover === "frontend" ? 64 : hover === "backend" ? 46 : 55;
+
+  // Toqquşma anı: ekran silkələnir
+  useEffect(() => {
+    const id = setTimeout(() => shake.start({ x: [0, -14, 12, -8, 5, 0], y: [0, 6, -5, 3, 0], transition: { duration: 0.45 } }), 650);
+    return () => clearTimeout(id);
+  }, [shake]);
 
   const pick = (t: TrackId) => {
     router.prefetch(`/${t}`);
@@ -114,24 +142,39 @@ export default function Gate() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <main className="relative flex flex-col md:flex-row flex-1 min-h-screen overflow-hidden bg-ink">
-      <div className="absolute top-6 inset-x-0 z-20 text-center pointer-events-none">
-        <h1 className="font-mono text-sm tracking-[0.5em] text-slate-300">KOD AKADEMİYASI</h1>
-        <p className="text-xs text-slate-500 mt-1">Tərəfini seç</p>
-      </div>
-      <Side id="frontend" hover={hover} setHover={setHover} pick={pick} />
-      {/* VS ayırıcı */}
-      <div className="relative z-20 flex items-center justify-center md:w-0">
-        <div className="absolute md:inset-y-0 inset-x-0 md:inset-x-auto h-[2px] md:h-auto md:w-[2px] bg-gradient-to-b from-blue-team via-white to-red-team" />
-        <span className="relative rounded-full bg-ink border border-line px-3 py-2 font-black text-sm text-white">VS</span>
-      </div>
-      <Side id="backend" hover={hover} setHover={setHover} pick={pick} />
-      <AnimatePresence>
-        {picked && (
-          <Doors track={picked} open={false} onDone={() => setTimeout(() => router.push(`/${picked}`), 900)} />
-        )}
-      </AnimatePresence>
-    </main>
+      <motion.main animate={shake} className="relative h-dvh w-full overflow-hidden bg-ink">
+        <Side id="frontend" split={split} mobile={mobile} onHover={(h) => setHover(h ? "frontend" : null)} onPick={() => pick("frontend")} />
+        <Side id="backend" split={split} mobile={mobile} onHover={(h) => setHover(h ? "backend" : null)} onPick={() => pick("backend")} />
+
+        {/* Toqquşma işığı */}
+        <motion.div
+          className="pointer-events-none absolute inset-0 z-20 bg-white"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0, 0.85, 0] }}
+          transition={{ duration: 0.9, times: [0, 0.68, 0.72, 1] }}
+        />
+
+        <motion.h1
+          className="pointer-events-none absolute inset-x-0 top-5 z-30 text-center font-mono text-xs tracking-[0.5em] text-white/80 md:text-sm"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.1 }}
+        >
+          KOD AKADEMİYASI
+        </motion.h1>
+        <motion.p
+          className="pointer-events-none absolute inset-x-0 bottom-6 z-30 text-center font-mono text-[11px] uppercase tracking-[0.4em] text-white/50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0.4, 1] }}
+          transition={{ delay: 1.4, duration: 2, repeat: Infinity, repeatType: "reverse" }}
+        >
+          Tərəfini seç
+        </motion.p>
+
+        <AnimatePresence>
+          {picked && <Doors track={picked} open={false} onDone={() => setTimeout(() => router.push(`/${picked}`), 700)} />}
+        </AnimatePresence>
+      </motion.main>
     </MotionConfig>
   );
 }

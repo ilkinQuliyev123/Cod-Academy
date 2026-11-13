@@ -15,7 +15,7 @@ export default async function YolPage({ params }: PageProps<"/[track]/yol">) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-12">
-      <p className="font-mono text-xs uppercase tracking-[0.4em] text-accent">{TRACKS[track].team} · karyera yolu</p>
+      <p className="font-mono text-xs uppercase tracking-[0.4em] text-accent">{TRACKS[track].name} · karyera yolu</p>
       <h1 className="mt-2 text-4xl md:text-6xl font-black glow">Sıfırdan Senior-a</h1>
       <p className="mt-4 max-w-2xl text-slate-400">
         Üç mərhələ: <b className="text-emerald-300">Junior</b> → <b className="text-amber-300">Middle</b> → <b className="text-fuchsia-300">Senior</b>.

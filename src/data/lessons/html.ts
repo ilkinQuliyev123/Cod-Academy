@@ -383,4 +383,465 @@ export const html: Lesson[] = [
       expect: "nav içində 3 mənalı mətnli a; xarici linkdə target=_blank və rel=noopener; href=\"#son\" və id=\"son\" olan element var.",
     },
   },
+  {
+    slug: "sekiller",
+    title: "Şəkillər və media",
+    intro: "Şəkil, video və audio əlavə etmək; düzgün format, ölçü və alt mətn seçmək.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "<img>, <video>, <audio>",
+        blocks: [
+          { t: "analogy", text: "img teqi divara asılmış çərçivədir: src — çərçivəyə qoyulan şəklin ünvanı, alt — altındakı lövhəcik. Şəkil düşüb itsə də, lövhəcik nəyin asıldığını deyir." },
+          { t: "code", lang: "html", code: `<img src="img/baki.jpg" alt="Gecə vaxtı Alov qüllələri" width="800" height="450">
+
+<figure>
+  <img src="qrafik.png" alt="2026-cı il satış qrafiki: dekabrda zirvə">
+  <figcaption>Şəkil 1. İllik satış</figcaption>
+</figure>
+
+<video src="ders.mp4" controls poster="kapak.jpg"></video>
+<audio src="mahni.mp3" controls></audio>` },
+          { t: "terms", items: [
+            ["src", "source — faylın ünvanı."],
+            ["alt", "alternativ mətn: şəkil görünməyəndə və ekran oxuyucu üçün."],
+            ["width / height", "şəklin ölçüsü (piksel). Səhifənin «tullanmasının» qarşısını alır."],
+            ["<figure>", "şəkil + izah bir bütöv kimi."],
+            ["<figcaption>", "figure-un altyazısı."],
+            ["controls", "oynat/dayandır düymələrini göstərir."],
+            ["poster", "video başlamazdan əvvəl görünən şəkil."],
+          ]},
+          { t: "tip", text: "Dekorativ şəkil üçün (məna daşımayan bəzək) alt=\"\" yaz — boş, amma mövcud. Ekran oxuyucu onu ötürür." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Format və ölçü seçimi",
+        blocks: [
+          { t: "list", items: [
+            "JPG — fotolar. PNG — şəffaflıq lazım olanda. SVG — ikon və loqolar (vektor, kəskin qalır).",
+            "WebP / AVIF — müasir formatlar, JPG-dən 30–50% kiçik.",
+            "Telefonda 4000px-lik şəkil yükləmək trafiki yandırır — ölçünü ehtiyaca görə kiçilt.",
+          ]},
+          { t: "code", lang: "html", code: `<picture>
+  <source srcset="foto.avif" type="image/avif">
+  <source srcset="foto.webp" type="image/webp">
+  <img src="foto.jpg" alt="Dəniz kənarı" width="1200" height="800" loading="lazy">
+</picture>` },
+          { t: "p", text: "picture brauzerə seçim verir: AVIF-i başa düşürsə onu, yoxsa WebP-ni, o da olmasa JPG-ni götürür. loading=\"lazy\" — şəkil ekrana yaxınlaşanda yüklənir." },
+          { t: "mistake", lang: "html", wrong: `<img src="pisik.jpg" alt="şəkil">`, right: `<img src="pisik.jpg" alt="Pəncərə önündə yatan boz pişik">`, why: "«şəkil», «foto» sözləri heç nə demir. alt şəklin nə göstərdiyini təsvir etməlidir." },
+          { t: "mistake", lang: "html", wrong: `<img src="hero.jpg" alt="..." loading="lazy">  <!-- ekranın ən yuxarısı -->`, right: `<img src="hero.jpg" alt="..." fetchpriority="high">`, why: "İlk ekranda görünən əsas şəkli lazy etmək onu gecikdirir və LCP-ni pisləşdirir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Responsive şəkillər və Core Web Vitals",
+        blocks: [
+          { t: "code", lang: "html", code: `<img
+  src="foto-800.jpg"
+  srcset="foto-400.jpg 400w, foto-800.jpg 800w, foto-1600.jpg 1600w"
+  sizes="(max-width: 600px) 100vw, 50vw"
+  alt="Məhsul" width="800" height="600">` },
+          { t: "p", text: "srcset faylları və onların həqiqi enini (w) sadalayır, sizes isə şəklin ekranda nə qədər yer tutacağını deyir. Brauzer ekran eni və piksel sıxlığına (DPR) baxıb ən uyğun faylı özü seçir." },
+          { t: "list", items: [
+            "width/height atributları brauzerə aspect-ratio verir → CLS (layout shift) olmur.",
+            "LCP şəklini preload et və ya fetchpriority=\"high\" ver.",
+            "decoding=\"async\" — şəkli açmaq əsas axını bloklamasın.",
+            "Video üçün autoplay yalnız muted ilə işləyir; mobil trafikə görə preload=\"none\" düşün.",
+            "Next.js-də next/image bunların çoxunu avtomatik edir.",
+          ]},
+          { t: "qa", items: [
+            ["srcset-də w və x fərqi?", "w — faylın piksel eni (sizes ilə), x — sabit ölçülü şəkil üçün piksel sıxlığı (1x, 2x)."],
+            ["CLS-in qarşısını necə alırıq?", "Şəkillərə width/height və ya CSS aspect-ratio verməklə yer əvvəlcədən ayrılır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Loqo üçün hansı format ən yaxşısıdır?", options: ["JPG", "SVG", "GIF"], answer: 1, why: "SVG vektordur — istənilən ölçüdə kəskin qalır və çox yüngüldür." },
+          { t: "quiz", q: "Bəzək şəklinin alt-ı necə olmalıdır?", options: ["alt yazılmır", "alt=\"\"", "alt=\"bəzək\""], answer: 1, why: "Boş alt ekran oxuyucuya «bunu ötür» deyir; alt-ın olmaması isə səhvdir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "figure içində şəkil (mənalı alt, width, height, loading=lazy) və figcaption yaz. Altına controls-lu video əlavə et.",
+      starter: `<!-- Media -->\n`,
+      expect: "figure > img + figcaption; img-də src, təsviri alt, width, height, loading=\"lazy\"; video-da src və controls.",
+    },
+  },
+  {
+    slug: "siyahilar",
+    title: "Siyahılar",
+    intro: "Nömrəsiz (ul), nömrəli (ol) və təsvir (dl) siyahıları. Menyular da əslində siyahıdır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "ul, ol, li",
+        blocks: [
+          { t: "analogy", text: "ul — bazarlıq siyahısı: sıra fərq etmir. ol — resept addımları: sıra vacibdir, əvvəl un, sonra yumurta. li — hər bir sətir." },
+          { t: "code", lang: "html", code: `<ul>
+  <li>Alma</li>
+  <li>Çörək</li>
+  <li>Süd</li>
+</ul>
+
+<ol>
+  <li>Suyu qaynat</li>
+  <li>Çayı dəmlə</li>
+  <li>5 dəqiqə gözlə</li>
+</ol>` },
+          { t: "terms", items: [
+            ["<ul>", "unordered list — nömrəsiz siyahı (nöqtələrlə)."],
+            ["<ol>", "ordered list — nömrəli siyahı."],
+            ["<li>", "list item — siyahının elementi."],
+          ]},
+          { t: "tip", text: "ul və ol-un birbaşa uşağı YALNIZ li ola bilər." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "İç-içə siyahılar, ol atributları, dl",
+        blocks: [
+          { t: "code", lang: "html", code: `<ul>
+  <li>Front End
+    <ul>
+      <li>HTML</li>
+      <li>CSS</li>
+    </ul>
+  </li>
+  <li>Back End</li>
+</ul>
+
+<ol start="5" reversed type="A">
+  <li>Beşinci</li>
+</ol>
+
+<dl>
+  <dt>API</dt>
+  <dd>Proqramların bir-biri ilə danışma qaydası.</dd>
+</dl>` },
+          { t: "list", items: [
+            "Alt siyahı li-nin İÇİNDƏ yerləşir, iki li arasında yox.",
+            "start — hansı nömrədən başlasın; reversed — geriyə saysın; type — 1, A, a, I, i.",
+            "dl — description list: termin (dt) və onun izahı (dd). Lüğət, FAQ, məhsul xüsusiyyətləri üçün.",
+          ]},
+          { t: "mistake", lang: "html", wrong: `<ul>\n  <li>HTML</li>\n  <ul><li>Teqlər</li></ul>\n</ul>`, right: `<ul>\n  <li>HTML\n    <ul><li>Teqlər</li></ul>\n  </li>\n</ul>`, why: "ul-un uşağı yalnız li ola bilər; alt siyahı valideyn li-nin içində olmalıdır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Naviqasiya və əlçatanlıq",
+        blocks: [
+          { t: "code", lang: "html", code: `<nav aria-label="Əsas menyu">
+  <ul>
+    <li><a href="/">Ana səhifə</a></li>
+    <li><a href="/dersler">Dərslər</a></li>
+  </ul>
+</nav>` },
+          { t: "p", text: "Menyunu siyahı kimi yazanda ekran oxuyucu «siyahı, 2 element» deyir — istifadəçi nə qədər link olduğunu əvvəlcədən bilir. Safari-də CSS ilə list-style: none verəndə siyahı semantikası itə bilər; lazım olsa role=\"list\" əlavə edilir." },
+          { t: "list", items: [
+            "Sıra məna daşıyırsa ol, daşımırsa ul — bu seçim məna barədədir, görünüş yox.",
+            "Nömrəni CSS counter() ilə özün dizayn edə bilərsən; ol semantikası qalır.",
+            "Böyük siyahılarda (1000+ element) virtualizasiya düşün — DOM node sayı performansı öldürür.",
+          ]},
+          { t: "qa", items: [
+            ["dl nə vaxt işlədilir?", "Ad–dəyər cütlərində: termin və izah, xüsusiyyət və dəyər."],
+            ["Menyunu niyə ul içində yazırıq?", "Struktur və element sayı köməkçi texnologiyalara çatır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Resept addımları üçün hansı siyahı?", options: ["ul", "ol", "dl"], answer: 1, why: "Addımların sırası vacibdir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Sevdiyin 3 filmin ul siyahısı, çay dəmləməyin ol addımları və 2 terminli dl lüğəti yaz. Bir film li-sinin içinə aktyorların alt siyahısını qoy.",
+      starter: `<!-- Siyahılar -->\n`,
+      expect: "ul və ol-un birbaşa uşaqları li; alt siyahı li-nin içindədir; dl-də dt/dd cütləri var.",
+    },
+  },
+  {
+    slug: "cedveller",
+    title: "Cədvəllər",
+    intro: "Cədvəl (table) sətir və sütunlu məlumat üçündür: qiymətlər, cədvəl qrafiki, statistika. Səhifə düzülüşü üçün YOX.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "table, tr, th, td",
+        blocks: [
+          { t: "analogy", text: "Cədvəl — Excel vərəqidir. tr — bir sətir, td — bir xana, th — yuxarıdakı qalın başlıq xanası." },
+          { t: "code", lang: "html", code: `<table>
+  <caption>Tələbə qiymətləri</caption>
+  <thead>
+    <tr>
+      <th scope="col">Ad</th>
+      <th scope="col">Bal</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Aysel</td>
+      <td>95</td>
+    </tr>
+    <tr>
+      <td>Murad</td>
+      <td>88</td>
+    </tr>
+  </tbody>
+</table>` },
+          { t: "terms", items: [
+            ["<table>", "cədvəlin özü."],
+            ["<tr>", "table row — sətir."],
+            ["<td>", "table data — adi xana."],
+            ["<th>", "table header — başlıq xanası."],
+            ["<caption>", "cədvəlin adı."],
+            ["<thead> / <tbody> / <tfoot>", "başlıq, gövdə və yekun hissələri."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Xanaları birləşdirmək",
+        blocks: [
+          { t: "code", lang: "html", code: `<tr>
+  <th scope="row">Bazar ertəsi</th>
+  <td colspan="2">Bayram — dərs yoxdur</td>
+</tr>
+<tr>
+  <td rowspan="2">Riyaziyyat</td>
+  <td>09:00</td>
+</tr>
+<tr>
+  <td>11:00</td>
+</tr>` },
+          { t: "list", items: [
+            "colspan=\"2\" — xana 2 sütun en tutur.",
+            "rowspan=\"2\" — xana 2 sətir hündürlük tutur; növbəti sətirdə o sütun üçün td yazılmır.",
+            "scope=\"col\" / \"row\" — başlığın sütuna, yoxsa sətrə aid olduğunu deyir.",
+          ]},
+          { t: "mistake", lang: "html", wrong: `<table>\n  <tr><td>Menyu</td><td>Məzmun</td></tr>\n</table>`, right: `<div class="layout">\n  <nav>Menyu</nav>\n  <main>Məzmun</main>\n</div>`, why: "Səhifə düzülüşü üçün cədvəl 2000-ci illərin üsuludur. İndi CSS Grid/Flexbox işlədilir; cədvəl yalnız cədvəl məlumatı üçün." },
+          { t: "tip", text: "Xanalar arasında xətt üçün köhnə border atributunu yox, CSS-də border-collapse: collapse işlət." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Böyük cədvəllər və a11y",
+        blocks: [
+          { t: "list", items: [
+            "Ekran oxuyucu hər xananı oxuyanda onun th başlığını da deyir — buna görə th və scope vacibdir.",
+            "Mürəkkəb cədvəldə th-lərə id ver, td-də headers=\"id1 id2\" ilə bağla.",
+            "Mobil ekranda cədvəli overflow-x: auto olan konteynerə qoy — sətirləri qırma.",
+            "table-layout: fixed — brauzer bütün məzmunu oxumadan sütun enini hesablayır, böyük cədvəllər sürətli render olunur.",
+            "Minlərlə sətir: səhifələmə (pagination) və ya virtualizasiya; sıralama/filtr server tərəfdə.",
+          ]},
+          { t: "qa", items: [
+            ["thead niyə lazımdır?", "Struktur verir; çap zamanı hər səhifədə təkrarlanır, sticky başlıq üçün də rahatdır."],
+            ["rowspan-lı cədvəldə ən çox hansı səhv olur?", "Növbəti sətirdə artıq td yazılır və sütunlar sürüşür."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Bir xananın 3 sütun tutması üçün?", options: ["rowspan=\"3\"", "colspan=\"3\"", "width=\"3\""], answer: 1, why: "col — sütun, row — sətir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Həftəlik dərs cədvəli: caption, thead-də 3 sütun başlığı (Gün, Fənn, Saat), tbody-də 3 sətir. Bir xanada colspan işlət.",
+      starter: `<table>\n\n</table>\n`,
+      expect: "caption, thead (th scope=col), tbody (tr/td) var; colspan düzgün işlədilib, sütun sayı hər sətirdə uyğundur.",
+    },
+  },
+  {
+    slug: "formalar",
+    title: "Formalar və input-lar",
+    intro: "Forma istifadəçidən məlumat almağın yoludur: qeydiyyat, axtarış, sifariş. HTML özü çox şeyi pulsuz verir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "form, label, input, button",
+        blocks: [
+          { t: "analogy", text: "Forma — poçt blankıdır. label — xananın yanındakı yazı («Ad:»), input — yazdığın boş xana, name — o xananın kompüter üçün adı, button — blankı poçt qutusuna atmaq." },
+          { t: "code", lang: "html", code: `<form action="/qeydiyyat" method="post">
+  <label for="ad">Ad</label>
+  <input id="ad" name="ad" type="text" required>
+
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" required>
+
+  <label for="parol">Parol</label>
+  <input id="parol" name="parol" type="password" minlength="8">
+
+  <button type="submit">Qeydiyyatdan keç</button>
+</form>` },
+          { t: "terms", items: [
+            ["action", "məlumatın göndəriləcəyi ünvan."],
+            ["method", "get — URL-də (axtarış), post — gövdədə (qeydiyyat, parol)."],
+            ["<label for>", "yazı ilə input-u id vasitəsilə bağlayır; yazıya klik input-u seçir."],
+            ["name", "serverə gedən açar: ad=Aysel."],
+            ["type", "input növü: text, email, password, number, date, checkbox, radio, file..."],
+            ["required", "boş göndərmək olmaz."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Digər idarəetmə elementləri",
+        blocks: [
+          { t: "code", lang: "html", code: `<fieldset>
+  <legend>Səviyyə</legend>
+  <label><input type="radio" name="seviyye" value="junior" checked> Junior</label>
+  <label><input type="radio" name="seviyye" value="senior"> Senior</label>
+</fieldset>
+
+<label><input type="checkbox" name="xeber" value="he"> Xəbərlərə abunə ol</label>
+
+<label for="dil">Dil</label>
+<select id="dil" name="dil">
+  <option value="js">JavaScript</option>
+  <option value="py">Python</option>
+</select>
+
+<label for="mesaj">Mesaj</label>
+<textarea id="mesaj" name="mesaj" rows="4"></textarea>` },
+          { t: "list", items: [
+            "radio — eyni name-li qrupdan yalnız biri seçilir. checkbox — istənilən sayda.",
+            "fieldset + legend — əlaqəli xanaları qruplaşdırır və adlandırır.",
+            "Mobil üçün düzgün type seç: type=\"email\" @ düyməli, type=\"tel\" rəqəmli klaviatura açır.",
+            "autocomplete=\"email\", \"name\", \"new-password\" — brauzer avtomatik doldursun.",
+          ]},
+          { t: "mistake", lang: "html", wrong: `<input type="text" placeholder="Ad">`, right: `<label for="ad">Ad</label>\n<input id="ad" name="ad" type="text">`, why: "placeholder label əvəz etmir: yazmağa başlayanda yox olur, ekran oxuyucu üçün etibarlı deyil. name olmasa isə məlumat serverə ümumiyyətlə getmir." },
+          { t: "mistake", lang: "html", wrong: `<form>\n  <button onclick="sil()">Sil</button>\n</form>`, right: `<form>\n  <button type="button" onclick="sil()">Sil</button>\n</form>`, why: "Form içində button-un default tipi submit-dir — klik formanı göndərib səhifəni yeniləyir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Formalar necə işləyir və təhlükəsizlik",
+        blocks: [
+          { t: "p", text: "Submit zamanı brauzer formanın bütün aktiv (disabled olmayan) name-li elementlərini toplayır, application/x-www-form-urlencoded (və ya fayl varsa multipart/form-data) formatında kodlayıb göndərir. JS-də new FormData(form) eyni məlumatı verir." },
+          { t: "list", items: [
+            "Client tərəf validasiyası rahatlıq üçündür, TƏHLÜKƏSİZLİK üçün deyil — serverdə həmişə yenidən yoxla.",
+            "Parol və şəxsi məlumat heç vaxt GET ilə — URL loglarda və tarixçədə qalır.",
+            "CSRF: POST formalarına token əlavə et və ya SameSite cookie işlət.",
+            "disabled sahə göndərilmir, readonly göndərilir.",
+            "Progressive enhancement: forma JS-siz də işləsin, JS onu yaxşılaşdırsın (Next.js server actions bu prinsiplə qurulub).",
+          ]},
+          { t: "qa", items: [
+            ["GET və POST fərqi?", "GET məlumatı URL-də göndərir, idempotentdir, keşlənir. POST gövdədə göndərir, vəziyyəti dəyişən əməliyyatlar üçündür."],
+            ["label-i input-a bağlamağın iki yolu?", "for=\"id\" ilə və ya input-u label-in içinə qoymaqla."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Input-un dəyəri serverə hansı atributun adı ilə gedir?", options: ["id", "name", "class"], answer: 1, why: "id label və CSS üçündür, server name-i görür." },
+          { t: "quiz", q: "Bir-birini istisna edən seçimlər üçün?", options: ["checkbox", "radio", "select multiple"], answer: 1, why: "Eyni name-li radio-lardan yalnız biri seçilir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Əlaqə forması: ad (məcburi), email (type=email, məcburi), mövzu üçün select (3 seçim), mesaj üçün textarea və submit düyməsi. Hər sahənin label-i olsun.",
+      starter: `<form action="/elaqe" method="post">\n\n</form>\n`,
+      expect: "hər input/select/textarea-nın for-id ilə bağlı label-i və name-i var; email type=email; required ad və email-də; button type=submit.",
+    },
+  },
+  {
+    slug: "semantik",
+    title: "Semantik HTML",
+    intro: "Semantik teqlər məzmunun NƏ olduğunu deyir: header, nav, main, article, footer. Brauzer, Google və ekran oxuyucu səhifəni məhz onlarla anlayır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Div-lərdən mənalı teqlərə",
+        blocks: [
+          { t: "analogy", text: "Hər otağın qapısına «otaq» yazsan, qonaq mətbəxi tapa bilməz. «Mətbəx», «yataq otağı», «hamam» yazsan, hər şey aydındır. div — «otaq», semantik teqlər — otağın əsl adı." },
+          { t: "code", lang: "html", code: `<body>
+  <header>
+    <a href="/">Logo</a>
+    <nav>...</nav>
+  </header>
+
+  <main>
+    <article>
+      <h1>Flexbox necə işləyir?</h1>
+      <p>...</p>
+      <section>
+        <h2>Əsas oxlar</h2>
+        <p>...</p>
+      </section>
+    </article>
+
+    <aside>Oxşar məqalələr</aside>
+  </main>
+
+  <footer>© 2026 Kod Akademiyası</footer>
+</body>` },
+          { t: "terms", items: [
+            ["<header>", "səhifənin və ya bölmənin başı: loqo, başlıq, menyu."],
+            ["<nav>", "əsas naviqasiya linkləri."],
+            ["<main>", "səhifənin əsas, unikal məzmunu. Səhifədə bir dənə."],
+            ["<article>", "öz-özünə tam məzmun: məqalə, post, məhsul kartı."],
+            ["<section>", "başlığı olan tematik bölmə."],
+            ["<aside>", "əsas məzmuna yan aid olan şey: reklam, əlaqəli linklər."],
+            ["<footer>", "son hissə: müəllif, hüquqlar, əlaqə."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Hansını seçim? Qayda",
+        blocks: [
+          { t: "list", items: [
+            "Başqa saytda tək başına mənalı olarsa (RSS-də paylaşılsa) → article.",
+            "Mövzuya görə qrupdursa və başlığı varsa → section.",
+            "Sadəcə stil/düzülüş üçün qutu lazımdırsa → div (bu da normaldır!).",
+            "Kliklənəndə əməliyyat edirsə → button, başqa yerə aparırsa → a.",
+          ]},
+          { t: "mistake", lang: "html", wrong: `<div class="header">\n  <div class="menu">...</div>\n</div>\n<div class="content">...</div>`, right: `<header>\n  <nav>...</nav>\n</header>\n<main>...</main>`, why: "«Div şorbası» işləyir, amma brauzer və ekran oxuyucu üçün heç bir məna yoxdur. Semantik teqlər pulsuz əlçatanlıq verir." },
+          { t: "mistake", lang: "html", wrong: `<div class="btn" onclick="gonder()">Göndər</div>`, right: `<button type="button" onclick="gonder()">Göndər</button>`, why: "div Tab ilə fokuslanmır, Enter/Space ilə işləmir, ekran oxuyucu onu düymə kimi tanımır. button bunların hamısını hazır verir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Landmark-lar və əlçatanlıq ağacı",
+        blocks: [
+          { t: "p", text: "Brauzer DOM-dan paralel olaraq əlçatanlıq ağacı (accessibility tree) qurur. Semantik teqlər orada avtomatik rol (role) alır: header → banner, nav → navigation, main → main, footer → contentinfo, aside → complementary. Ekran oxuyucu istifadəçiləri bu «landmark»lar arasında bir düymə ilə tullanır." },
+          { t: "list", items: [
+            "ARIA-nın birinci qaydası: native HTML elementi varsa, ARIA yox, onu işlət. <div role=\"button\"> yerinə <button>.",
+            "header/footer yalnız body-nin birbaşa uşağı olanda banner/contentinfo rolunu alır; article içində adi bölmədir.",
+            "Bir neçə nav varsa aria-label ilə fərqləndir: \"Əsas menyu\", \"Səhifələmə\".",
+            "Semantika SEO-ya birbaşa təsir etməsə də, Google məzmunu və snippet-ləri daha düzgün çıxarır.",
+            "\"Əsas məzmuna keç\" (skip link) — klaviatura istifadəçisi menyunu hər dəfə keçməsin.",
+          ]},
+          { t: "qa", items: [
+            ["section ilə div fərqi?", "section başlığı olan tematik bölmədir və strukturda görünür; div heç bir məna daşımır."],
+            ["Semantik HTML-in 3 faydası?", "Əlçatanlıq, SEO/maşın oxunaqlılığı və kodun oxunaqlılığı (komanda üçün)."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Bloq yazısı üçün ən uyğun teq?", options: ["<section>", "<article>", "<aside>"], answer: 1, why: "Yazı öz-özünə tam məzmundur." },
+          { t: "quiz", q: "Səhifədə neçə görünən <main> ola bilər?", options: ["1", "İstənilən qədər", "Hər section-da bir"], answer: 0, why: "main səhifənin unikal əsas məzmunudur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Bloq səhifəsinin skeleti: header (loqo + nav), main içində article (h1, 2 section h2 ilə), aside (oxşar yazılar siyahısı), footer.",
+      starter: `<body>\n\n</body>\n`,
+      expect: "header>nav, bir main, article içində h1 və h2-li section-lar, aside, footer var; div şorbası yoxdur; başlıq səviyyələri düzgündür.",
+    },
+  },
 ];

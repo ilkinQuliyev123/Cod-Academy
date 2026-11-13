@@ -41,5 +41,6 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
 - [ ] Mərhələ 2: bütün dillərin dərsləri (hazır: JS 3, HTML 1, Python 1).
 - [x] Mərhələ 3: məşq səhifəsi `/mesq` — CodeMirror 6; Worker-də icra (`src/lib/runners.ts`): JS, TS (sucrase), Python (Pyodide), SQL (sql.js + nümunə baza); HTML/CSS iframe önizləmə. Runtime-lar `public/runtimes`-ə `scripts/copy-runtimes.mjs` ilə köçürülür (postinstall/prebuild).
 - [x] Mərhələ 4: AI agent `/api/agent` — **Google Gemini** (REST, SDK yox). `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.8-flash`). Sistem promptuna dərs mətni + mövzu linkləri gedir. IP limiti 15/dəq.
-- [ ] Karyera yolu (Junior → Middle → Senior) — istifadəçi təsdiqi gözlənilir.
+- [x] Karyera yolu `/[track]/yol` (`src/data/career.ts`): 3 mərhələ, addımlar, layihələr, imtahan (`/mesq?imtahan=frontend-junior`; AI «NƏTİCƏ: ✅» → `markPassed`). Slug yoxlaması: `node --experimental-strip-types scripts/check-data.mjs`.
+- Növbəti: dərsləri karyera sırası ilə yaz (əvvəl Junior).
 - [ ] Mərhələ 5: deploy (Vercel).

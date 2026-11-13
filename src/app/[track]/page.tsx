@@ -15,6 +15,18 @@ export default async function TrackPage({ params }: PageProps<"/[track]">) {
         {t.tagline}. Dili seç — hər mövzu başlanğıcdan senior səviyyəsinə qədər izah olunur.
       </p>
 
+      <Link
+        href={`/${track}/yol`}
+        className="mt-8 flex flex-wrap items-center gap-4 rounded-2xl border border-accent/40 bg-accent/5 p-5 transition hover:bg-accent/10"
+      >
+        <span className="text-3xl">🧭</span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold text-white">Karyera yolu: Junior → Middle → Senior</span>
+          <span className="block text-sm text-slate-400">Nəyi hansı sıra ilə öyrənəcəyini, layihələri və mərhələ imtahanlarını gör.</span>
+        </span>
+        <span className="font-mono text-sm text-accent">Başla →</span>
+      </Link>
+
       <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {langsOf(track).map((l, i) => (
           <li key={l.id}>

@@ -4,25 +4,29 @@ import Playground from "@/components/Playground";
 import { LANGUAGES } from "@/data/languages";
 import { getLesson } from "@/data/lessons";
 import { STARTERS } from "@/data/starters";
+import { getExam } from "@/data/career";
 
 export const metadata = { title: "Məşq — Kod Akademiyası" };
 
 async function Play({ searchParams }: { searchParams: PageProps<"/mesq">["searchParams"] }) {
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-  const lang = LANGUAGES.find((l) => l.id === one(sp.dil)) ?? LANGUAGES.find((l) => l.id === "javascript")!;
+  const exam = getExam(one(sp.imtahan) ?? "");
+  const lang =
+    LANGUAGES.find((l) => l.id === (exam?.stage.exam.lang ?? one(sp.dil))) ?? LANGUAGES.find((l) => l.id === "javascript")!;
   const topic = one(sp.movzu);
-  const lesson = topic ? getLesson(lang.id, topic) : undefined;
+  const lesson = !exam && topic ? getLesson(lang.id, topic) : undefined;
   const tasks = lang.topics.filter((t) => getLesson(lang.id, t.slug)?.exercise);
 
   return (
     <Playground
-      key={`${lang.id}/${lesson?.slug}`}
+      key={`${lang.id}/${lesson?.slug}/${exam?.stage.id}`}
+      exam={exam ? { id: `${exam.track}-${exam.stage.id}`, title: exam.stage.title, track: exam.track } : undefined}
       langs={LANGUAGES.map(({ id, name, track, editor, runnable }) => ({ id, name, track, editor, runnable }))}
       langId={lang.id}
       topic={lesson?.slug}
-      task={lesson?.exercise?.task}
-      starter={lesson?.exercise?.starter ?? STARTERS[lang.id] ?? ""}
+      task={exam?.stage.exam.task ?? lesson?.exercise?.task}
+      starter={exam?.stage.exam.starter ?? lesson?.exercise?.starter ?? STARTERS[lang.id] ?? ""}
       tasks={tasks}
     />
   );

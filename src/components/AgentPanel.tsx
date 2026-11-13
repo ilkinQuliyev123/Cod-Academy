@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Markdown from "./Markdown";
+import { markPassed } from "@/lib/progress";
 
 type Msg = { role: "user" | "model"; text: string };
 
-export default function AgentPanel({ lang, topic, getContext, checkSignal }: {
+export default function AgentPanel({ lang, topic, exam, getContext, checkSignal }: {
   lang: string;
   topic?: string;
+  /** İmtahan id-si: AI «✅ Qəbul» desə, keçilmiş sayılır */
+  exam?: string;
   /** Kod və icra nəticəsi */
   getContext: () => { code: string; output: string };
   /** Hər artanda avtomatik yoxlama başlayır */
@@ -29,10 +32,12 @@ export default function AgentPanel({ lang, topic, getContext, checkSignal }: {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, lang, topic, ...getContext(), messages: history }),
+        body: JSON.stringify({ mode, lang, topic, exam, ...getContext(), messages: history }),
       });
       const d = await res.json();
-      setMsgs([...history, { role: "model", text: d.text ?? `⚠ ${d.error ?? "Xəta baş verdi"}` }]);
+      const passed = exam && mode === "check" && /NƏTİCƏ:\s*✅/.test(d.text ?? "");
+      if (passed) markPassed(exam);
+      setMsgs([...history, { role: "model", text: (d.text ?? `⚠ ${d.error ?? "Xəta baş verdi"}`) + (passed ? "\n\n🎉 **Təbriklər! Mərhələ imtahanını keçdin.** Karyera yolunda növbəti mərhələ açıldı." : "") }]);
     } catch {
       setMsgs([...history, { role: "model", text: "⚠ İnternet bağlantısını yoxla." }]);
     } finally {

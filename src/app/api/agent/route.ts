@@ -1,5 +1,6 @@
 import { LANGUAGES } from "@/data/languages";
 import { getLesson, lessonText } from "@/data/lessons";
+import { getExam } from "@/data/career";
 
 /** AI müəllim: Google Gemini. Açar: GEMINI_API_KEY (.env.local / Vercel). */
 
@@ -8,6 +9,7 @@ interface Body {
   mode: "check" | "chat";
   lang: string;
   topic?: string;
+  exam?: string;
   code?: string;
   output?: string;
   messages?: Msg[];
@@ -29,6 +31,7 @@ function limited(ip: string) {
 function systemPrompt(b: Body) {
   const lang = LANGUAGES.find((l) => l.id === b.lang);
   const lesson = b.topic ? getLesson(b.lang, b.topic) : undefined;
+  const exam = b.exam ? getExam(b.exam) : undefined;
   const topics = lang?.topics.map((t, i) => `${i + 1}. [${t.title}](/${lang.track}/${lang.id}/${t.slug})`).join("\n") ?? "";
 
   return `Sən «Kod Akademiyası» saytının AI müəllimisən. Yalnız Azərbaycan dilində, səmimi və aydın danış.
@@ -42,7 +45,7 @@ Qaydalar:
 - Aşağıdakı dərs mətni varsa, ondan istifadə et və uyğun dərsin linkini ver (markdown link, yalnız siyahıdakı yollar).
 - Cavab qısa olsun (maks. ~200 söz), kod \`\`\`dil bloklarında.
 - Kod bloku daxilindəki şərhlər də Azərbaycanca.
-${b.mode === "check" ? "\nCavabın sonunda ayrıca sətirdə yaz: «NƏTİCƏ: ✅ Qəbul» və ya «NƏTİCƏ: ❌ Hələ yox»." : ""}
+${exam ? `\nBU MƏRHƏLƏ İMTAHANIDIR («${exam.stage.title}»). Ciddi yoxla: bütün meyarlar ödənməlidir. Həlli vermə, yalnız ipucu ver.\nTapşırıq: ${exam.stage.exam.task}\nMeyarlar: ${exam.stage.exam.expect}\n` : ""}${b.mode === "check" ? "\nCavabın sonunda ayrıca sətirdə yaz: «NƏTİCƏ: ✅ Qəbul» və ya «NƏTİCƏ: ❌ Hələ yox»." : ""}
 
 Dilin mövzuları:
 ${topics}

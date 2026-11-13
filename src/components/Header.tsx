@@ -24,6 +24,9 @@ export default function Header({ track }: { track: TrackId }) {
           {TRACKS[track].team}
         </Link>
         <div className="flex-1" />
+        <Link href={`/${track}/yol`} className={`shrink-0 text-sm ${active === "yol" ? "text-accent" : "text-slate-400 hover:text-white"}`}>
+          Karyera yolu
+        </Link>
         <Link href="/mesq" className="shrink-0 text-sm text-slate-400 hover:text-white">
           Məşq
         </Link>

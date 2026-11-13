@@ -14,6 +14,7 @@ export interface PlayProps {
   task?: string;
   starter: string;
   tasks: { slug: string; title: string }[];
+  exam?: { id: string; title: string; track: string };
 }
 
 const CSS_DEMO = `<h1>Başlıq</h1><p>Paraqraf mətni. <a href="#">Link</a></p><button>Düymə</button><div class="kart">Kart</div>`;
@@ -24,7 +25,7 @@ const toText = (r: RunResult | null) =>
     ...(r.tables ?? []).map((t) => [t.columns.join(" | "), ...t.values.slice(0, 20).map((v) => v.join(" | "))].join("\n")),
   ].join("\n");
 
-export default function Playground({ langs, langId, topic, task, starter, tasks }: PlayProps) {
+export default function Playground({ langs, langId, topic, task, starter, tasks, exam }: PlayProps) {
   const router = useRouter();
   const lang = langs.find((l) => l.id === langId)!;
   const code = useRef(starter);
@@ -56,6 +57,11 @@ export default function Playground({ langs, langId, topic, task, starter, tasks 
     <div data-track={lang.track} className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-4 p-4 lg:h-[calc(100vh-3.5rem)]">
       {/* İdarə paneli */}
       <div className="flex flex-wrap items-center gap-2">
+        {exam ? (
+          <span className="rounded-md border border-accent/50 bg-accent/10 px-3 py-2 font-mono text-xs uppercase tracking-widest text-accent">
+            🎓 İmtahan · {exam.title} · {lang.name}
+          </span>
+        ) : (<>
         <select value={langId} onChange={(e) => go(e.target.value)} className="rounded-md border border-line bg-panel px-3 py-2 text-sm">
           <optgroup label="Front End">{langs.filter((l) => l.track === "frontend").map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>
           <optgroup label="Back End">{langs.filter((l) => l.track === "backend").map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>
@@ -64,6 +70,7 @@ export default function Playground({ langs, langId, topic, task, starter, tasks 
           <option value="">Sərbəst məşq</option>
           {tasks.map((t) => <option key={t.slug} value={t.slug}>Tapşırıq: {t.title}</option>)}
         </select>
+        </>)}
         <div className="flex-1" />
         <span className="font-mono text-xs text-slate-500">{status}</span>
         {lang.runnable !== "none" && (
@@ -78,7 +85,7 @@ export default function Playground({ langs, langId, topic, task, starter, tasks 
 
       {task && (
         <p className="rounded-lg border border-accent/30 bg-accent/5 px-4 py-2.5 text-sm text-slate-200">
-          <span className="mr-2 font-mono text-[11px] uppercase tracking-widest text-accent">Tapşırıq</span>{task}
+          <span className="mr-2 font-mono text-[11px] uppercase tracking-widest text-accent">{exam ? "İmtahan tapşırığı" : "Tapşırıq"}</span>{task}
         </p>
       )}
 
@@ -113,7 +120,7 @@ export default function Playground({ langs, langId, topic, task, starter, tasks 
             )}
           </div>
         </div>
-        <AgentPanel lang={langId} topic={topic} checkSignal={check} getContext={() => ({ code: code.current, output })} />
+        <AgentPanel lang={langId} topic={topic} exam={exam?.id} checkSignal={check} getContext={() => ({ code: code.current, output })} />
       </div>
     </div>
   );

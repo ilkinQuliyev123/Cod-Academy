@@ -36,11 +36,25 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
   6. `exercise` — məşq səhifəsi üçün tapşırıq + `expect` (AI yoxlaması üçün).
 - Dil sadə, cümlələr qısa. Termin ilk dəfə gələndə ingilis əsli mötərizədə.
 
-## Vəziyyət
-- [x] Mərhələ 1: skelet, giriş: diaqonal bölünmüş döyüş afişası üslubu, toqquşma + silkələnmə + işıq, klikdə lift qapısı, header, mövzu siyahısı, dərs səhifəsi.
-- [ ] Mərhələ 2: bütün dillərin dərsləri (hazır: JS 3, HTML 1, Python 1).
-- [x] Mərhələ 3: məşq səhifəsi `/mesq` — CodeMirror 6; Worker-də icra (`src/lib/runners.ts`): JS, TS (sucrase), Python (Pyodide), SQL (sql.js + nümunə baza); HTML/CSS iframe önizləmə. Runtime-lar `public/runtimes`-ə `scripts/copy-runtimes.mjs` ilə köçürülür (postinstall/prebuild).
-- [x] Mərhələ 4: AI agent `/api/agent` — **Google Gemini** (REST, SDK yox). `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.8-flash`). Sistem promptuna dərs mətni + mövzu linkləri gedir. IP limiti 15/dəq.
-- [x] Karyera yolu `/[track]/yol` (`src/data/career.ts`): 3 mərhələ, addımlar, layihələr, imtahan (`/mesq?imtahan=frontend-junior`; AI «NƏTİCƏ: ✅» → `markPassed`). Slug yoxlaması: `node --experimental-strip-types scripts/check-data.mjs`.
-- Növbəti: dərsləri karyera sırası ilə yaz (əvvəl Junior).
-- [ ] Mərhələ 5: deploy (Vercel).
+## Vəziyyət (son yeniləmə: 13.11.2026, commit «Giriş ekranı…», zip v4)
+- [x] Mərhələ 1: skelet; giriş ekranı — diaqonal bölünmüş döyüş afişası (mavi FRONT END / qırmızı BACK END), toqquşma + silkələnmə + işıq, klikdə bölmə rəngində lift qapısı (`Gate.tsx`, `DoorIntro.tsx`); header, mövzu siyahısı, dərs səhifəsi, irəliləyiş (localStorage, `src/lib/progress.ts`).
+- [x] Mərhələ 3: məşq səhifəsi `/mesq` — CodeMirror 6; Worker-də icra (`src/lib/runners.ts`): JS, TS (sucrase), Python (Pyodide), SQL (sql.js + nümunə baza: telebeler, kurslar, qeydiyyat); HTML/CSS iframe önizləmə. Runtime-lar `public/runtimes`-ə `scripts/copy-runtimes.mjs` ilə köçürülür (postinstall/prebuild, gitignore-da).
+- [x] Mərhələ 4: AI agent `/api/agent` — **Google Gemini** (istifadəçinin pullu açarı yoxdur, Claude API yox). REST, SDK yox. `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.8-flash`, sənəddən yoxlanmayıb). Sistem promptuna dərs mətni + mövzu linkləri gedir. IP limiti 15/dəq. Açarla hələ SINANMAYIB.
+- [x] Karyera yolu `/[track]/yol` (`src/data/career.ts`): Junior/Middle/Senior, addımlar, layihələr, imtahan (`/mesq?imtahan=backend-junior`; AI «NƏTİCƏ: ✅» → `markPassed`). Yoxlama: `node --experimental-strip-types scripts/check-data.mjs`.
+
+## QALAN İŞLƏR (sıra ilə)
+1. **Dərslər (əsas iş).** 234 mövzudan 5-i hazırdır: `javascript` (giris, deyisenler, funksiyalar), `html` (giris), `python` (giris). Karyera sırası ilə yaz:
+   - Junior Front: HTML (teqler→semantik), CSS (giris→responsive), JS (tipler→hadiseler).
+   - Junior Back: C# (giris→oop), SQL (giris→cedvel), Python (deyisenler→funksiyalar).
+   - Sonra Middle, sonra Senior (`career.ts`-dəki `steps` sırası).
+   - Hər dil üçün `src/data/lessons/<dil>.ts` yarat, `index.ts`-də `ALL`-a əlavə et. Qəlib yuxarıda («Məzmun quruluşu»). Hər dərsə `exercise` əlavə et.
+   - Bir partiyada 3–5 dərs yaz → build → istifadəçiyə göstər → davam. Token qənaəti: mövcud dərsi nümunə kimi bir dəfə oxu.
+2. **AI testi:** istifadəçi `.env.local`-a `GEMINI_API_KEY` qoyub yoxlayacaq. Model adı işləməsə `GEMINI_MODEL` dəyişdir.
+3. **Deploy (Vercel):** GitHub hesabı Claude-a QOŞULMAYIB (push mümkün deyil). İstifadəçi https://claude.ai/connect-github qoşmalı + repo yaratmalıdır; sonra push → Vercel-də import, `GEMINI_API_KEY` env.
+4. **İstəyə bağlı (istifadəçi təsdiqi lazım):** qeydiyyat/giriş + verilənlər bazası (C# ASP.NET API və ya Supabase), admin panel (kodsuz dərs əlavə), dərs səhifələrində kiçik AI çat pəncərəsi.
+
+## İstifadəçi haqqında qeydlər
+- Böyük işləri təsdiqsiz görmə — əvvəl soruş, tövsiyə ver.
+- Nəticəni zip kimi istəyir: `git archive --format=zip -o kod-akademiyasi-vN.zip HEAD` → SendUserFile. Kompüterinə birbaşa çıxış yoxdur.
+- Commit müəllifi: `-c user.name="ilkinQuliyev123" -c user.email="noreply@users.noreply.github.com"`.
+- Yoxlama serveri: `npx next start -p 3100` (köhnəsini əvvəl `pkill -f "next-server|next start"`), Playwright ilə ekran şəkli.

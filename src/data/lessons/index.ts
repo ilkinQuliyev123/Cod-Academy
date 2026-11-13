@@ -6,8 +6,9 @@ import { css } from "./css";
 import { sql } from "./sql";
 import { csharp } from "./csharp";
 import { typescript } from "./typescript";
+import { react } from "./react";
 
-const ALL: Record<string, Lesson[]> = { javascript, html, python, css, sql, csharp, typescript };
+const ALL: Record<string, Lesson[]> = { javascript, html, python, css, sql, csharp, typescript, react };
 
 export const getLesson = (lang: string, slug: string) =>
   ALL[lang]?.find((l) => l.slug === slug);

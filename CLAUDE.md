@@ -51,7 +51,7 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
 - [x] Karyera yolu `/[track]/yol` (`src/data/career.ts`): Junior/Middle/Senior, addımlar, layihələr, imtahan (`/mesq?imtahan=backend-junior`; AI «NƏTİCƏ: ✅» → `markPassed`). Yoxlama: `node --experimental-strip-types scripts/check-data.mjs`.
 
 ## QALAN İŞLƏR (sıra ilə)
-1. **Dərslər (əsas iş).** 234 mövzudan 100-ü hazırdır: BÜTÜN JUNIOR; `javascript`, `typescript`, `react` TAM. Növbəti: tailwind (12), css qalanları (deyisenler, kecid-animasiya, psevdo, arxitektura, performans), html qalanları (meta, elcatanliq, validasiya, dom, performans, best-practice), nextjs (15); sonra back middle/senior. Karyera sırası ilə yaz:
+1. **Dərslər (əsas iş).** 234 mövzudan 112-si hazırdır: BÜTÜN JUNIOR; `javascript`, `typescript`, `react`, `tailwind` TAM. Növbəti: css qalanları (deyisenler, kecid-animasiya, psevdo, arxitektura, performans), html qalanları (meta, elcatanliq, validasiya, dom, performans, best-practice), nextjs (15); sonra back middle/senior. Karyera sırası ilə yaz:
    - Sonra Middle, sonra Senior (`career.ts`-dəki `steps` sırası).
    - Hər dil üçün `src/data/lessons/<dil>.ts` yarat, `index.ts`-də `ALL`-a əlavə et. Qəlib yuxarıda («Məzmun quruluşu»). Hər dərsə `exercise` əlavə et.
    - Bir partiyada 3–5 dərs yaz → build → istifadəçiyə göstər → davam. Token qənaəti: mövcud dərsi nümunə kimi bir dəfə oxu.

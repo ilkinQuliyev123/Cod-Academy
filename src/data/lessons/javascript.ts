@@ -1055,4 +1055,1041 @@ ac.abort();` },
       expect: "submit-də e.preventDefault(); trim ilə boş yoxlanır; li textContent ilə (innerHTML yox); ul-də bir click listener, e.target.closest(\"button\") ilə silmə; funksiya çağırılmadan ötürülür.",
     },
   },
+  {
+    slug: "scope",
+    title: "Scope və closure",
+    intro: "Scope — dəyişənin «görünmə sahəsi». Closure — funksiyanın yarandığı yerin dəyişənlərini xatırlaması. JS-in ən güclü və ən çox soruşulan mövzularından.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Qlobal, funksiya və blok scope",
+        blocks: [
+          { t: "analogy", text: "Scope — evdəki otaqlardır. Qonaq otağındakı (qlobal) televizoru hamı görür. Yataq otağındakı (funksiya) şkafı yalnız oradakılar görür. Uşaq otağından (iç scope) xaricə baxmaq olar, xaricdən uşaq otağının içinə — yox." },
+          { t: "code", lang: "javascript", code: `const sayt = "Kod Akademiyası";   // qlobal
+
+function salamla() {
+  const mesaj = "Salam";           // funksiya scope
+  if (true) {
+    let gizli = "blok";            // blok scope
+    console.log(sayt, mesaj, gizli); // hamısı görünür
+  }
+  // console.log(gizli);  // ReferenceError
+}
+salamla();
+// console.log(mesaj);   // ReferenceError` },
+          { t: "terms", items: [
+            ["scope", "dəyişənin əlçatan olduğu sahə."],
+            ["global scope", "hər yerdən görünən."],
+            ["function scope", "funksiyanın içi."],
+            ["block scope", "{ } içi — let və const üçün."],
+            ["scope chain", "dəyişən tapılmayanda xarici scope-a, sonra daha xaricə baxılır."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Closure",
+        blocks: [
+          { t: "code", lang: "javascript", code: `function sayqacYarat() {
+  let say = 0;                 // xaricdən əlçatmazdır
+  return {
+    artir: () => ++say,
+    goster: () => say,
+  };
+}
+
+const s = sayqacYarat();
+s.artir(); s.artir();
+console.log(s.goster());      // 2
+// say-ı birbaşa dəyişmək mümkün deyil — gizli vəziyyət
+
+function vurucu(n) {
+  return (x) => x * n;        // n yadda qalır
+}
+const ucqat = vurucu(3);
+console.log(ucqat(7));        // 21` },
+          { t: "p", text: "Funksiya yarananda yanında «çanta» aparır — yarandığı yerdəki dəyişənlərə istinadlar. Xarici funksiya bitsə də, çanta yaşayır. Bu, closure-dur." },
+          { t: "mistake", lang: "javascript", wrong: `for (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 100);\n}  // 3 3 3`, right: `for (let i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 100);\n}  // 0 1 2`, why: "var funksiya scope-ludur — üç closure EYNİ i-ni paylaşır. let hər iterasiyada yeni dəyişən yaradır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Lexical environment, TDZ və yaddaş",
+        blocks: [
+          { t: "p", text: "Hər funksiya çağırışı yeni Lexical Environment yaradır: dəyişənlər qeydi + xarici mühitə istinad. Scope «leksikdir» — kodun HARADA yazıldığına görə, harada çağırıldığına görə yox. let/const hoisting olunur, amma elan sətrinə qədər «ölü zonadadır» (TDZ) — erkən müraciət ReferenceError verir." },
+          { t: "list", items: [
+            "Closure-lar böyük obyektlərə istinad saxlayıb yaddaş sızmasına səbəb ola bilər (məs. listener-də tutulmuş böyük massiv). Lazımsızları null et, listener-ləri sil.",
+            "Modul pattern-i və React hook-ları (useState) closure üzərində qurulub; «köhnəlmiş closure» (stale closure) React-da tez-tez bug mənbəyidir.",
+            "Qlobal scope-u çirkləndirmə: modullar (type=\"module\") öz scope-una malikdir.",
+            "Təhlükəsizlik: closure ilə «gizli» saxlanan dəyər (token) brauzerdə həqiqətən gizli deyil — DevTools-da breakpoint ilə görünür. Sirlər yalnız serverdə.",
+            "Təhlükəsizlik: qlobal dəyişənlər (window.config) XSS zamanı hücumçu skriptinə ilk açılan yerdir və DOM clobbering ilə (id=\"config\" olan element) üstələnə bilər.",
+          ]},
+          { t: "qa", items: [
+            ["Closure nədir?", "Funksiyanın yarandığı leksik mühitin dəyişənlərinə, o mühit bitdikdən sonra da çıxışı saxlaması."],
+            ["TDZ nədir?", "let/const dəyişəninin scope başlanğıcından elan sətrinə qədər əlçatmaz olduğu zona."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "let ilə elan olunan dəyişən hansı scope-dadır?", options: ["Yalnız funksiya", "Blok", "Həmişə qlobal"], answer: 1, why: "let və const blok scope-ludur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "bankHesabi(baslangic) funksiyası yaz: balansı closure ilə gizli saxlasın, medaxil(m), mexaric(m) (balansdan çox olanda xəta mesajı) və balans() metodlarını qaytarsın. Balansı birbaşa dəyişmək mümkün olmasın.",
+      starter: `function bankHesabi(baslangic) {\n  // bura\n}\n\nconst h = bankHesabi(100);\nh.medaxil(50);\nh.mexaric(500);\nconsole.log(h.balans()); // 150\n`,
+      expect: "let balans funksiya daxilində; metodlar obyekt kimi qaytarılır; mexaric balansdan çox olanda dəyişmir və xəbərdarlıq edir; h.balans() 150; balans xaricdən əlçatmazdır.",
+    },
+  },
+  {
+    slug: "this",
+    title: "this açar sözü",
+    intro: "this — funksiyanın «kimin adından» çağırıldığını göstərir. Dəyəri funksiyanın necə ÇAĞIRILDIĞINDAN asılıdır, harada yazıldığından yox (arrow funksiyalar istisna).",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Metodda this",
+        blocks: [
+          { t: "analogy", text: "«Mən» sözü kimin dediyindən asılıdır: Aysel «mən» deyəndə Aysel, Murad deyəndə Murad. this də belədir: user.salamla() çağırılanda this = user." },
+          { t: "code", lang: "javascript", code: `const user = {
+  ad: "Aysel",
+  salamla() {
+    return "Salam, mən " + this.ad;
+  },
+};
+console.log(user.salamla());   // Salam, mən Aysel
+
+const diger = { ad: "Murad", salamla: user.salamla };
+console.log(diger.salamla());  // Salam, mən Murad — eyni funksiya, fərqli this` },
+          { t: "terms", items: [
+            ["this", "çağırış kontekstindəki obyekt."],
+            ["obj.metod()", "nöqtədən soldakı obyekt this olur."],
+            ["arrow funksiya", "öz this-i yoxdur — xarici scope-dan götürür."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "this-in itməsi və həlləri",
+        blocks: [
+          { t: "code", lang: "javascript", code: `const sayqac = {
+  say: 0,
+  artir() { this.say++; return this.say; },
+};
+
+const f = sayqac.artir;
+// f();  // TypeError (strict) — this undefined-dir, obyekt itdi
+
+const bagli = sayqac.artir.bind(sayqac);
+console.log(bagli());   // 1
+
+console.log(sayqac.artir.call({ say: 10 }));  // 11 — this-i özün ver
+
+const taymer = {
+  saniye: 0,
+  basla() {
+    setInterval(() => { this.saniye++; }, 1000);  // arrow — this = taymer
+  },
+};` },
+          { t: "list", items: [
+            "Qayda sırası: new → call/apply/bind → obj.metod() → sadə çağırış (strict-də undefined).",
+            "Callback kimi metod ötürəndə (addEventListener, setTimeout) this itir — bind və ya arrow.",
+            "Obyekt metodunu arrow ilə yazma: this obyekt olmayacaq.",
+          ]},
+          { t: "mistake", lang: "javascript", wrong: `const user = {\n  ad: "Aysel",\n  salamla: () => "Salam, " + this.ad,\n};`, right: `const user = {\n  ad: "Aysel",\n  salamla() { return "Salam, " + this.ad; },\n};`, why: "Arrow funksiyanın öz this-i yoxdur — obyekt literalında this modul/qlobal kontekstdir, user deyil." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Bağlanma qaydaları dərindən",
+        blocks: [
+          { t: "list", items: [
+            "new bağlanması: new F() yeni obyekt yaradır, this ona bağlanır, F.prototype-a bağlanır və (açıq obyekt qaytarılmırsa) qaytarılır.",
+            "bind ilə bağlanmış funksiyanı yenidən bind etmək təsirsizdir; amma new bind-i üstələyir.",
+            "Sinif sahəsində arrow: class A { handle = () => {...} } — hər nüsxədə ayrıca funksiya (yaddaş), amma this həmişə nüsxədir. React class komponentlərinin klassik həlli.",
+            "DOM listener-də adi funksiyanın this-i e.currentTarget-dir.",
+            "Təhlükəsizlik: non-strict rejimdə this qlobal obyektə (window) düşür — təsadüfən window.ad = ... kimi qlobal yazılar və digər skriptlərlə toqquşma. Modullar default strict-dir; köhnə skriptlərdə \"use strict\".",
+          ]},
+          { t: "qa", items: [
+            ["call, apply, bind fərqi?", "call və apply funksiyanı dərhal çağırır (arqumentlər ayrıca / massiv ilə), bind yeni bağlanmış funksiya qaytarır."],
+            ["Arrow funksiyanın this-i?", "Leksikdir — yaradıldığı xarici funksiyanın this-i."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "user.salamla() çağırışında this nədir?", options: ["window", "user", "salamla"], answer: 1, why: "Nöqtədən soldakı obyekt." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "taymer obyekti yaz: saniye sahəsi və basla() metodu — setInterval ilə hər 200 ms saniye-ni artırsın və 5-ə çatanda dayansın (clearInterval) və \"Bitdi\" yazsın. this-in itmədiyinə əmin ol.",
+      starter: `const taymer = {\n  saniye: 0,\n  basla() {\n    // bura\n  },\n};\ntaymer.basla();\n`,
+      expect: "basla adi metod; daxildə arrow callback və ya bind(this); this.saniye artır; 5-də clearInterval(id) və \"Bitdi\"; obyekt metodu arrow ilə yazılmayıb.",
+    },
+  },
+  {
+    slug: "asinxron",
+    title: "Asinxron JS: callback, Promise, async/await",
+    intro: "Şəbəkə sorğusu, taymer, fayl oxuma vaxt aparır. JS gözləyərkən donmasın deyə asinxron işləyir. Promise və async/await bunu oxunaqlı edir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Sinxron vs asinxron",
+        blocks: [
+          { t: "analogy", text: "Restoranda ofisiant sifarişini mətbəxə verib digər masalara xidmət edir — sənin yeməyin bişənə qədər donub dayanmır. Yemək hazır olanda (Promise yerinə yetəndə) gətirir. Bu, asinxronluqdur. Promise — sifariş qəbzidir: «hazır olanda verəcəyik»." },
+          { t: "code", lang: "javascript", code: `console.log("1. Sifariş");
+setTimeout(() => console.log("3. Yemək hazırdır"), 1000);
+console.log("2. Digər işlər");
+
+function gozle(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function esas() {
+  console.log("Başla");
+  await gozle(500);          // burada «dayanır», amma səhifə donmur
+  console.log("500 ms keçdi");
+}
+esas();` },
+          { t: "terms", items: [
+            ["callback", "iş bitəndə çağırılan funksiya."],
+            ["Promise", "gələcəkdə hazır olacaq nəticə: pending → fulfilled / rejected."],
+            ["resolve / reject", "Promise-i uğurla / xəta ilə bitirir."],
+            ["async", "funksiya həmişə Promise qaytarır."],
+            ["await", "Promise bitənə qədər async funksiyanı gözlədir."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Xətalar və paralellik",
+        blocks: [
+          { t: "code", lang: "javascript", code: `function istifadeciGetir(id) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (id <= 0) reject(new Error("Yanlış id"));
+      else resolve({ id, ad: "Aysel" });
+    }, 300);
+  });
+}
+
+async function esas() {
+  try {
+    const u = await istifadeciGetir(1);
+    console.log(u.ad);
+    await istifadeciGetir(-1);
+  } catch (e) {
+    console.log("Xəta:", e.message);
+  } finally {
+    console.log("Hər halda işləyir");
+  }
+
+  // Paralel — hamısı eyni anda
+  const [a, b] = await Promise.all([istifadeciGetir(1), istifadeciGetir(2)]);
+  console.log(a.id, b.id);
+
+  // Biri uğursuz olsa da hamısının nəticəsi
+  const neticeler = await Promise.allSettled([istifadeciGetir(1), istifadeciGetir(-1)]);
+  console.log(neticeler.map((r) => r.status));
+}
+esas();` },
+          { t: "mistake", lang: "javascript", wrong: `const user = istifadeciGetir(1);\nconsole.log(user.ad);  // undefined`, right: `const user = await istifadeciGetir(1);\nconsole.log(user.ad);`, why: "await olmadan Promise obyektinin özünü alırsan, nəticəni yox." },
+          { t: "mistake", lang: "javascript", wrong: `const a = await getir(1);\nconst b = await getir(2);  // bir-birindən asılı deyil`, right: `const [a, b] = await Promise.all([getir(1), getir(2)]);`, why: "Ardıcıl await müstəqil işləri növbəyə düzür — 2 dəfə yavaş. Promise.all paralel aparır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Microtask, ləğv etmə, unhandled rejection",
+        blocks: [
+          { t: "p", text: "await-dən sonrakı kod microtask kimi növbəyə düşür — cari sinxron kod bitən kimi, setTimeout-dan (macrotask) ƏVVƏL icra olunur. async funksiyanın içində atılan xəta qaytarılan Promise-i reject edir; tutulmasa «unhandled rejection» olur (Node-da proses dayana bilər)." },
+          { t: "code", lang: "javascript", code: `const ac = new AbortController();
+setTimeout(() => ac.abort(), 2000);           // 2 saniyədən sonra ləğv
+// await fetch(url, { signal: ac.signal });
+
+// Timeout ilə yarış
+const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout")), ms));
+// await Promise.race([fetch(url), timeout(5000)]);
+// Müasir: fetch(url, { signal: AbortSignal.timeout(5000) })` },
+          { t: "list", items: [
+            "Promise.all — biri reject olsa hamısı reject; allSettled — hamısını gözlə; any — ilk uğurlu; race — ilk bitən.",
+            "Paralelliyi məhdudlaşdır: 1000 sorğunu birdən göndərmə — hovuz (pool) ilə 5-10-luq qruplar.",
+            "Async xətalar stack trace-də «qırılır» — xətaları kontekstlə (cause) yenidən at: throw new Error(\"Sifariş alınmadı\", { cause: e }).",
+            "Təhlükəsizlik: race condition — iki paralel sorğu eyni balansı oxuyub hər biri çıxarsa, pul iki dəfə xərclənir. Kritik əməliyyatları serverdə atomik (tranzaksiya/kilid) et, klientdə «düymə söndürülüb» kifayət deyil.",
+            "Təhlükəsizlik: timeout-suz xarici sorğu serverin bütün resurslarını tuta bilər — hər xarici çağırışa timeout və ləğv.",
+          ]},
+          { t: "qa", items: [
+            ["Promise-in 3 vəziyyəti?", "pending (gözləyir), fulfilled (uğurlu), rejected (xəta)."],
+            ["Promise.all ilə allSettled fərqi?", "all ilk xətada reject olur; allSettled hamısının nəticəsini status ilə qaytarır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "async funksiya nə qaytarır?", options: ["Həmişə undefined", "Həmişə Promise", "return etdiyi dəyəri birbaşa"], answer: 1, why: "Qaytarılan dəyər Promise-ə bükülür." },
+          { t: "quiz", q: "Bu nə çap edir: console.log(1); setTimeout(()=>console.log(2)); console.log(3);", options: ["1 2 3", "1 3 2", "2 1 3"], answer: 1, why: "setTimeout callback-i sinxron kod bitəndən sonra işləyir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "gecikme(ms, deyer) Promise funksiyası yaz. Sonra async esas() içində: 3 müxtəlif gecikməli dəyəri Promise.all ilə paralel al, cəmini çap et; reject olan bir Promise-i try/catch ilə tut; ümumi vaxtı performance.now() ilə ölç (ən uzun gecikməyə yaxın olmalıdır).",
+      starter: `function gecikme(ms, deyer) {\n  // bura\n}\n\nasync function esas() {\n  // bura\n}\nesas();\n`,
+      expect: "new Promise + setTimeout(resolve); Promise.all ilə paralel; vaxt ~ən uzun gecikmə (cəmi yox); try/catch reject-i tutur; await-lər düzgün.",
+    },
+  },
+  {
+    slug: "fetch",
+    title: "Fetch və API",
+    intro: "fetch brauzerdən serverə HTTP sorğusu göndərir: məlumat almaq (GET), göndərmək (POST). Müasir saytların hamısı API ilə danışır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "GET sorğusu",
+        blocks: [
+          { t: "analogy", text: "API — restoranın menyusu və ofisiantıdır. Mətbəxə (serverə) birbaşa girmirsən; menyudakı qaydaya uyğun sifariş (sorğu) verirsən, ofisiant (HTTP) cavabı (JSON) gətirir." },
+          { t: "code", lang: "javascript", code: `async function getir() {
+  const res = await fetch("https://jsonplaceholder.typicode.com/users/1");
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const user = await res.json();
+  console.log(user.name, user.email);
+}
+getir().catch((e) => console.log("Xəta:", e.message));` },
+          { t: "terms", items: [
+            ["API", "proqramların bir-biri ilə danışma qaydası."],
+            ["endpoint", "API-nin konkret ünvanı: /users/1."],
+            ["HTTP metodları", "GET (oxu), POST (yarat), PUT/PATCH (dəyiş), DELETE (sil)."],
+            ["status kodu", "200 OK, 201 Created, 400 Bad Request, 401, 403, 404, 500."],
+            ["JSON", "mətn formatında məlumat: {\"ad\": \"Aysel\"}."],
+            ["res.ok", "status 200–299 aralığındadırmı."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "POST, başlıqlar, xətalar",
+        blocks: [
+          { t: "code", lang: "javascript", code: `async function yarat(post) {
+  const res = await fetch("https://jsonplaceholder.typicode.com/posts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(post),
+  });
+  if (!res.ok) throw new Error("Yaradılmadı: " + res.status);
+  return res.json();
+}
+
+yarat({ title: "Salam", body: "İlk post", userId: 1 })
+  .then((p) => console.log("Yaradıldı, id:", p.id));
+
+// Query parametrləri təhlükəsiz qurmaq
+const url = new URL("https://api.example.com/axtar");
+url.searchParams.set("q", "c# & sql");   // avtomatik kodlanır` },
+          { t: "mistake", lang: "javascript", wrong: `const res = await fetch(url);\nconst data = await res.json();  // 404-də də işləyir`, right: `const res = await fetch(url);\nif (!res.ok) throw new Error(res.status);\nconst data = await res.json();`, why: "fetch yalnız ŞƏBƏKƏ xətasında reject olur; 404/500 «uğurlu» cavabdır. res.ok-u həmişə yoxla." },
+          { t: "mistake", lang: "javascript", wrong: `fetch("/api?q=" + axtaris)`, right: `fetch("/api?q=" + encodeURIComponent(axtaris))`, why: "& , # , ? kimi simvollar URL-i pozur və parametr inyeksiyasına yol açır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "CORS, kredensiallar, təhlükəsizlik",
+        blocks: [
+          { t: "p", text: "Brauzer Same-Origin Policy tətbiq edir: başqa origin-in (domen+port+protokol) cavabını JS oxuya bilməz, əgər server CORS başlıqları (Access-Control-Allow-Origin) ilə icazə verməyibsə. Qeyri-sadə sorğulardan (JSON POST, xüsusi başlıqlar) əvvəl brauzer OPTIONS «preflight» göndərir. CORS server tərəfin qorunması deyil — brauzerdəki istifadəçinin qorunmasıdır; curl onu saymır." },
+          { t: "list", items: [
+            "credentials: \"include\" cookie göndərir; server Access-Control-Allow-Origin: * ilə credentials-a icazə verə bilməz — konkret origin lazımdır.",
+            "Təhlükəsizlik: API açarını frontend koduna YAZMA — hər kəs DevTools-da görür. Açarlı sorğuları öz serverindən (proxy / route handler) göndər — bu saytın AI agenti məhz belə qurulub.",
+            "Təhlükəsizlik: CORS-da Access-Control-Allow-Origin-i sorğunun Origin-indən kor-koranə əks etdirmək + credentials = istənilən sayt istifadəçinin adından məlumat oxuyur. Ağ siyahı işlət.",
+            "Təhlükəsizlik: token-i localStorage-da saxlamaq XSS zamanı oğurlanır; HttpOnly + Secure + SameSite cookie daha etibarlıdır. Cookie ilə işləyəndə CSRF qorunması (SameSite, token).",
+            "Retry: yalnız idempotent sorğuları (GET, PUT) eksponensial gecikmə ilə təkrarla; POST-u təkrar etmək iki sifariş yarada bilər (Idempotency-Key başlığı).",
+          ]},
+          { t: "qa", items: [
+            ["fetch nə vaxt reject olur?", "Yalnız şəbəkə xətası, ləğv (abort) və ya CORS bloklananda; HTTP xəta statusunda yox."],
+            ["CORS nəyi qoruyur?", "İstifadəçinin brauzerində başqa saytın onun adından cavab oxumasının qarşısını alır; serveri qorumur."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Server 404 qaytaranda fetch nə edir?", options: ["reject olur", "uğurla resolve olur, res.ok false", "səhifəni yeniləyir"], answer: 1, why: "HTTP xətası şəbəkə xətası deyil." },
+          { t: "quiz", q: "API açarı harada saxlanmalıdır?", options: ["Frontend JS-də", "Serverdə (env)", "localStorage-da"], answer: 1, why: "Brauzerdəki hər şey istifadəçiyə görünür." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "https://jsonplaceholder.typicode.com/users ünvanından istifadəçiləri al, res.ok yoxla, adları və şəhərləri (address.city) çap et. Sonra yalnız email-i .biz ilə bitənləri filtrlə. Xətanı try/catch ilə tut və 5 saniyəlik timeout (AbortSignal.timeout) əlavə et.",
+      starter: `async function esas() {\n  // bura\n}\nesas();\n`,
+      expect: "await fetch(url, { signal: AbortSignal.timeout(5000) }); if (!res.ok) throw; await res.json(); map ilə ad + address.city; filter(u => u.email.endsWith(\".biz\")); try/catch.",
+    },
+  },
+  {
+    slug: "xetalar",
+    title: "Xətaların idarəsi",
+    intro: "Xətalar qaçılmazdır: şəbəkə kəsilir, istifadəçi yanlış məlumat yazır. Yaxşı proqram xətanı tutur, istifadəçiyə anlaşılan mesaj verir və işləməyə davam edir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "try / catch / finally / throw",
+        blocks: [
+          { t: "analogy", text: "try — ip üstündə gəzən akrobat, catch — altındakı tor. Akrobat yıxılsa (xəta), tor tutur və tamaşa davam edir. finally — tamaşanın sonunda pərdənin bağlanması: nə olursa olsun." },
+          { t: "code", lang: "javascript", code: `function yasYoxla(yas) {
+  if (typeof yas !== "number" || Number.isNaN(yas)) {
+    throw new TypeError("Yaş ədəd olmalıdır");
+  }
+  if (yas < 0 || yas > 150) {
+    throw new RangeError("Yaş 0–150 aralığında olmalıdır");
+  }
+  return true;
+}
+
+try {
+  yasYoxla(200);
+} catch (e) {
+  console.log(e.name + ": " + e.message);   // RangeError: ...
+} finally {
+  console.log("Yoxlama bitdi");
+}` },
+          { t: "terms", items: [
+            ["throw", "xəta atır — icra dayanır və ən yaxın catch-ə keçir."],
+            ["Error", "xəta obyekti: name, message, stack."],
+            ["TypeError, RangeError, SyntaxError", "daxili xəta növləri."],
+            ["catch (e)", "xətanı tutur."],
+            ["finally", "həmişə işləyir (resursları bağlamaq üçün)."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Öz xəta sinifləri və async xətalar",
+        blocks: [
+          { t: "code", lang: "javascript", code: `class ValidasiyaXetasi extends Error {
+  constructor(sahe, mesaj) {
+    super(mesaj);
+    this.name = "ValidasiyaXetasi";
+    this.sahe = sahe;
+  }
+}
+
+function qeydiyyat(data) {
+  if (!data.email?.includes("@")) throw new ValidasiyaXetasi("email", "Email yanlışdır");
+}
+
+try {
+  qeydiyyat({ email: "aysel" });
+} catch (e) {
+  if (e instanceof ValidasiyaXetasi) {
+    console.log("Sahə:", e.sahe, "—", e.message);
+  } else {
+    throw e;                 // tanımadığını yuxarı ötür
+  }
+}
+
+// Async: await + try/catch, və ya .catch()
+async function yukle() {
+  try {
+    const r = await fetch("/yox");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+  } catch (e) {
+    console.log("Yükləmə alınmadı");
+  }
+}` },
+          { t: "mistake", lang: "javascript", wrong: `try {\n  riskli();\n} catch (e) {}`, right: `try {\n  riskli();\n} catch (e) {\n  console.error("riskli() alınmadı", e);\n  goster("Bir şey səhv getdi, yenidən cəhd et");\n}`, why: "Boş catch xətanı «udur» — bug görünməz olur, saatlarla axtarırsan. Ən azı log et və istifadəçiyə bildir." },
+          { t: "mistake", lang: "javascript", wrong: `throw "Xəta baş verdi";`, right: `throw new Error("Xəta baş verdi");`, why: "String atanda stack trace itir, instanceof işləmir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Xəta strategiyası və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Gözlənilən xətalar (validasiya, 404) — normal axının hissəsidir: nəticə obyekti { ok: false, error } qaytarmaq daha aydın ola bilər. Gözlənilməzlər (bug) — throw və mərkəzdə tut.",
+            "Error cause: throw new Error(\"Sifariş saxlanmadı\", { cause: e }) — kök səbəb itmir.",
+            "Qlobal tutucular: window.addEventListener(\"error\") və \"unhandledrejection\" — monitorinqə (Sentry) göndər.",
+            "React-da Error Boundary, Next.js-də error.tsx — UI-nin bir hissəsi sınanda bütün səhifə ağarmasın.",
+            "Təhlükəsizlik: istifadəçiyə stack trace, SQL, fayl yolu, daxili xidmət adlarını GÖSTƏRMƏ — hücumçu üçün xəritədir. İstifadəçiyə ümumi mesaj + xəta ID, detallar yalnız server log-unda.",
+            "Təhlükəsizlik: log-a parol, token, kart nömrəsi yazma; istifadəçi mətnini log-a yazanda yeni sətir simvollarını təmizlə (log injection).",
+            "Təhlükəsizlik: «fail closed» — yetki yoxlaması xəta versə, girişi QADAĞAN et, icazə vermə.",
+          ]},
+          { t: "qa", items: [
+            ["finally nə vaxt işləyir?", "try uğurlu olsa da, catch işləsə də, hətta return olsa da — həmişə."],
+            ["Niyə daxili xəta detallarını istifadəçiyə göstərməmək?", "Sistemin quruluşunu açır (information disclosure) və hücumu asanlaşdırır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Hansı blok xəta olub-olmamasından asılı olmayaraq işləyir?", options: ["catch", "finally", "throw"], answer: 1, why: "finally həmişə icra olunur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "parseYas(metn) funksiyası: ədəd deyilsə TypeError, 0–150 xaricində RangeError atsın. Öz ValidasiyaXetasi sinfini yarat (sahe xassəsi ilə). 3 fərqli giriş üçün try/catch ilə instanceof-a görə fərqli mesaj çap et.",
+      starter: `function parseYas(metn) {\n  // bura\n}\n\nfor (const g of ["25", "abc", "300"]) {\n  // try/catch\n}\n`,
+      expect: "Number() + Number.isNaN yoxlaması; throw new TypeError/RangeError; class ValidasiyaXetasi extends Error, super(mesaj), this.name; catch-də instanceof ayrımı; boş catch yoxdur.",
+    },
+  },
+  {
+    slug: "modullar",
+    title: "Modullar",
+    intro: "Modul — öz scope-u olan JS faylıdır. export ilə paylaşır, import ilə alır. Böyük layihə yüzlərlə moduldan ibarətdir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "export və import",
+        blocks: [
+          { t: "analogy", text: "Modul — mətbəxin ayrı rəfləridir: hər rəfdə öz qabları (dəyişənlər). Qonşu rəfdən bir şey lazımdırsa, adını deyib istəyirsən (import); rəf sahibi yalnız paylaşmağa razı olduğunu verir (export)." },
+          { t: "code", lang: "javascript", code: `// riyaziyyat.js
+export const PI = 3.14159;
+export function topla(a, b) { return a + b; }
+export default function vur(a, b) { return a * b; }
+
+// main.js
+import vur, { topla, PI } from "./riyaziyyat.js";
+import * as R from "./riyaziyyat.js";
+import { topla as cem } from "./riyaziyyat.js";
+
+console.log(topla(2, 3), vur(2, 3), R.PI, cem(1, 1));` },
+          { t: "code", lang: "html", code: `<script type="module" src="main.js"></script>` },
+          { t: "terms", items: [
+            ["export", "moduldan çölə açır."],
+            ["named export", "adla: export const x; import { x }."],
+            ["default export", "modulun «əsas» dəyəri: import istəniləAd from."],
+            ["import * as", "hamısını bir obyektə yığır."],
+            ["type=\"module\"", "brauzerə faylın modul olduğunu deyir (avtomatik defer və strict)."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Dinamik import və layihə quruluşu",
+        blocks: [
+          { t: "code", lang: "javascript", code: `// Lazım olanda yüklə — ilkin yükləməni yüngülləşdirir
+btn.addEventListener("click", async () => {
+  const { qrafikCek } = await import("./qrafik.js");
+  qrafikCek();
+});
+
+// Re-export — «barrel» fayl
+// utils/index.js
+export { topla } from "./riyaziyyat.js";
+export { formatTarix } from "./tarix.js";` },
+          { t: "list", items: [
+            "Named export-u üstün tut: avtomatik tamamlanma və refaktorinq daha yaxşı işləyir.",
+            "CommonJS (require/module.exports) — köhnə Node formatıdır; yeni kodda ES modules.",
+            "Modul bir dəfə icra olunur və keşlənir — 10 yerdə import etsən də kod bir dəfə işləyir.",
+          ]},
+          { t: "mistake", lang: "javascript", wrong: `import { topla } from "./riyaziyyat";  // brauzerdə`, right: `import { topla } from "./riyaziyyat.js";`, why: "Brauzer faylın uzantısını təxmin etmir — tam yol lazımdır. (Bundler-lər — Vite, Next — bunu bağışlayır.)" },
+          { t: "mistake", lang: "javascript", wrong: `// a.js: import { b } from "./b.js"\n// b.js: import { a } from "./a.js"`, right: `// Ortaq hissəni üçüncü modula (c.js) çıxar`, why: "Dövri asılılıq (circular import) dəyərin hələ hazır olmadığı anda oxunmasına (undefined / TDZ xətası) səbəb olur." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Tree shaking, bundle və tədarük zənciri",
+        blocks: [
+          { t: "list", items: [
+            "ES modules statikdir — bundler import edilməyən export-ları atır (tree shaking). Yan təsirli modullar (qlobal dəyişən yazan) bunu çətinləşdirir — package.json-da \"sideEffects\": false.",
+            "Barrel fayllar böyük layihədə tree shaking-i və build sürətini pisləşdirə bilər — dərin importlar daha yaxşı ola bilər.",
+            "import.meta.url — modulun öz ünvanı; top-level await — modulda üst səviyyədə await (asılı modulları gözlədir).",
+            "Import maps — brauzerdə bundler-siz paket adlarını URL-ə xəritələmək.",
+            "Təhlükəsizlik — supply chain: hər npm paketi kodunu sənin tətbiqində icra edir. Az asılılıq, lock faylı (package-lock.json) commit et, npm audit, typosquatting-ə diqqət (lodash vs 1odash).",
+            "Təhlükəsizlik: CDN-dən skript qoşanda integrity (SRI hash) + crossorigin atributu — CDN sındırılsa dəyişdirilmiş fayl işləməz.",
+            "Təhlükəsizlik: dinamik import(userInput) — istifadəçinin seçdiyi modul yolu ilə import etmə; ağ siyahı.",
+          ]},
+          { t: "qa", items: [
+            ["Named və default export fərqi?", "Named — adla import olunur, bir neçə ola bilər; default — moduldan bir dənə, istənilən adla import."],
+            ["Tree shaking nədir?", "Bundler-in istifadə olunmayan export-ları son paketdən çıxarması."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "export default function f() {} necə import olunur?", options: ["import { f } from", "import f from", "require(f)"], answer: 1, why: "Default export fiqurlu mötərizəsiz import olunur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "İki modul təsvir et (şərhlərlə fayl adlarını göstər): format.js — named export-lar formatPul(n) (\"12.50 AZN\") və formatTarix(d) (\"13.11.2026\"); main.js — onları import edib işlət. Məşq səhifəsində yoxlamaq üçün funksiyaları bir faylda yazıb çağırış nəticələrini çap et.",
+      starter: `// format.js\n// export function formatPul(n) { ... }\n\n// main.js\n// import { ... } from "./format.js";\n\n// Yoxlama (bir faylda):\n`,
+      expect: "export function formatPul — toFixed(2) + \" AZN\"; formatTarix — gün.ay.il padStart(2,\"0\") ilə; import { formatPul, formatTarix } from \"./format.js\" düzgün sintaksis (.js uzantısı); nəticələr çap olunur.",
+    },
+  },
+  {
+    slug: "sinifler",
+    title: "Siniflər və OOP",
+    intro: "class sintaksisi obyekt yaratmağın «çertyojudur»: constructor, metodlar, private sahələr, irsiyyət (extends), static üzvlər.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "class və constructor",
+        blocks: [
+          { t: "analogy", text: "Sinif — tort qəlibidir, obyekt — o qəliblə bişirilmiş konkret tort. Hər tortun içi (dəyərlər) fərqli ola bilər, amma forması (struktur) eynidir." },
+          { t: "code", lang: "javascript", code: `class Telebe {
+  constructor(ad, bal) {
+    this.ad = ad;
+    this.bal = bal;
+  }
+
+  kecdi() {
+    return this.bal >= 50;
+  }
+
+  toString() {
+    return this.ad + " (" + this.bal + ")";
+  }
+}
+
+const t = new Telebe("Aysel", 92);
+console.log(t.kecdi(), String(t));` },
+          { t: "terms", items: [
+            ["class", "sinif elanı."],
+            ["constructor", "new ilə çağırılan başlanğıc metodu."],
+            ["this", "yaradılan obyekt."],
+            ["new", "yeni nüsxə (instance) yaradır."],
+            ["metod", "sinifin funksiyası — bütün nüsxələr paylaşır."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Private, getter/setter, static, extends",
+        blocks: [
+          { t: "code", lang: "javascript", code: `class Hesab {
+  #balans = 0;                 // private — çöldən əlçatmaz
+  static say = 0;              // sinfə aid, nüsxəyə yox
+
+  constructor(sahib) {
+    this.sahib = sahib;
+    Hesab.say++;
+  }
+  get balans() { return this.#balans; }     // oxu
+  medaxil(m) {
+    if (m <= 0) throw new RangeError("Məbləğ müsbət olmalıdır");
+    this.#balans += m;
+    return this;               // zəncir üçün
+  }
+}
+
+class EmanetHesabi extends Hesab {
+  constructor(sahib, faiz) {
+    super(sahib);              // valideyn constructor — this-dən ƏVVƏL
+    this.faiz = faiz;
+  }
+  faizHesabla() {
+    return this.balans * this.faiz / 100;
+  }
+}
+
+const e = new EmanetHesabi("Murad", 5).medaxil(1000);
+console.log(e.balans, e.faizHesabla(), Hesab.say);   // 1000 50 1
+// e.#balans  → SyntaxError` },
+          { t: "mistake", lang: "javascript", wrong: `class B extends A {\n  constructor() {\n    this.x = 1;\n    super();\n  }\n}`, right: `class B extends A {\n  constructor() {\n    super();\n    this.x = 1;\n  }\n}`, why: "Törəmə sinifdə this super() çağırılmamış mövcud deyil — ReferenceError." },
+          { t: "mistake", lang: "javascript", wrong: `class Hesab {\n  constructor() { this._balans = 0; }  // «gizli» saymışıq\n}`, right: `class Hesab {\n  #balans = 0;\n}`, why: "Alt xətt yalnız razılaşmadır — hər kəs dəyişə bilər. # həqiqi private-dir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Class-lar altında nə var",
+        blocks: [
+          { t: "p", text: "JS class-ları prototip sisteminin üstündə «sintaktik şəkərdir»: metodlar Sinif.prototype-a yazılır, nüsxələr onu prototip zənciri ilə tapır. Fərqlər: class kodu həmişə strict-dir, class hoisting olunur amma TDZ-dədir, constructor new-suz çağırıla bilməz, metodlar sayıla bilməz (non-enumerable)." },
+          { t: "list", items: [
+            "Kompozisiya irsiyyətdən çox vaxt yaxşıdır: dərin extends zəncirləri əvəzinə kiçik obyektləri birləşdir.",
+            "Sinif sahəsində arrow funksiya (handle = () => {}) hər nüsxə üçün yeni funksiya yaradır — yaddaş; prototip metodu paylaşılır.",
+            "#private sahələr həqiqətən gizlidir (Proxy, JSON.stringify görməz); #x in obj ilə yoxlanır.",
+            "static blokları: static { ... } — sinif yüklənəndə bir dəfə işləyən başlanğıc kodu.",
+            "Təhlükəsizlik: obyekti JSON.stringify ilə serverə/log-a göndərəndə bütün açıq sahələr gedir — həssas sahələri # ilə gizlət və ya toJSON() ilə nəyin çıxacağını özün təyin et.",
+            "Təhlükəsizlik: frontend-dəki private sahə istifadəçidən qoruma DEYİL — kod onun brauzerində işləyir. Qaydaları (balans, qiymət) serverdə yoxla.",
+          ]},
+          { t: "qa", items: [
+            ["JS class-ı ilə Java class-ı eynidirmi?", "Xeyr — JS prototiplərə əsaslanır; class sintaksisi prototip modelinin üzərindədir."],
+            ["#private ilə _konvensiya fərqi?", "# dil səviyyəsində əlçatmazdır; _ yalnız adlandırma razılaşmasıdır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Törəmə sinfin constructor-unda ilk nə çağırılmalıdır?", options: ["this", "super()", "new"], answer: 1, why: "super() valideyni qurur və this-i yaradır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Mehsul sinfi (ad, #qiymet; qiymet getter; endirim(faiz) metodu — 0–90 xaricində RangeError). EndirimliMehsul extends Mehsul — toString-də \"(endirimli)\" əlavə etsin. Static say ilə yaradılan məhsulları say.",
+      starter: `class Mehsul {\n  // bura\n}\n\nclass EndirimliMehsul extends Mehsul {\n  // bura\n}\n\nconst m = new EndirimliMehsul("Kitab", 20);\nm.endirim(25);\nconsole.log(String(m), m.qiymet, Mehsul.say);\n`,
+      expect: "#qiymet private; get qiymet(); endirim RangeError ilə yoxlayır və qiyməti dəyişir (15); extends + super(...) this-dən əvvəl; toString override; static say artır.",
+    },
+  },
+  {
+    slug: "prototip",
+    title: "Prototiplər",
+    intro: "JS-də irsiyyət prototiplərlə işləyir: hər obyektin gizli valideyni (prototipi) var. Xassə obyektdə tapılmasa, zəncirlə valideyndə axtarılır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Prototip zənciri",
+        blocks: [
+          { t: "analogy", text: "Uşaq bir sözün mənasını bilmirsə, valideynindən soruşur; o da bilmirsə — babasından. Kimsə bilmirsə — undefined. JS-də xassə axtarışı da belə zəncirlə yuxarı gedir." },
+          { t: "code", lang: "javascript", code: `const heyvan = {
+  nefesAl() { return this.ad + " nəfəs alır"; },
+};
+
+const it = Object.create(heyvan);   // it-in prototipi = heyvan
+it.ad = "Toplan";
+it.hurek = () => "Hav!";
+
+console.log(it.nefesAl());           // it-də yoxdur → heyvan-da tapıldı
+console.log(Object.getPrototypeOf(it) === heyvan);  // true
+console.log(it.hasOwnProperty("ad"));       // true
+console.log(it.hasOwnProperty("nefesAl"));  // false — miras
+
+const arr = [1, 2];
+// arr → Array.prototype (map, filter...) → Object.prototype → null` },
+          { t: "terms", items: [
+            ["prototype", "obyektin miras aldığı valideyn obyekt."],
+            ["[[Prototype]] / __proto__", "obyektin prototipinə gizli istinad."],
+            ["Object.create(p)", "prototipi p olan yeni obyekt."],
+            ["prototype chain", "axtarış zənciri — null-a qədər."],
+            ["own property", "obyektin özünə aid xassə."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Konstruktor funksiyalar və class əlaqəsi",
+        blocks: [
+          { t: "code", lang: "javascript", code: `function Telebe(ad) {
+  this.ad = ad;
+}
+Telebe.prototype.salamla = function () {
+  return "Salam, " + this.ad;
+};
+
+const t = new Telebe("Aysel");
+console.log(t.salamla());
+console.log(t.__proto__ === Telebe.prototype);   // true
+
+// class eyni şeyi edir:
+class Telebe2 { constructor(ad) { this.ad = ad; } salamla() { return "Salam, " + this.ad; } }
+console.log(typeof Telebe2);                              // "function"
+console.log(Object.hasOwn(Telebe2.prototype, "salamla"));  // true` },
+          { t: "list", items: [
+            "Metodları prototipə yazmaq yaddaşa qənaətdir: 1000 nüsxə bir funksiyanı paylaşır.",
+            "Funksiyanın .prototype xassəsi ilə obyektin [[Prototype]]-u fərqli şeylərdir — çaşdırmayın.",
+            "__proto__ köhnə yazılışdır; Object.getPrototypeOf / setPrototypeOf işlət.",
+          ]},
+          { t: "mistake", lang: "javascript", wrong: `Array.prototype.son = function () { return this[this.length - 1]; };`, right: `const son = (arr) => arr.at(-1);`, why: "Daxili prototipləri dəyişmək (monkey patching) bütün kodu, kitabxanaları təsirləyir və gələcək standartla toqquşur (məşhur «SmooshGate»)." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Performans və prototype pollution",
+        blocks: [
+          { t: "p", text: "V8 obyektlərə gizli «forma» (hidden class / shape) verir və eyni formalı obyektlərdə xassə axtarışını inline cache ilə sürətləndirir. Prototipi sonradan dəyişmək (setPrototypeOf) bu optimallaşdırmaları sındırır — obyektin prototipini yaradılanda təyin et." },
+          { t: "warn", text: "Prototype pollution: hücumçu JSON-da {\"__proto__\": {\"isAdmin\": true}} göndərir, tətbiq onu «dərin birləşdirmə» (merge) ilə obyektə yazanda Object.prototype dəyişir — artıq HƏR obyektdə isAdmin === true. Real hücumlarda yetki keçmək, hətta serverdə kod icrası (RCE) üçün istifadə olunub." },
+          { t: "code", lang: "javascript", code: `// Qoruma
+function tehlukesizMerge(hedef, menbe) {
+  for (const k of Object.keys(menbe)) {
+    if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
+    hedef[k] = menbe[k];
+  }
+  return hedef;
+}
+const lugat = Object.create(null);   // prototipsiz — zəncir yoxdur
+const xerite = new Map();            // açar-dəyər üçün ən təhlükəsizi
+Object.freeze(Object.prototype);     // ekstremal, amma bəzi tətbiqlərdə işlədilir` },
+          { t: "qa", items: [
+            ["Prototype chain nədir?", "Xassə tapılmayanda [[Prototype]] istinadları ilə null-a qədər yuxarı axtarış."],
+            ["Prototype pollution-dan necə qorunmaq?", "Təhlükəli açarları rədd et, Map/Object.create(null) işlət, giriş sxemlə yoxla, kitabxanaları yenilə."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Xassə obyektin özündə yoxdursa JS harada axtarır?", options: ["Qlobal scope-da", "Prototipində", "Heç yerdə"], answer: 1, why: "Prototip zənciri ilə yuxarı." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) Object.create ilə nəqliyyat prototipi (hereket() metodu) və ondan maşın obyekti yarat; hasOwnProperty ilə hansı xassənin özünə, hansının miras olduğunu göstər. 2) tehlukesizMerge yaz: __proto__, constructor, prototype açarlarını ötürsün; JSON.parse('{\"__proto__\": {\"admin\": true}}') ilə sına və ({}).admin-in undefined qaldığını göstər.",
+      starter: `// 1)\n\n// 2)\nfunction tehlukesizMerge(hedef, menbe) {\n  // bura\n}\n`,
+      expect: "Object.create(neqliyyat); hasOwnProperty nəticələri düzgün; merge-də 3 təhlükəli açar ötürülür, Object.keys ilə gəzilir; sonda ({}).admin undefined.",
+    },
+  },
+  {
+    slug: "event-loop",
+    title: "Senior: Event loop",
+    intro: "JS tək axınlıdır (single-threaded), amma eyni anda minlərlə sorğunu idarə edir. Sirr — event loop: call stack, macrotask və microtask növbələri.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Bir aşpaz, çox sifariş",
+        blocks: [
+          { t: "analogy", text: "Mətbəxdə bir aşpaz var (call stack). Soba (brauzer API-ləri — taymer, şəbəkə) yeməyi özü bişirir. Hazır olan yeməklər növbəyə düzülür. Aşpaz əlindəki işi bitirəndə əvvəl «təcili» növbəyə (microtask — Promise) baxır, sonra adi növbəyə (macrotask — setTimeout, klik)." },
+          { t: "code", lang: "javascript", code: `console.log("1 sinxron");
+setTimeout(() => console.log("5 macrotask (timeout)"), 0);
+Promise.resolve().then(() => console.log("3 microtask (promise)"));
+queueMicrotask(() => console.log("4 microtask"));
+console.log("2 sinxron");
+// 1, 2, 3, 4, 5` },
+          { t: "terms", items: [
+            ["call stack", "hazırda icra olunan funksiyalar yığını."],
+            ["Web APIs", "brauzerin JS-dən kənar işləyən hissəsi: taymerlər, fetch, DOM hadisələri."],
+            ["macrotask queue", "setTimeout, setInterval, I/O, UI hadisələri."],
+            ["microtask queue", "Promise.then, await-dən sonrası, queueMicrotask, MutationObserver."],
+            ["event loop", "stack boşalanda növbədən növbəti işi götürən dövr."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Bir dövrün addımları",
+        blocks: [
+          { t: "list", items: [
+            "1) Bir macrotask icra et (məs. skriptin özü, bir taymer callback-i).",
+            "2) BÜTÜN microtask-ları boşalt (icra zamanı yenisi əlavə olunsa, onu da).",
+            "3) Lazımdırsa render: requestAnimationFrame → style → layout → paint.",
+            "4) Növbəti macrotask-a keç.",
+          ]},
+          { t: "code", lang: "javascript", code: `async function a() {
+  console.log("A1");
+  await null;               // qalanı microtask olur
+  console.log("A2");
+}
+setTimeout(() => console.log("T"), 0);
+a();
+console.log("S");
+// A1, S, A2, T` },
+          { t: "mistake", lang: "javascript", wrong: `// Ağır hesablama əsas axında\nfor (let i = 0; i < 5e9; i++) {}\nbtn.textContent = "Bitdi";`, right: `// Web Worker-ə köçür və ya hissələrə böl\nconst w = new Worker("hesab.js");\nw.onmessage = (e) => (btn.textContent = e.data);`, why: "Uzun sinxron kod stack-i tutur: kliklər, render, taymerlər gözləyir — səhifə donur." },
+          { t: "mistake", lang: "javascript", wrong: `setTimeout(f, 0);  // «dərhal» işləyəcək`, right: `queueMicrotask(f);  // və ya Promise.resolve().then(f)`, why: "setTimeout 0 minimum gecikmədir, dərhal deyil: bütün microtask-lar və bəlkə render ondan əvvəl gəlir; iç-içə taymerlərdə minimum ~4 ms." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Starvation, Node fərqləri, uzun tapşırıqlar",
+        blocks: [
+          { t: "list", items: [
+            "Microtask starvation: microtask özü yeni microtask yaradırsa (sonsuz then zənciri), macrotask-lar və render heç vaxt gəlmir — səhifə donur.",
+            "Uzun tapşırıq (>50 ms) INP (Interaction to Next Paint) metrikini pisləşdirir. İşi parçala: await scheduler.yield() və ya setTimeout ilə növbəyə qaytar.",
+            "requestAnimationFrame — növbəti render-dən dərhal əvvəl; animasiyalar üçün setInterval-dan düzgündür. requestIdleCallback — boş vaxtda.",
+            "Node.js event loop fazaları: timers → pending → poll (I/O) → check (setImmediate) → close; process.nextTick microtask-lardan da əvvəl.",
+            "Təhlükəsizlik (server): Node tək axınlıdır — bir sorğuda sinxron ağır iş (böyük JSON.parse, zəif regex, bcrypt sync) BÜTÜN istifadəçiləri dayandırır. ReDoS: (a+)+$ kimi regex xüsusi girişlə saniyələrlə işləyir. Async API-lər, worker_threads, regex yoxlaması və giriş ölçüsü limiti.",
+          ]},
+          { t: "qa", items: [
+            ["Microtask və macrotask fərqi?", "Microtask-lar hər macrotask-dan sonra tamamilə boşaldılır; Promise callback-ləri microtask, setTimeout macrotask-dır."],
+            ["JS tək axınlıdırsa necə paralel sorğular edir?", "Gözləmə işini brauzer/OS edir; JS yalnız nəticə gələndə callback-i növbədən götürür."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Hansı birinci işləyir?", options: ["setTimeout(f, 0)", "Promise.resolve().then(f)", "Eyni anda"], answer: 1, why: "Microtask-lar macrotask-dan əvvəl boşaldılır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Aşağıdakı kodun çıxış sırasını ƏVVƏLCƏ şərhdə təxmin et, sonra işə salıb yoxla və hər sətrin niyə o yerdə olduğunu şərhlə izah et: sinxron log-lar, setTimeout, Promise.then, async/await, queueMicrotask qarışığı.",
+      starter: `console.log("A");\nsetTimeout(() => console.log("B"), 0);\nPromise.resolve().then(() => console.log("C")).then(() => console.log("D"));\n(async () => {\n  console.log("E");\n  await null;\n  console.log("F");\n})();\nqueueMicrotask(() => console.log("G"));\nconsole.log("H");\n\n// Təxminim: ...\n`,
+      expect: "Düzgün sıra: A E H C F G D B (C, F, G microtask-lar növbə sırası ilə, D C-dən sonra yeni microtask, B macrotask sonda); izahlar microtask/macrotask fərqinə əsaslanır.",
+    },
+  },
+  {
+    slug: "yaddas",
+    title: "Senior: yaddaş və performans",
+    intro: "JS yaddaşı avtomatik idarə edir (garbage collector), amma sızmalar mümkündür. Performans — ölçmək, darboğazı tapmaq və düzgün yerdə optimallaşdırmaq.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Garbage collection",
+        blocks: [
+          { t: "analogy", text: "Garbage collector — ofisin xadiməsidir: heç kimin istifadə etmədiyi (heç bir istinadı olmayan) kağızları atır. Amma kağızı stolun altında «unudulmuş» qovluqda saxlasan (istinad qalıb), xadimə onu ata bilməz — sızma budur." },
+          { t: "code", lang: "javascript", code: `let user = { ad: "Aysel" };
+user = null;   // obyektə istinad qalmadı → GC onu silə bilər
+
+const cache = new Map();
+function getir(id) {
+  if (!cache.has(id)) cache.set(id, { id, data: new Array(1e5).fill(0) });
+  return cache.get(id);
+}
+// cache heç vaxt təmizlənmir — sızma riski!` },
+          { t: "terms", items: [
+            ["heap", "obyektlərin saxlandığı yaddaş."],
+            ["stack", "funksiya çağırışları və primitiv lokal dəyərlər."],
+            ["reachability", "kökdən (global, stack) istinadla çatıla bilən obyekt «canlı»dır."],
+            ["memory leak", "lazımsız, amma hələ istinad olunan yaddaş."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Tipik sızmalar və alətlər",
+        blocks: [
+          { t: "list", items: [
+            "Silinməmiş event listener-lər və setInterval-lar (komponent silinsə də callback obyektləri saxlayır).",
+            "DOM-dan silinmiş, amma JS dəyişənində qalmış elementlər (detached DOM).",
+            "Sərhədsiz keş (Map) — LRU ilə ölçünü məhdudlaşdır və ya WeakMap.",
+            "Böyük obyektləri tutan closure-lar.",
+            "Alətlər: DevTools → Memory (heap snapshot, iki snapshot müqayisəsi), Performance (flame chart), Lighthouse.",
+          ]},
+          { t: "code", lang: "javascript", code: `// WeakMap — açar obyekt silinəndə qeyd də yox olur
+const meta = new WeakMap();
+function isaretle(el) { meta.set(el, { klik: 0 }); }
+
+// Komponent təmizliyi
+const ac = new AbortController();
+window.addEventListener("resize", onResize, { signal: ac.signal });
+const id = setInterval(tick, 1000);
+function destroy() { ac.abort(); clearInterval(id); }` },
+          { t: "mistake", lang: "javascript", wrong: `// «Sürətli olsun» deyə əvvəlcədən optimallaşdırma\nfor (let i = 0, n = a.length; i < n; i++) {}`, right: `// Əvvəl ölç (Performance panel), darboğazı tap, sonra optimallaşdır\nfor (const x of a) {}`, why: "Mikro-optimallaşdırma adətən heç nə qazandırmır, oxunaqlılığı öldürür. Darboğaz çox vaxt şəbəkə, render və ya alqoritmdədir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "V8 daxili və real performans",
+        blocks: [
+          { t: "list", items: [
+            "Nəsil GC: yeni obyektlər «gənc nəsildə» (Scavenger, sürətli), sağ qalanlar «köhnə nəsilə» (Mark-Sweep-Compact). Çoxlu qısa ömürlü obyekt ucuzdur, uzun ömürlü böyük strukturlar bahadır.",
+            "Hidden classes: obyektlərə xassələri həmişə eyni sırada əlavə et, sonradan delete etmə — monomorfik kod sürətlidir.",
+            "Massivləri qarışıq tiplərlə doldurmaq (ədəd + string + undefined) «elements kind»-i pisləşdirir.",
+            "Böyük siyahılar: virtualizasiya (yalnız görünən 30 sətri render et).",
+            "Ağır hesablama → Web Worker; ağır render → CSS transform/opacity (compositor), layout thrashing-dən qaç.",
+            "Core Web Vitals: LCP (əsas məzmun ≤ 2.5 s), INP (cavab ≤ 200 ms), CLS (sürüşmə ≤ 0.1).",
+            "Təhlükəsizlik: sərhədsiz keş/növbə serverdə istifadəçi girişi ilə böyüyürsə — yaddaş tükənməsi ilə DoS. Hər keşə ölçü və TTL, hər sorğuya ölçü limiti.",
+            "Təhlükəsizlik: həssas məlumatı (parol) yaddaşda uzun saxlama; string-lər immutable-dır və GC-yə qədər heap dump-da görünür.",
+          ]},
+          { t: "qa", items: [
+            ["WeakMap nə vaxt?", "Obyektə əlavə məlumat bağlayıb, obyekt silinəndə məlumatın da avtomatik silinməsini istəyəndə."],
+            ["Yaddaş sızmasını necə tapırsan?", "Heap snapshot-ları müqayisə edib böyüyən obyektləri və onları saxlayan istinad zəncirini (retainers) tapıram."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Komponent silinəndə setInterval təmizlənməsə?", options: ["Problem yoxdur", "Yaddaş sızması və boş işləyən kod", "Brauzer avtomatik dayandırır"], answer: 1, why: "Callback və onun closure-u yaşamağa davam edir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Ölçüsü məhdud LRU keş yaz: new LRU(3); get(k) — tapılsa elementi «ən yeni» et; set(k, v) — limit aşılanda ən köhnəni sil. Map-in daxiletmə sırasından istifadə et. 5 əməliyyatla göstər ki, ən köhnə açar silinir.",
+      starter: `class LRU {\n  constructor(limit) {\n    // bura\n  }\n  get(k) {}\n  set(k, v) {}\n}\n\nconst c = new LRU(3);\n`,
+      expect: "Map istifadə olunur; get-də delete + set ilə sona köçürmə; set-də size > limit olanda map.keys().next().value silinir; nəticə ən az istifadə olunan açarın silindiyini göstərir.",
+    },
+  },
+  {
+    slug: "pattern",
+    title: "Senior: dizayn pattern-ləri",
+    intro: "Pattern — təkrarlanan problemə sınanmış həll. JS-də ən çox işlədilənlər: modul, observer (pub/sub), factory, strategy, decorator, singleton — və onların müasir formaları.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Pattern nədir?",
+        blocks: [
+          { t: "analogy", text: "Pattern — memarlıqdakı «tağ» kimidir: hər körpü üçün yenidən icad etmirsən, sınanmış formanı öz ölçünə uyğunlaşdırırsan. Pattern adı komandaya qısa dil verir: «burada observer qoyaq» — hamı başa düşür." },
+          { t: "code", lang: "javascript", code: `// Observer / Pub-Sub
+class Hadiseler {
+  #dinleyiciler = new Map();
+  on(ad, f) {
+    if (!this.#dinleyiciler.has(ad)) this.#dinleyiciler.set(ad, new Set());
+    this.#dinleyiciler.get(ad).add(f);
+    return () => this.#dinleyiciler.get(ad).delete(f);   // abunəlikdən çıx
+  }
+  emit(ad, data) {
+    this.#dinleyiciler.get(ad)?.forEach((f) => f(data));
+  }
+}
+
+const bus = new Hadiseler();
+const cix = bus.on("sifaris", (s) => console.log("Email göndər:", s.id));
+bus.emit("sifaris", { id: 42 });
+cix();` },
+          { t: "terms", items: [
+            ["Observer", "obyekt dəyişəndə abunəçilərə xəbər verir."],
+            ["Factory", "obyekt yaratmağı bir funksiyada gizlədir."],
+            ["Strategy", "alqoritmi dəyişdirilə bilən obyekt/funksiya kimi ötürmək."],
+            ["Singleton", "sinfin yalnız bir nüsxəsi."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Factory, Strategy, Decorator",
+        blocks: [
+          { t: "code", lang: "javascript", code: `// Strategy — if/switch əvəzinə
+const ODENIS = {
+  kart: (m) => "Kartla " + m + " AZN",
+  nagd: (m) => "Nağd " + m + " AZN",
+};
+const ode = (usul, m) => (ODENIS[usul] ?? ODENIS.nagd)(m);
+
+// Factory
+function bildirisYarat(tip) {
+  if (tip === "email") return { gonder: (msg) => console.log("📧", msg) };
+  if (tip === "sms") return { gonder: (msg) => console.log("📱", msg) };
+  throw new Error("Naməlum tip: " + tip);
+}
+
+// Decorator (funksional) — davranış əlavə et, orijinala toxunma
+function logla(f) {
+  return (...args) => {
+    console.log("Çağırış:", f.name, args);
+    return f(...args);
+  };
+}
+const topla = logla(function topla(a, b) { return a + b; });
+topla(2, 3);` },
+          { t: "list", items: [
+            "ES modulu özü singleton-dur — modulda yaradılan obyekt bütün import edənlər üçün eynidir.",
+            "Pattern-i problem olanda tətbiq et, «olsun» deyə yox — artıq abstraksiya da texniki borcdur.",
+          ]},
+          { t: "mistake", lang: "javascript", wrong: `class Konfiq {\n  static #nusxe;\n  static al() { return (this.#nusxe ??= new Konfiq()); }\n}\n// hər yerdə Konfiq.al() — gizli qlobal asılılıq`, right: `// Asılılığı açıq ötür (dependency injection)\nfunction yaratServis(konfiq) { /* ... */ }`, why: "Singleton gizli qlobal vəziyyətdir: test zamanı əvəz etmək çətindir, modullar arasında görünməz asılılıq yaradır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Arxitektura səviyyəsində pattern-lər",
+        blocks: [
+          { t: "list", items: [
+            "Proxy pattern — JS Proxy obyekti: reaktivlik (Vue), validasiya, lazy loading.",
+            "Middleware / chain of responsibility — Express, Next.js middleware: sorğu bir sıra funksiyalardan keçir.",
+            "Command — əməliyyatı obyekt kimi saxla: undo/redo, növbə.",
+            "Repository — məlumat mənbəyini (API, DB) interfeys arxasında gizlət; testdə saxta (mock) versiya.",
+            "Adapter — xarici API-ni öz interfeysinə uyğunlaşdır: provayderi dəyişəndə kod dağılmasın (bu saytda Gemini çağırışı bir faylda).",
+            "Təhlükəsizlik pattern-ləri: «secure by default» (default-lar qapalı), «defense in depth» (çoxqatlı müdafiə: validasiya + parametrli SQL + CSP + least privilege), «fail closed», mərkəzləşdirilmiş yetki (policy) — yoxlamanı hər endpoint-də əl ilə yazmamaq.",
+            "Təhlükəsizlik: observer/pub-sub-da hadisə adlarını və məlumatı istifadəçidən qəbul edirsənsə (WebSocket), hər abunəçi öz yetkisini yoxlamalıdır — «bus-a gələn məlumat etibarlıdır» fərziyyəsi təhlükəlidir.",
+          ]},
+          { t: "qa", items: [
+            ["Strategy pattern nə həll edir?", "Böyük if/switch-ləri dəyişdirilə bilən davranış obyektləri ilə əvəzləyir (open/closed)."],
+            ["Singleton-un problemi?", "Gizli qlobal vəziyyət, test çətinliyi, sıx bağlılıq."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Bir hadisəyə çoxlu abunəçinin reaksiya verməsi hansı pattern-dir?", options: ["Factory", "Observer", "Singleton"], answer: 1, why: "Observer / pub-sub." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) Observer: Magaza sinfi — stok dəyişəndə abunəçilərə (on/emit) xəbər versin, abunəlikdən çıxma funksiyası qaytarsın. 2) Strategy: çatdırılma qiymətini usul-a görə (standart 3, ekspress 8, pulsuz 0) obyekt xəritəsi ilə hesabla; naməlum usulda xəta.",
+      starter: `class Magaza {\n  // bura\n}\n\nconst CATDIRILMA = {\n  // bura\n};\n`,
+      expect: "Map/Set ilə dinləyicilər, on() unsubscribe funksiyası qaytarır, emit hamısını çağırır; strategy obyekt xəritəsi, Object.hasOwn və ya ?? ilə naməlum usul yoxlanır; if/switch zənciri yoxdur.",
+    },
+  },
 ];

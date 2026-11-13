@@ -55,6 +55,6 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
 
 ## İstifadəçi haqqında qeydlər
 - Böyük işləri təsdiqsiz görmə — əvvəl soruş, tövsiyə ver.
-- Nəticəni zip kimi istəyir: `git archive --format=zip -o kod-akademiyasi-vN.zip HEAD` → SendUserFile. Kompüterinə birbaşa çıxış yoxdur.
+- Nəticəni zip kimi istəyir: HƏMİŞƏ EYNİ ad: `rm -f kod-akademiyasi.zip && git archive --format=zip -o kod-akademiyasi.zip HEAD` → SendUserFile (versiya nömrəsi YOX — istifadəçi istəyi). Kompüterinə birbaşa çıxış yoxdur.
 - Commit müəllifi: `-c user.name="ilkinQuliyev123" -c user.email="noreply@users.noreply.github.com"`.
 - Yoxlama serveri: `npx next start -p 3100` (köhnəsini əvvəl `pkill -f "next-server|next start"`), Playwright ilə ekran şəkli.

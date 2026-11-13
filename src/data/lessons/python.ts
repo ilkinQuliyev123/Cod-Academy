@@ -1526,4 +1526,687 @@ except PermissionError as e:
       expect: "Kitabxana.__init__-də self.kitablar = [] (sinif atributu yox); icareye_ver tapılmayanda və movcud False olanda raise ValueError; qaytar movcud-u True edir; @property movcud_kitablar comprehension ilə; __len__ var; sınaqda try/except ValueError; self bütün metodlarda var.",
     },
   },
+  {
+    slug: "dekorator",
+    title: "Dekoratorlar və generator-lar",
+    intro: "Dekorator — funksiyanı dəyişmədən ona əlavə davranış (jurnal, vaxt ölçmə, icazə yoxlaması) qoşur. Generator — dəyərləri hamısını birdən yox, lazım olduqca bir-bir verən funksiyadır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Funksiyanı bürümək və yield",
+        blocks: [
+          { t: "analogy", text: "Dekorator — hədiyyə kağızıdır: içindəki hədiyyə (funksiya) dəyişmir, amma üstünə bant və açıqca əlavə olunur. Generator — çay süzən dəmkeşdir: bütün çayı bir dəfəyə stəkanlara tökmür, kim istəsə, o anda bir stəkan süzür." },
+          { t: "code", lang: "python", code: `def jurnal(funksiya):
+    def burunmus(*args, **kwargs):
+        print(f"→ {funksiya.__name__} çağırıldı")
+        netice = funksiya(*args, **kwargs)
+        print(f"← nəticə: {netice}")
+        return netice
+    return burunmus
+
+@jurnal                      # topla = jurnal(topla) ilə eynidir
+def topla(a, b):
+    return a + b
+
+topla(2, 3)
+
+
+def say(n):
+    for i in range(1, n + 1):
+        yield i              # dəyəri ver və burada «dayan»
+
+for x in say(3):
+    print(x)                 # 1, 2, 3 — hər biri tələb olunanda hesablanır` },
+          { t: "terms", items: [
+            ["dekorator", "funksiya qəbul edib yeni (bürünmüş) funksiya qaytaran funksiya."],
+            ["@ad", "dekoratoru tətbiq etməyin qısa yazılışı."],
+            ["generator", "içində yield olan funksiya; çağırılanda iterator qaytarır."],
+            ["yield", "dəyəri qaytarır və funksiyanın vəziyyətini saxlayıb dayanır; növbəti tələbdə davam edir."],
+          ]},
+          { t: "tip", text: "Dekoratoru başa düşmək üçün iki şeyi xatırla: funksiya dəyişənə mənimsədilə bilir və daxili funksiya xarici dəyişənləri yadda saxlayır (closure) — Funksiyalar dərsinə bax." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "wraps, parametrli dekorator, generator zənciri",
+        blocks: [
+          { t: "code", lang: "python", code: `import time
+from functools import wraps
+
+def vaxt_olc(funksiya):
+    @wraps(funksiya)                      # adı və docstring-i qoruyur
+    def burunmus(*args, **kwargs):
+        basla = time.perf_counter()
+        try:
+            return funksiya(*args, **kwargs)
+        finally:
+            muddet = time.perf_counter() - basla
+            print(f"{funksiya.__name__}: {muddet:.4f} s")
+    return burunmus
+
+
+def tekrar(defe):                         # parametrli: 3 qat funksiya
+    def dekorator(funksiya):
+        @wraps(funksiya)
+        def burunmus(*args, **kwargs):
+            for cehd in range(1, defe + 1):
+                try:
+                    return funksiya(*args, **kwargs)
+                except ConnectionError:
+                    print(f"cəhd {cehd} alınmadı")
+            raise ConnectionError("Bütün cəhdlər uğursuz")
+        return burunmus
+    return dekorator
+
+
+@vaxt_olc
+def hesabla(n):
+    """n-ə qədər kvadratların cəmi."""
+    return sum(i * i for i in range(n))
+
+print(hesabla(100_000))
+print(hesabla.__name__, "—", hesabla.__doc__)
+
+cehdler = iter([ConnectionError, ConnectionError, "cavab"])
+
+@tekrar(3)
+def sorgu():
+    netice = next(cehdler)
+    if netice is ConnectionError:
+        raise ConnectionError
+    return netice
+
+print(sorgu())` },
+          { t: "code", lang: "python", caption: "Generator zənciri (pipeline) — yaddaşda bir sətirdən artıq saxlanmır", code: `def setirler(metn):
+    for setir in metn.splitlines():
+        yield setir
+
+def bos_olmayanlar(axin):
+    for s in axin:
+        if s.strip():
+            yield s.strip()
+
+def boyuk_herfle(axin):
+    for s in axin:
+        yield s.upper()
+
+metn = "salam\\n\\n  dünya  \\npython"
+for s in boyuk_herfle(bos_olmayanlar(setirler(metn))):
+    print(s)
+
+def fibonacci():                 # sonsuz generator
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+
+from itertools import islice
+print(list(islice(fibonacci(), 10)))` },
+          { t: "mistake", lang: "python", wrong: `def jurnal(funksiya):
+    def burunmus(*args, **kwargs):
+        print("çağırıldı")
+        funksiya(*args, **kwargs)     # return unudulub → None
+    return burunmus`, right: `def jurnal(funksiya):
+    @wraps(funksiya)
+    def burunmus(*args, **kwargs):
+        print("çağırıldı")
+        return funksiya(*args, **kwargs)
+    return burunmus`, why: "Bürünmüş funksiya nəticəni qaytarmalıdır, yoxsa dekorasiya olunan hər funksiya None verir. @wraps olmadan isə funksiyanın adı «burunmus» olur — debug və sənədləşmə pozulur." },
+          { t: "mistake", lang: "python", wrong: `kvadratlar = (x * x for x in range(3))
+print(list(kvadratlar))   # [0, 1, 4]
+print(list(kvadratlar))   # [] — artıq tükənib`, right: `kvadratlar = [x * x for x in range(3)]   # təkrar lazımdırsa — list
+# və ya generatoru hər dəfə yenidən yarat`, why: "Generator bir dəfə gəzilir. İkinci dövr səssizcə boş nəticə verir — xəta yoxdur, məlumat da yoxdur." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Daxili mexanizm, hazır dekoratorlar və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Dekoratorlar aşağıdan yuxarı tətbiq olunur: @a @b def f → f = a(b(f)). Çağırışda isə a-nın bürüməsi birinci işləyir. Sıra nəticəni dəyişir.",
+            "Hazır alətlər: functools.lru_cache / cache (memoizasiya), cached_property, singledispatch, contextlib.contextmanager (generatordan kontekst meneceri), dataclass, property.",
+            "Sinif də dekorator ola bilər (__call__ ilə) və dekorator sinfə tətbiq oluna bilər. Tipləri qorumaq üçün ParamSpec və TypeVar işlət.",
+            "Generator vəziyyət maşınıdır: hər yield-də çərçivə (frame) saxlanır. yield from alt generatora ötürür; send() ilə generatora dəyər göndərmək olar — asyncio korutinləri bu mexanizm üzərində qurulub.",
+            "Generatorda try/finally təmizliyi generator bağlananda (close və ya zibil yığımı) işləyir — yarıda buraxılan generatorun resursu gec azad oluna bilər; with ilə idarə et.",
+            "Təhlükəsizlik — icazə dekoratorunun sırası: @app.get(...) ilə @giris_teleb-in yeri səhv düşsə, marşrut qorunmamış funksiyanı qeydiyyata alır. Dekorator sırasını testlə yoxla; yoxlamanı unutmaq mümkün olmayan yerə (ümumi asılılıq, middleware) qoy.",
+            "Təhlükəsizlik — fail-closed: icazə dekoratoru xəta alanda funksiyanı çağırmamalıdır. try/except-də «xəta oldu — davam et» yazmaq hər nasazlığı girişə çevirir.",
+            "Təhlükəsizlik — keş sızması: @lru_cache nəticəni arqumentlərə görə saxlayır. İstifadəçi kimliyi arqumentdə yoxdursa, bir istifadəçinin məlumatı başqasına qayıdır. Şəxsi məlumatı qlobal keşləmə və ya açara istifadəçi id-sini daxil et; maxsize ver — limitsiz keş yaddaş DoS-udur.",
+            "Təhlükəsizlik — jurnal dekoratoru: arqumentləri olduğu kimi çap etmək parolu və tokeni jurnala yazır. Həssas parametrləri maskala.",
+            "Təhlükəsizlik — sonsuz generator: istifadəçinin idarə etdiyi ölçü ilə list(generator) çağırma. islice və ya açıq limit qoy.",
+          ]},
+          { t: "code", lang: "python", caption: "Fail-closed icazə dekoratoru və təhlükəsiz keş", code: `from functools import wraps, lru_cache
+
+def rol_teleb(rol):
+    def dekorator(funksiya):
+        @wraps(funksiya)
+        def burunmus(istifadeci, *args, **kwargs):
+            # atribut yoxdursa və ya uyğun deyilsə — RƏDD
+            if getattr(istifadeci, "rol", None) != rol:
+                raise PermissionError("İcazə yoxdur")
+            return funksiya(istifadeci, *args, **kwargs)
+        return burunmus
+    return dekorator
+
+class Istifadeci:
+    def __init__(self, id, rol):
+        self.id, self.rol = id, rol
+
+@rol_teleb("admin")
+def hesabat_sil(istifadeci, hesabat_id):
+    return f"{hesabat_id} silindi"
+
+print(hesabat_sil(Istifadeci(1, "admin"), 7))
+try:
+    hesabat_sil(Istifadeci(2, "telebe"), 7)
+except PermissionError as e:
+    print("Rədd edildi:", e)
+
+@lru_cache(maxsize=256)
+def profil(istifadeci_id: int):        # id açarın hissəsidir
+    return {"id": istifadeci_id}
+
+print(profil(1), profil.cache_info().currsize)` },
+          { t: "qa", items: [
+            ["Dekorator nədir?", "Funksiya qəbul edib onu bürüyən yeni funksiya qaytaran çağırıla bilən obyekt; @ sintaksisi f = dekorator(f) deməkdir."],
+            ["functools.wraps nə üçündür?", "Bürünmüş funksiyaya orijinalın adını, docstring-ini və digər metadata-sını köçürür."],
+            ["Generator ilə list fərqi?", "List bütün elementləri yaddaşda saxlayır; generator onları tələb olunduqca hesablayır, az yaddaş işlədir, bir dəfə gəzilir."],
+            ["yield ilə return fərqi?", "return funksiyanı bitirir; yield dəyəri verib dayanır və vəziyyəti saxlayır — növbəti next() ilə davam edir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "@jurnal\\ndef f(): ... nəyə bərabərdir?", options: ["f = jurnal(f)", "jurnal = f(jurnal)", "f = jurnal()"], answer: 0, why: "@ sintaksisi funksiyanı dekoratora ötürüb nəticəni eyni ada mənimsədir." },
+          { t: "quiz", q: "Generatoru ikinci dəfə gəzsən nə olar?", options: ["Eyni dəyərlər", "Boş nəticə", "Xəta"], answer: 1, why: "Generator tükənir; yenidən yaratmaq lazımdır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) say_sayan dekoratoru yaz: funksiyanın neçə dəfə çağırıldığını saysın (burunmus.cagiris atributunda) və hər çağırışda «ad: N-ci çağırış» çap etsin; @wraps işlət, nəticəni qaytar. Onu salamla(ad) funksiyasına tətbiq edib 3 dəfə çağır. 2) cut_ededler(limit) generatoru yaz: 0-dan limit-ə qədər cüt ədədləri yield etsin. 3) hisselere_bol(siyahi, olcu) generatoru: siyahını verilən ölçüdə hissələrə bölüb yield etsin ([1..7], 3 → [1,2,3], [4,5,6], [7]); olcu ≤ 0 olsa ValueError.",
+      starter: `from functools import wraps\n\ndef say_sayan(funksiya):\n    pass\n\n@say_sayan\ndef salamla(ad):\n    return f"Salam, {ad}!"\n\n# 2)\n\n# 3)\n`,
+      expect: "say_sayan-da @wraps, burunmus.cagiris artır, return funksiya(*args, **kwargs); cut_ededler yield işlədir (list qaytarmır); hisselere_bol range(0, len, olcu) + dilim ilə yield edir, olcu <= 0 → raise ValueError; nəticələr list(...) və ya for ilə göstərilir.",
+    },
+  },
+  {
+    slug: "async",
+    title: "asyncio",
+    intro: "asyncio — bir axında (thread) çoxlu gözləmə işini eyni anda aparmağın yoludur. Şəbəkə sorğusu cavab gözləyərkən proqram boş dayanmır, başqa işə keçir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "async və await",
+        blocks: [
+          { t: "analogy", text: "Aşpaz düyünü ocağa qoyur. Sinxron aşpaz 20 dəqiqə qazanın başında dayanıb baxır. Asinxron aşpaz düyü bişərkən salat doğrayır, çay dəmləyir. Aşpaz birdir (bir axın), amma gözləmə vaxtını boş keçirmir. await — «bu bişənə qədər başqa işə baxım» deməkdir." },
+          { t: "code", lang: "python", code: `import asyncio
+
+async def cay_demle():
+    print("Çay dəmlənir…")
+    await asyncio.sleep(2)        # gözləmə: idarəni burax
+    print("Çay hazırdır")
+    return "çay"
+
+async def cörek_qizart():
+    print("Çörək qızarır…")
+    await asyncio.sleep(1)
+    print("Çörək hazırdır")
+    return "çörək"
+
+async def main():
+    # ikisi eyni anda: cəmi ~2 saniyə (3 yox)
+    netice = await asyncio.gather(cay_demle(), cörek_qizart())
+    print(netice)                 # ['çay', 'çörək']
+
+asyncio.run(main())` },
+          { t: "terms", items: [
+            ["korutin (coroutine)", "async def ilə yazılan, dayandırılıb davam etdirilə bilən funksiya."],
+            ["await", "korutinin nəticəsini gözləyir və bu müddətdə idarəni dövrə qaytarır."],
+            ["event loop", "hazır olan korutinləri növbə ilə işlədən dövr."],
+            ["asyncio.gather", "bir neçə korutini eyni anda işə salıb nəticələri sıra ilə qaytarır."],
+          ]},
+          { t: "tip", text: "Bu saytın Məşq səhifəsində (brauzerdə) sonuncu sətirdə asyncio.run(main()) əvəzinə await main() yaz — orada event loop artıq işləyir. Öz kompüterində .py faylında isə asyncio.run(main()) düzgündür." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Task, timeout, xətalar, Semaphore",
+        blocks: [
+          { t: "code", lang: "python", code: `import asyncio, time
+
+async def yukle(ad, saniye):
+    await asyncio.sleep(saniye)
+    if ad == "xarab":
+        raise ValueError(f"{ad} yüklənmədi")
+    return f"{ad} ({saniye}s)"
+
+async def main():
+    basla = time.perf_counter()
+
+    # TaskGroup (3.11+): biri xəta versə, qalanları ləğv olunur
+    async with asyncio.TaskGroup() as tg:
+        t1 = tg.create_task(yukle("a", 0.3))
+        t2 = tg.create_task(yukle("b", 0.2))
+    print(t1.result(), t2.result())
+
+    # Xətaları ayrı-ayrı topla
+    neticeler = await asyncio.gather(
+        yukle("c", 0.1), yukle("xarab", 0.1), return_exceptions=True
+    )
+    print(neticeler)
+
+    # Vaxt limiti
+    try:
+        async with asyncio.timeout(0.2):
+            await yukle("yavaş", 5)
+    except TimeoutError:
+        print("Vaxt bitdi")
+
+    # Eyni anda ən çox 2 iş
+    limit = asyncio.Semaphore(2)
+    async def mehdud(ad):
+        async with limit:
+            return await yukle(ad, 0.1)
+    print(await asyncio.gather(*(mehdud(f"m{i}") for i in range(5))))
+
+    print(f"cəmi {time.perf_counter() - basla:.1f} s")
+
+asyncio.run(main())` },
+          { t: "mistake", lang: "python", wrong: `async def main():
+    netice = yukle("a", 1)     # await unudulub
+    print(netice)              # <coroutine object ...> — heç nə işləmədi`, right: `async def main():
+    netice = await yukle("a", 1)
+    print(netice)`, why: "Korutini çağırmaq onu işə salmır — yalnız obyekt yaradır. Nəticə üçün await et (və ya create_task ilə planlaşdır)." },
+          { t: "mistake", lang: "python", wrong: `async def main():
+    time.sleep(2)              # bütün event loop-u dondurur
+    requests.get(url)          # sinxron kitabxana — eyni problem`, right: `async def main():
+    await asyncio.sleep(2)
+    await asyncio.to_thread(requests.get, url)   # və ya httpx.AsyncClient`, why: "Bloklayan çağırış bir korutini yox, HAMISINI dayandırır — event loop tək axındadır. Asinxron kitabxana işlət və ya bloklayan işi to_thread ilə ayrı axına ver." },
+          { t: "mistake", lang: "python", wrong: `for url in urls:
+    await yukle(url)           # ardıcıl: vaxtlar toplanır`, right: `await asyncio.gather(*(yukle(u) for u in urls))   # eyni anda`, why: "Dövr içində tək-tək await etmək sinxron kod qədər yavaşdır. Müstəqil işləri gather və ya TaskGroup ilə birlikdə işə sal." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Event loop, GIL, ləğvetmə və təhlükəsizlik",
+        blocks: [
+          { t: "code", lang: "text", caption: "Hansı alət nə üçün?", code: `asyncio           çoxlu GÖZLƏMƏ (I/O): şəbəkə, baza, fayl      1 axın, kooperativ
+threading         bloklayan I/O kitabxanaları                   GIL: eyni anda 1 axın Python kodu icra edir
+multiprocessing   ağır HESABLAMA (CPU): şəkil emalı, riyaziyyat hər prosesin öz GIL-i, öz yaddaşı` },
+          { t: "list", items: [
+            "Kooperativ çoxtapşırıqlılıq: korutin yalnız await nöqtəsində idarəni verir. await-siz uzun hesablama dövrü hər şeyi dondurur — CPU işini run_in_executor / ProcessPoolExecutor-a ver.",
+            "create_task ilə yaradılan tapşırığa istinad saxla — yoxsa zibil yığımı onu yarıda silə bilər. TaskGroup bunu strukturlaşdırır: blokdan çıxanda bütün tapşırıqlar bitmiş olur.",
+            "Ləğvetmə CancelledError ilə gəlir (BaseException-dan törəyir). Onu udma: təmizliyi finally-də et və yenidən qaldır. Çılpaq except onu tutub tapşırığı «ölməz» edir.",
+            "Arxa təzyiq (backpressure): istehsalçı istehlakçıdan sürətlidirsə, asyncio.Queue(maxsize=...) ilə məhdudlaşdır — limitsiz növbə yaddaşı doldurur.",
+            "async with / async for — asinxron kontekst menecerləri və generatorlar (bağlantı hovuzu, axınla oxuma). Debug: asyncio.run(main(), debug=True) yavaş callback-ləri və await olunmamış korutinləri göstərir.",
+            "Yarış vəziyyəti asyncio-da da var: iki await arasında başqa korutin paylaşılan vəziyyəti dəyişə bilər. «Oxu → await → yaz» ardıcıllığını asyncio.Lock ilə qoru.",
+            "Təhlükəsizlik — vaxt limiti: timeout-suz xarici sorğu hücumçuya bağlantıları sonsuz açıq saxlamağa imkan verir (slowloris). Hər şəbəkə əməliyyatına asyncio.timeout qoy.",
+            "Təhlükəsizlik — limitsiz paralellik: istifadəçi girişinə görə gather(*minlərlə_tapşırıq) öz serverini və qarşı tərəfi boğur (DoS, IP-nin bloklanması). Semaphore ilə paralelliyi, növbə ilə yaddaşı məhdudlaşdır.",
+            "Təhlükəsizlik — sorğu konteksti: cari istifadəçini qlobal dəyişəndə saxlama — paralel sorğular onu bir-birinə qarışdırır (A-nın sorğusu B-nin kimliyi ilə işləyir). contextvars.ContextVar hər tapşırığa öz dəyərini verir.",
+            "Təhlükəsizlik — TOCTOU: balansı yoxla → await → çıxar ardıcıllığında iki paralel sorğu ikisi də yoxlamadan keçir. Atomar baza əməliyyatı və ya kilid işlət.",
+            "Təhlükəsizlik — SSRF: istifadəçinin verdiyi URL-ə sorğu göndərən kod daxili ünvanlara (169.254.169.254, localhost) çata bilir. Sxem və host ağ siyahısı, yönləndirmələrin məhdudlaşdırılması.",
+          ]},
+          { t: "code", lang: "python", caption: "contextvars: hər tapşırığın öz konteksti", code: `import asyncio
+from contextvars import ContextVar
+
+cari_istifadeci: ContextVar[str] = ContextVar("cari_istifadeci")
+
+async def emal():
+    await asyncio.sleep(0.01)             # bu arada başqa sorğu işləyir
+    return cari_istifadeci.get()          # yenə ÖZ dəyəri
+
+async def sorgu(ad):
+    cari_istifadeci.set(ad)
+    return ad, await emal()
+
+async def main():
+    print(await asyncio.gather(sorgu("aysel"), sorgu("murad")))
+    # [('aysel', 'aysel'), ('murad', 'murad')] — qarışmır
+
+asyncio.run(main())` },
+          { t: "qa", items: [
+            ["asyncio paralellikdirmi?", "Xeyr — konkurentlikdir: bir axında işlər növbələşir. Həqiqi paralel hesablama üçün proseslər lazımdır."],
+            ["GIL nədir?", "Global Interpreter Lock — CPython-da eyni anda yalnız bir axının Python bayt-kodu icra etməsinə icazə verən kilid. I/O gözləyərkən buraxılır."],
+            ["gather ilə TaskGroup fərqi?", "TaskGroup strukturlaşdırılmışdır: bir tapşırıq xəta versə, qalanları ləğv edir və xətaları ExceptionGroup kimi qaldırır. gather-də default olaraq digərləri işləməyə davam edir."],
+            ["Niyə async kodda time.sleep olmaz?", "Bloklayan çağırış event loop-u dayandırır — bütün korutinlər gözləyir. asyncio.sleep idarəni dövrə qaytarır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Hərəsi 1 saniyə çəkən 3 sorğunu gather ilə işə saldın. Cəmi təxminən?", options: ["3 saniyə", "1 saniyə", "0 saniyə"], answer: 1, why: "Gözləmələr eyni anda keçir." },
+          { t: "quiz", q: "await olmadan çağırılan korutin?", options: ["Dərhal işləyir", "Yalnız korutin obyekti yaranır, icra olunmur", "Xəta verir"], answer: 1, why: "Korutini işə salmaq üçün await və ya create_task lazımdır." },
+          { t: "quiz", q: "Ağır riyazi hesablama üçün ən uyğunu?", options: ["asyncio", "threading", "multiprocessing"], answer: 2, why: "CPU işi GIL-ə görə yalnız ayrı proseslərdə paralel gedir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Saxta «yükləyici» yaz. yukle(ad, saniye) korutini asyncio.sleep ilə gözləyib «ad yükləndi» qaytarsın; saniye > 1 olarsa, bu çağırış asyncio.timeout(1) ilə kəsilsin və «ad: vaxt bitdi» qaytarılsın. main(): 5 faylı (müxtəlif vaxtlarla, biri 3 saniyə) EYNİ ANDA, amma Semaphore ilə ən çox 2-si paralel olmaqla yükləsin, nəticələri və ümumi vaxtı çap etsin. Məşq səhifəsində sonda await main() yaz.",
+      starter: `import asyncio, time\n\nasync def yukle(ad, saniye):\n    pass\n\nasync def main():\n    fayllar = [("a", 0.3), ("b", 0.5), ("c", 3), ("d", 0.2), ("e", 0.4)]\n    # bura\n\nawait main()   # öz kompüterində: asyncio.run(main())\n`,
+      expect: "yukle async def, await asyncio.sleep; async with asyncio.timeout(1) + except TimeoutError → mesaj qaytarır; asyncio.Semaphore(2) və async with; asyncio.gather (və ya TaskGroup) ilə bütün fayllar; time.sleep işlədilməyib; ümumi vaxt time.perf_counter ilə; dövrdə tək-tək await yoxdur.",
+    },
+  },
+  {
+    slug: "fastapi",
+    title: "FastAPI ilə API",
+    intro: "FastAPI — Python-da veb API yazmaq üçün müasir framework-dür. Tip işarələrindən (type hints) istifadə edərək girişi avtomatik yoxlayır, JSON-a çevirir və interaktiv sənəd yaradır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "İlk API",
+        blocks: [
+          { t: "analogy", text: "API — restoranın ofisiantıdır. Müştəri (brauzer, mobil tətbiq) mətbəxə girmir: menyudan sifariş verir (sorğu), ofisiant mətbəxdən yeməyi gətirir (cavab). FastAPI həm ofisiant, həm də menyunu özü çap edən (sənəd) və səhv sifarişi qapıda qaytaran (validasiya) işçidir." },
+          { t: "code", lang: "bash", code: `pip install "fastapi[standard]"
+fastapi dev main.py      # http://127.0.0.1:8000  •  sənəd: /docs` },
+          { t: "code", lang: "python", caption: "main.py", code: `from fastapi import FastAPI
+
+app = FastAPI(title="Kurs API")
+
+kurslar = {1: {"ad": "HTML", "saat": 20}, 2: {"ad": "Python", "saat": 60}}
+
+@app.get("/")
+def ana_sehife():
+    return {"mesaj": "Salam, FastAPI!"}
+
+@app.get("/kurslar")
+def siyahi(min_saat: int = 0):                 # ?min_saat=30 — sorğu parametri
+    return [k for k in kurslar.values() if k["saat"] >= min_saat]
+
+@app.get("/kurslar/{kurs_id}")
+def bir_kurs(kurs_id: int):                    # yol parametri; int-ə çevrilir və yoxlanır
+    return kurslar[kurs_id]` },
+          { t: "terms", items: [
+            ["endpoint", "API-nin bir ünvanı + metodu: GET /kurslar."],
+            ["yol parametri", "URL-in dəyişən hissəsi: /kurslar/{kurs_id}."],
+            ["sorğu parametri (query)", "? işarəsindən sonrakı hissə: ?min_saat=30."],
+            ["type hint", "parametrin tipi (kurs_id: int); FastAPI ona görə çevirir və yoxlayır."],
+            ["/docs", "avtomatik yaranan interaktiv sənəd (Swagger UI)."],
+          ]},
+          { t: "tip", text: "FastAPI brauzerdəki Məşq səhifəsində işləmir — server tələb edir. Kodu öz kompüterində sına; tapşırığı isə AI yoxlayacaq." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Pydantic modelləri, status kodları, xətalar, Depends",
+        blocks: [
+          { t: "code", lang: "python", code: `from typing import Annotated
+from fastapi import Depends, FastAPI, HTTPException, Query, status
+from pydantic import BaseModel, EmailStr, Field
+
+app = FastAPI()
+
+class TelebeYarat(BaseModel):                  # GİRİŞ modeli
+    ad: str = Field(min_length=2, max_length=50)
+    email: EmailStr
+    yas: int = Field(ge=16, le=100)
+
+class TelebeCavab(BaseModel):                  # ÇIXIŞ modeli — yalnız açıq sahələr
+    id: int
+    ad: str
+
+baza: dict[int, dict] = {}
+
+def sehifeleme(
+    sehife: Annotated[int, Query(ge=1)] = 1,
+    olcu: Annotated[int, Query(ge=1, le=100)] = 20,   # üst limit məcburidir
+):
+    return {"kecid": (sehife - 1) * olcu, "olcu": olcu}
+
+@app.post("/telebeler", response_model=TelebeCavab, status_code=status.HTTP_201_CREATED)
+def yarat(telebe: TelebeYarat):                # gövdə avtomatik yoxlanır; səhvdirsə 422
+    yeni_id = len(baza) + 1
+    baza[yeni_id] = {"id": yeni_id, **telebe.model_dump()}
+    return baza[yeni_id]                       # email cavaba DÜŞMÜR — response_model süzür
+
+@app.get("/telebeler", response_model=list[TelebeCavab])
+def siyahi(s: Annotated[dict, Depends(sehifeleme)]):
+    hamisi = list(baza.values())
+    return hamisi[s["kecid"]: s["kecid"] + s["olcu"]]
+
+@app.get("/telebeler/{telebe_id}", response_model=TelebeCavab)
+def bir(telebe_id: int):
+    if telebe_id not in baza:
+        raise HTTPException(status_code=404, detail="Tələbə tapılmadı")
+    return baza[telebe_id]` },
+          { t: "mistake", lang: "python", wrong: `@app.post("/telebeler")
+def yarat(melumat: dict):          # nə gəlsə, qəbul olunur
+    baza.append(melumat)`, right: `@app.post("/telebeler")
+def yarat(telebe: TelebeYarat):    # tip, uzunluq, aralıq yoxlanır
+    ...`, why: "dict heç nəyi yoxlamır: əskik sahə, yanlış tip, 10 MB-lıq sətir — hamısı keçir. Pydantic modeli girişin «müqaviləsi»dir." },
+          { t: "mistake", lang: "python", wrong: `@app.get("/istifadeciler/{id}")
+def al(id: int):
+    return db_istifadeci(id)       # sifre_hesi, daxili qeydlər də gedir`, right: `@app.get("/istifadeciler/{id}", response_model=IstifadeciCavab)
+def al(id: int):
+    return db_istifadeci(id)`, why: "Baza obyektini olduğu kimi qaytarmaq həssas sahələri sızdırır. response_model yalnız elan olunmuş sahələri buraxır." },
+          { t: "mistake", lang: "python", wrong: `@app.get("/hesabat")
+async def hesabat():
+    time.sleep(5)                  # async endpoint-də bloklama — bütün server donur
+    return {"ok": True}`, right: `@app.get("/hesabat")
+def hesabat():                     # adi def: FastAPI onu axın hovuzunda işlədir
+    time.sleep(5)
+    return {"ok": True}`, why: "async def endpoint event loop-da işləyir: içində bloklayan çağırış hamını gözlədir. Bloklayan kod üçün adi def, asinxron kitabxana üçün async def + await." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Autentifikasiya, arxitektura və API təhlükəsizliyi",
+        blocks: [
+          { t: "code", lang: "python", caption: "Asılılıqla autentifikasiya və sahiblik yoxlaması", code: `from typing import Annotated
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
+app = FastAPI(docs_url=None, redoc_url=None)        # production-da sənədi gizlət və ya qoru
+oauth2 = OAuth2PasswordBearer(tokenUrl="giris")
+
+def cari_istifadeci(token: Annotated[str, Depends(oauth2)]) -> dict:
+    istifadeci = token_yoxla(token)                 # imza + müddət; None qaytara bilər
+    if istifadeci is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Giriş tələb olunur",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return istifadeci
+
+Cari = Annotated[dict, Depends(cari_istifadeci)]
+
+@app.get("/sifarisler/{sifaris_id}")
+def sifaris(sifaris_id: int, istifadeci: Cari):
+    s = sifaris_tap(sifaris_id)
+    # IDOR-a qarşı: yoxdursa da, başqasınındırsa da — eyni 404
+    if s is None or s["istifadeci_id"] != istifadeci["id"]:
+        raise HTTPException(status_code=404, detail="Tapılmadı")
+    return s` },
+          { t: "list", items: [
+            "Quruluş: APIRouter ilə modullara böl (routers/, schemas/, services/, db/). Endpoint nazik olsun: yoxla → servisi çağır → cavabı qaytar.",
+            "Depends zənciri: baza sessiyası (yield ilə aç/bağla), cari istifadəçi, rol yoxlaması. Qlobal tələb üçün router səviyyəsində dependencies=[...] — unudulmuş endpoint qalmır.",
+            "Ayarlar pydantic-settings ilə mühit dəyişənlərindən; baza üçün SQLAlchemy 2 / SQLModel + Alembic miqrasiyaları; test üçün TestClient və app.dependency_overrides.",
+            "Production: uvicorn bir neçə işçi ilə (və ya gunicorn + uvicorn işçiləri), qarşıda reverse proxy/TLS; cavabdan sonrakı yüngül iş üçün BackgroundTasks, ağır iş üçün növbə (Celery, arq).",
+            "Təhlükəsizlik — sınıq obyekt səviyyəli icazə (BOLA/IDOR, API-lərdə №1 boşluq): hər endpoint-də obyektin cari istifadəçiyə aid olduğunu yoxla. Giriş etmək kifayət deyil.",
+            "Təhlükəsizlik — injection: sorğunu f-string ilə qurma (f\"... WHERE ad = '{ad}'\"). Parametrli sorğu və ya ORM. Pydantic tipi yoxlayır, SQL-i yox.",
+            "Təhlükəsizlik — mass assignment: giriş modelində yalnız istifadəçinin dəyişə biləcəyi sahələr olsun (rol, is_admin, balans YOX). model_config = ConfigDict(extra=\"forbid\") artıq sahəni rədd edir.",
+            "Təhlükəsizlik — parollar və tokenlər: parolu argon2/bcrypt ilə heşlə (pwdlib); JWT-də alqoritmi sabitlə (algorithms=[\"HS256\"]), qısa ömür ver, sirri mühit dəyişənində saxla; müqayisə üçün secrets.compare_digest.",
+            "Təhlükəsizlik — CORS: allow_origins=[\"*\"] ilə allow_credentials=True birlikdə işlətmə. Konkret domenləri yaz.",
+            "Təhlükəsizlik — limitlər: giriş və bahalı endpoint-lərə rate limit (slowapi və ya proxy səviyyəsində), səhifə ölçüsünə üst hədd, gövdə və yüklənən fayl ölçüsünə limit.",
+            "Təhlükəsizlik — xətalar: gözlənilməz xətada stack trace qaytarma (debug=False), ümumi 500 ver, təfərrüatı jurnala yaz. Validasiya xətasında istifadəçinin göndərdiyi parolu geri əks etdirmə.",
+          ]},
+          { t: "qa", items: [
+            ["FastAPI girişi necə yoxlayır?", "Tip işarələri və Pydantic modelləri ilə: sorğunu çevirir, qaydaları yoxlayır, səhvdirsə avtomatik 422 və izah qaytarır."],
+            ["Depends nə üçündür?", "Asılılıq inyeksiyası: ortaq məntiqi (baza sessiyası, cari istifadəçi, səhifələmə) endpoint-lərə elan yolu ilə qoşur; testdə əvəzlənə bilir."],
+            ["def və async def endpoint fərqi?", "async def event loop-da işləyir və daxilində yalnız bloklamayan kod olmalıdır; adi def axın hovuzunda işlədilir — bloklayan kitabxanalar üçün."],
+            ["response_model nə verir?", "Cavabı süzür və yoxlayır (artıq sahələr getmir), sənədi dəqiqləşdirir."],
+            ["401 ilə 403 fərqi?", "401 — kimlik təsdiqlənməyib; 403 — kimlik bəllidir, icazə yoxdur. Obyektin varlığını gizlətmək üçün bəzən 404 qaytarılır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "@app.get(\"/kurslar/{kurs_id}\") — kurs_id nədir?", options: ["Sorğu parametri", "Yol parametri", "Gövdə"], answer: 1, why: "Fiqurlu mötərizədəki hissə URL yolundan götürülür." },
+          { t: "quiz", q: "Gövdədə yas sahəsinə \"abc\" göndərildi (yas: int). Nə olur?", options: ["500 xətası", "Avtomatik 422 validasiya xətası", "0 kimi qəbul olunur"], answer: 1, why: "Pydantic tipi yoxlayır və izahlı 422 qaytarır." },
+          { t: "quiz", q: "Uğurlu yaratma üçün uyğun status kodu?", options: ["200", "201", "204"], answer: 1, why: "201 Created — yeni resurs yaradıldı." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Tapşırıqlar (todo) API-si yaz. Modellər: TapsiriqYarat (basliq: 3–100 simvol; artıq sahə qadağan) və TapsiriqCavab (id, basliq, tamamlanib). Endpoint-lər: POST /tapsiriqlar (201), GET /tapsiriqlar (limit sorğu parametri 1–50, default 20), GET /tapsiriqlar/{id} (yoxdursa 404), PATCH /tapsiriqlar/{id}/tamamla, DELETE /tapsiriqlar/{id} (204). Yaddaşda dict saxla. Bütün cavablarda response_model işlət.",
+      starter: `from typing import Annotated\nfrom fastapi import FastAPI, HTTPException, Query, status\nfrom pydantic import BaseModel, ConfigDict, Field\n\napp = FastAPI()\ntapsiriqlar: dict[int, dict] = {}\n\n# modellər\n\n# endpoint-lər\n`,
+      expect: "TapsiriqYarat-da Field(min_length=3, max_length=100) və ConfigDict(extra=\"forbid\"); POST status_code=201 və response_model; limit Annotated[int, Query(ge=1, le=50)] = 20; tapılmayanda HTTPException(404); DELETE status_code=204 və heç nə qaytarmır; giriş dict kimi qəbul olunmur; async def içində bloklama yoxdur.",
+    },
+  },
+  {
+    slug: "senior",
+    title: "Senior: daxili işləmə və performans",
+    intro: "Bu dərs Python bölməsinin yekunudur: kod necə icra olunur, yaddaş necə idarə edilir, GIL nədir və yavaş proqramı necə — təxminlə yox, ölçmə ilə — sürətləndirmək olar.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Hər şey obyektdir, dəyişən isə addır",
+        blocks: [
+          { t: "analogy", text: "Python-da dəyişən qutu deyil, etiketdir. Çamadana (obyekt) iki etiket yapışdıra bilərsən: a və b. Çamadanı a etiketi ilə açıb içinə köynək qoysan, b ilə baxan da köynəyi görəcək — çünki çamadan birdir." },
+          { t: "code", lang: "python", code: `a = [1, 2, 3]
+b = a                # yeni siyahı YOX — eyni obyektə ikinci ad
+b.append(4)
+print(a)             # [1, 2, 3, 4]
+print(a is b)        # True — eyni obyekt
+print(id(a) == id(b))
+
+c = a.copy()         # yeni obyekt (dayaz surət)
+c.append(5)
+print(a, c)          # a dəyişmədi
+print(a == c[:4], a is c)   # dəyər bərabər, obyekt fərqli
+
+x = 10
+y = x
+y += 1               # int dəyişməzdir: y yeni obyektə işarə edir
+print(x, y)          # 10 11` },
+          { t: "terms", items: [
+            ["obyekt", "yaddaşdakı dəyər; hər birinin kimliyi (id), tipi və dəyəri var."],
+            ["is", "eyni obyektdirmi? (kimlik müqayisəsi)"],
+            ["==", "dəyərləri bərabərdirmi?"],
+            ["dəyişən (mutable) / dəyişməz (immutable)", "list, dict, set dəyişir; int, str, tuple dəyişmir."],
+          ]},
+          { t: "tip", text: "is yalnız None, True, False ilə işlət: if x is None. Ədəd və sətirləri == ilə müqayisə et." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Mürəkkəblik, düzgün struktur, ölçmə",
+        blocks: [
+          { t: "code", lang: "text", caption: "Əməliyyatların qiyməti", code: `Əməliyyat            list        dict / set     deque
+x in kolleksiya      O(n)        O(1)           O(n)
+sona əlavə           O(1)        —              O(1)
+əvvələ əlavə/silmə   O(n)        —              O(1)
+indekslə oxu         O(1)        O(1) açarla    O(n) ortada` },
+          { t: "code", lang: "python", code: `import timeit
+
+siyahi = list(range(100_000))
+coxluq = set(siyahi)
+
+print(timeit.timeit(lambda: 99_999 in siyahi, number=200))   # yavaş: xətti axtarış
+print(timeit.timeit(lambda: 99_999 in coxluq, number=200))   # sürətli: heş
+
+# Sətir birləşdirmə
+sozler = ["söz"] * 10_000
+
+def pis():
+    s = ""
+    for w in sozler:
+        s += w               # hər dəfə yeni sətir yarana bilər
+    return s
+
+def yaxsi():
+    return "".join(sozler)   # bir dəfə ayırır
+
+print(timeit.timeit(pis, number=50))
+print(timeit.timeit(yaxsi, number=50))
+
+# Profilləmə: vaxt hara gedir?
+import cProfile
+cProfile.run("sorted(str(i) for i in range(50_000))", sort="cumulative")` },
+          { t: "list", items: [
+            "Əvvəl ölç: timeit (kiçik parça), cProfile (bütün proqram), tracemalloc (yaddaş). Vaxtın 90%-i adətən kodun 10%-indədir.",
+            "Alqoritm və struktur dil hiylələrindən vacibdir: O(n²)-i O(n)-ə endirmək hər mikro-optimizasiyadan üstündür.",
+            "Daxili funksiyalar (sum, sorted, min, str.join) C-də yazılıb — əl ilə yazılmış dövrdən sürətlidir.",
+            "collections: deque (növbə), Counter (sayma), defaultdict (qruplaşdırma); heapq (ən kiçik N), bisect (sıralı siyahıda axtarış).",
+          ]},
+          { t: "mistake", lang: "python", wrong: `tekrarlar = []
+for x in a:
+    if x in b:               # b — list: hər dəfə O(n) → cəmi O(n²)
+        tekrarlar.append(x)`, right: `b_coxlugu = set(b)
+tekrarlar = [x for x in a if x in b_coxlugu]   # O(n)`, why: "Dövr içində siyahıda axtarış gizli kvadratik mürəkkəblikdir: 100 000 elementdə milyardlarla müqayisə. Set-də axtarış sabit vaxtdır." },
+          { t: "mistake", lang: "python", wrong: `ilkin = [[0] * 3] * 3         # eyni daxili siyahıya 3 istinad
+ilkin[0][0] = 1
+print(ilkin)                  # [[1,0,0],[1,0,0],[1,0,0]]`, right: `ilkin = [[0] * 3 for _ in range(3)]   # 3 ayrı siyahı`, why: "* operatoru obyekti kopyalamır, istinadı təkrarlayır. Daxili siyahı birdir — bir yeri dəyişsən, «hər üçü» dəyişir." },
+          { t: "mistake", lang: "python", wrong: `import copy
+b = a.copy()                 # dayaz surət: daxili siyahılar ortaqdır
+b[0].append(99)              # a[0] da dəyişdi`, right: `import copy
+b = copy.deepcopy(a)         # daxili obyektlər də kopyalanır`, why: "Dayaz surət yalnız xarici qabı kopyalayır. İç-içə strukturda müstəqil nüsxə üçün deepcopy lazımdır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "CPython daxili, GIL, sürətləndirmə və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "İcra: mənbə → AST → bayt-kod (.pyc, __pycache__) → CPython virtual maşını. dis modulu bayt-kodu göstərir. 3.11+ ixtisaslaşan (adaptive) interpretator, 3.13+ eksperimental JIT var.",
+            "Yaddaş: istinad sayğacı (refcount) sıfıra düşəndə obyekt dərhal silinir; dövri istinadları nəsilli zibil yığan (gc) təmizləyir. Sızma adətən qlobal keş/siyahıda unudulmuş istinaddır — tracemalloc və weakref ilə tap.",
+            "GIL: eyni anda bir axın Python bayt-kodu icra edir. I/O-da buraxılır (threading/asyncio faydalıdır), CPU işində yox (multiprocessing, concurrent.futures.ProcessPoolExecutor). 3.13+ GIL-siz (free-threaded) yığım eksperimentaldır.",
+            "Sürətləndirmə pillələri: 1) alqoritm/struktur; 2) daxili funksiyalar və comprehension; 3) vektorlaşdırma (NumPy, pandas, Polars); 4) keş (functools.cache); 5) paralellik; 6) C/Rust genişlənməsi, Cython, Numba; 7) PyPy.",
+            "Mikro-detallar (yalnız isti dövrdə): lokal dəyişən qlobaldan sürətlidir, atribut axtarışını dövrdən kənara çıxar, __slots__ yaddaşı azaldır, generator böyük aralıq siyahının qarşısını alır.",
+            "Tiplər icra zamanı yoxlanmır — mypy/pyright statik yoxlayır. Sürətə təsir etmir, amma böyük kod bazasında səhvlərin çoxunu işə salmadan tutur.",
+            "Kiçik int-lər (-5…256) və bəzi sətirlər keşlənir (interning) — ona görə is bəzən «təsadüfən» işləyir. Buna heç vaxt arxalanma.",
+            "Təhlükəsizlik — kod icrası: eval, exec, pickle.loads, yaml.load, subprocess(shell=True) istifadəçi girişi ilə uzaqdan kod icrasıdır (RCE). Əvəzi: ast.literal_eval, json, yaml.safe_load, subprocess.run([siyahi]) arqument siyahısı ilə.",
+            "Təhlükəsizlik — alqoritmik DoS: hücumçu ən pis hal üçün giriş seçir. Geri izləyən regex (a+)+$ (ReDoS), çox dərin iç-içə JSON (rekursiya limiti), nəhəng ədədin sətrə çevrilməsi, heş toqquşmaları. Giriş ölçüsünü məhdudlaşdır, regex-ə vaxt limiti/sadə naxış, PYTHONHASHSEED-i söndürmə.",
+            "Təhlükəsizlik — vaxt hücumu: token/heş müqayisəsində == ilk fərqli simvolda dayanır və vaxt fərqi sirri açır. hmac.compare_digest sabit vaxtda müqayisə edir.",
+            "Təhlükəsizlik — təsadüfilik: random modulu proqnozlaşdırıla bilir. Token, parol sıfırlama kodu, sessiya ID-si üçün yalnız secrets modulu.",
+            "Təhlükəsizlik: assert -O ilə silinir (icazə yoxlaması üçün işlətmə); float pulda yuvarlaqlaşdırma xətası verir — decimal.Decimal işlət; sirləri mənbə koda yazma, .pyc və traceback-lərdə qalır.",
+          ]},
+          { t: "code", lang: "python", caption: "Təhlükəsiz alternativlər", code: `import ast, hmac, secrets
+from decimal import Decimal
+
+# eval əvəzinə — yalnız literal
+print(ast.literal_eval("[1, 2, {'a': 3}]"))
+try:
+    ast.literal_eval("__import__('os').system('ls')")
+except ValueError:
+    print("Kod icra olunmadı")
+
+# Sabit vaxtlı müqayisə
+gozlenen = "f3a9c1"
+print(hmac.compare_digest(gozlenen, "f3a9c1"))
+
+# Kriptoqrafik təsadüfilik
+print(len(secrets.token_urlsafe(32)))
+
+# Pul
+print(0.1 + 0.2 == 0.3, Decimal("0.1") + Decimal("0.2") == Decimal("0.3"))` },
+          { t: "qa", items: [
+            ["is ilə == fərqi?", "is kimliyi (eyni obyekt), == dəyəri müqayisə edir. is yalnız None və digər singleton-lar üçündür."],
+            ["GIL nədir və necə yan keçilir?", "CPython-da eyni anda bir axının bayt-kod icra etməsinə icazə verən kilid. CPU işi üçün proseslər, C genişlənmələri (NumPy GIL-i buraxır) və ya free-threaded yığım."],
+            ["Python yaddaşı necə idarə edir?", "İstinad sayğacı ilə — sıfır olanda dərhal azad edir; dövri istinadlar üçün nəsilli zibil yığan."],
+            ["Yavaş kodu necə sürətləndirirsən?", "Ölçürəm (cProfile), dar boğazı tapıram, əvvəl alqoritmi və strukturu düzəldirəm, sonra daxili funksiyalar/vektorlaşdırma, keş, ən sonda paralellik və ya native kod — hər addımdan sonra yenidən ölçürəm."],
+            ["Dayaz və dərin surət fərqi?", "Dayaz yalnız xarici konteyneri kopyalayır, daxili obyektlər ortaq qalır; dərin surət bütün iç-içə obyektləri kopyalayır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "a = [1]; b = a; b.append(2). a nədir?", options: ["[1]", "[1, 2]", "Xəta"], answer: 1, why: "a və b eyni siyahı obyektinin iki adıdır." },
+          { t: "quiz", q: "Milyon elementdə «x içindədirmi?» yoxlaması üçün ən sürətli struktur?", options: ["list", "set", "tuple"], answer: 1, why: "Set-də axtarış orta hesabla O(1)-dir." },
+          { t: "quiz", q: "Parol sıfırlama tokeni üçün hansı modul?", options: ["random", "secrets", "math"], answer: 1, why: "secrets kriptoqrafik təhlükəsiz təsadüfilik verir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Yavaş kodu optimallaşdır və ölç. Verilib: tekrarlananlar(a, b) — iç-içə dövrlə iki siyahının ortaq elementlərini tapır (O(n²)). 1) Onu set ilə O(n) versiyaya çevir (sürətli adla yeni funksiya). 2) timeit ilə hər ikisini 5 000 elementli siyahılarda ölç və vaxtları çap et. 3) Nəticələrin eyni olduğunu yoxla (sıralayıb müqayisə et). 4) Sonda təhlükəsiz token yaradan token_yarat() funksiyası yaz və iki tokeni sabit vaxtda müqayisə edən bərabərdir(t1, t2) funksiyasını əlavə et.",
+      starter: `import timeit\n\ndef tekrarlananlar(a, b):\n    netice = []\n    for x in a:\n        for y in b:\n            if x == y and x not in netice:\n                netice.append(x)\n    return netice\n\na = list(range(0, 5000, 2))\nb = list(range(0, 5000, 3))\n\n# 1) suretli(a, b)\n\n# 2) ölç\n\n# 3) yoxla\n\n# 4) token\n`,
+      expect: "suretli set kəsişməsi və ya set-də axtarış işlədir (iç-içə dövr yox); timeit.timeit ilə hər iki funksiya number parametri ilə ölçülür və çap olunur; sorted(...) == sorted(...) yoxlaması; token secrets.token_urlsafe/token_hex ilə (random yox); müqayisə hmac.compare_digest ilə (== yox).",
+    },
+  },
 ];

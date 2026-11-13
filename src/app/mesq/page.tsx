@@ -16,17 +16,21 @@ async function Play({ searchParams }: { searchParams: PageProps<"/mesq">["search
     LANGUAGES.find((l) => l.id === (exam?.stage.exam.lang ?? one(sp.dil))) ?? LANGUAGES.find((l) => l.id === "javascript")!;
   const topic = one(sp.movzu);
   const lesson = !exam && topic ? getLesson(lang.id, topic) : undefined;
+  const starter = exam?.stage.exam.starter ?? lesson?.exercise?.starter ?? STARTERS[lang.id] ?? "";
+  // Başlanğıc kod HTML-dirsə (CSS/DOM tapşırıqları) — HTML önizləmə rejimində aç
+  const asWeb = /^\s*</.test(starter) && lang.editor !== "html";
   const tasks = lang.topics.filter((t) => getLesson(lang.id, t.slug)?.exercise);
 
   return (
     <Playground
       key={`${lang.id}/${lesson?.slug}/${exam?.stage.id}`}
       exam={exam ? { id: `${exam.track}-${exam.stage.id}`, title: exam.stage.title, track: exam.track } : undefined}
-      langs={LANGUAGES.map(({ id, name, track, editor, runnable }) => ({ id, name, track, editor, runnable }))}
+      langs={LANGUAGES.map(({ id, name, track, editor, runnable }) =>
+        asWeb && id === lang.id ? { id, name, track, editor: "html", runnable: "web" } : { id, name, track, editor, runnable })}
       langId={lang.id}
       topic={lesson?.slug}
       task={exam?.stage.exam.task ?? lesson?.exercise?.task}
-      starter={exam?.stage.exam.starter ?? lesson?.exercise?.starter ?? STARTERS[lang.id] ?? ""}
+      starter={starter}
       tasks={tasks}
     />
   );

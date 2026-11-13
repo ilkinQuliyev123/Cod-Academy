@@ -844,4 +844,709 @@ export const html: Lesson[] = [
       expect: "header>nav, bir main, article içində h1 və h2-li section-lar, aside, footer var; div şorbası yoxdur; başlıq səviyyələri düzgündür.",
     },
   },
+  {
+    slug: "meta",
+    title: "Meta teqlər və SEO",
+    intro: "Meta teqlər səhifədə görünmür, amma brauzerə, Google-a və sosial şəbəkələrə səhifə haqqında məlumat verir. Axtarışda necə görünəcəyin onlardan asılıdır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "head içindəki vizit kartı",
+        blocks: [
+          { t: "analogy", text: "Kitabın üz qabığını düşün: adı, müəllifi, arxada qısa təsviri. Kitabı açmadan nə haqqında olduğunu bilirsən. Meta teqlər səhifənin üz qabığıdır — Google və Telegram səhifəni «açmadan» onları oxuyur." },
+          { t: "code", lang: "html", code: `<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flexbox dərsi — Kod Akademiyası</title>
+  <meta name="description" content="Flexbox-u sadə nümunələrlə öyrən: oxlar, düzülüş, boşluqlar.">
+</head>` },
+          { t: "terms", items: [
+            ["charset=\"utf-8\"", "simvol kodlaşdırması. Onsuz ə, ö, ş hərfləri pozula bilər. head-in ən əvvəlində olmalıdır."],
+            ["viewport", "mobil ekranda səhifənin eni cihazın eninə bərabər olsun. Onsuz telefon səhifəni kiçildib göstərir."],
+            ["<title>", "brauzer tabında və Google nəticəsində mavi başlıq. Hər səhifədə unikal olmalıdır."],
+            ["description", "Google nəticəsində başlığın altındakı qısa mətn (snippet). ~150–160 simvol."],
+          ]},
+          { t: "tip", text: "Yaxşı title düsturu: «Səhifənin mövzusu — Saytın adı». 50–60 simvol kifayətdir, uzunu kəsilir." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Sosial şəbəkə kartı və axtarış robotları",
+        blocks: [
+          { t: "p", text: "Linki Telegram, WhatsApp və ya LinkedIn-ə atanda şəkilli kart çıxır. Bunu Open Graph (og:) teqləri idarə edir. Onlar name yox, property atributu ilə yazılır." },
+          { t: "code", lang: "html", code: `<meta property="og:title" content="Flexbox dərsi">
+<meta property="og:description" content="Flexbox-u sadə nümunələrlə öyrən.">
+<meta property="og:image" content="https://sayt.az/og/flexbox.png">
+<meta property="og:url" content="https://sayt.az/css/flexbox">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="canonical" href="https://sayt.az/css/flexbox">
+<link rel="icon" href="/favicon.ico">
+<meta name="robots" content="noindex, nofollow">`, caption: "Sonuncu sətir yalnız axtarışda görünməməli səhifələr üçündür" },
+          { t: "terms", items: [
+            ["og:image", "kartdakı şəkil. Tam (absolute) URL olmalıdır, tövsiyə ölçü 1200×630."],
+            ["canonical", "eyni məzmun bir neçə ünvanda açılırsa (?sort=, ?utm=), «əsl ünvan budur» deyir. Dublikat problemi həll olur."],
+            ["robots noindex", "bu səhifəni axtarış indeksinə salma (məs. səbət, admin, axtarış nəticəsi)."],
+          ]},
+          { t: "mistake", lang: "html", wrong: `<title>Ana səhifə</title>\n<!-- bütün səhifələrdə eyni title, description yoxdur -->`, right: `<title>Flexbox dərsi — Kod Akademiyası</title>\n<meta name="description" content="Flexbox-u nümunələrlə öyrən.">`, why: "Eyni title-lı səhifələri Google bir-birindən ayıra bilmir. description olmayanda snippet-i özü təsadüfi mətndən seçir." },
+          { t: "mistake", lang: "html", wrong: `<meta name="viewport" content="width=device-width, user-scalable=no">`, right: `<meta name="viewport" content="width=device-width, initial-scale=1">`, why: "user-scalable=no böyütməni (zoom) bağlayır. Zəif görən insan mətni böyüdə bilmir — əlçatanlıq pozuntusudur." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Google səhifəni necə oxuyur. Struktur məlumat və təhlükəsizlik",
+        blocks: [
+          { t: "p", text: "Axtarış sistemi üç addım atır: tarama (crawl) — linklərlə gəzir; indeksləmə (index) — məzmunu anlayıb bazaya yazır; sıralama (rank) — sorğuya görə düzür. Meta teqlər ikinci addıma kömək edir, amma sıralamanı əsasən məzmunun keyfiyyəti, sürət və linklər müəyyən edir. meta keywords teqini Google çoxdan nəzərə almır." },
+          { t: "code", lang: "html", code: `<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Course",
+  "name": "Flexbox dərsi",
+  "description": "Flexbox-u sadə nümunələrlə öyrən.",
+  "provider": { "@type": "Organization", "name": "Kod Akademiyası" }
+}
+</script>`, caption: "JSON-LD struktur məlumat: Google-da ulduz, qiymət, kurs kartı kimi zəngin nəticələr" },
+          { t: "list", items: [
+            "Məzmun JS ilə sonradan gəlirsə, robot onu gec görür və ya heç görmür. Vacib meta teqlər serverdə render olunmalıdır (SSR/SSG) — Next.js-də bunu metadata API edir.",
+            "<html lang=\"az\"> dili bildirir; çoxdilli saytda <link rel=\"alternate\" hreflang=\"en\" href=\"...\"> ilə dil variantlarını göstər.",
+            "TƏHLÜKƏSİZLİK: robots.txt və noindex gizlətmə vasitəsi DEYİL. robots.txt hamıya açıqdır — orada /admin yazmaq hücumçuya ünvanı göstərməkdir. Məxfi səhifəni giriş (auth) ilə qoru.",
+            "TƏHLÜKƏSİZLİK: istifadəçi mətnini (məhsul adı, profil) title/og:title/JSON-LD-yə qoyanda escape et. Əks halda «</script><script>...» ilə XSS mümkündür. JSON-LD-də < simvolunu \\u003c ilə əvəz et.",
+            "<meta name=\"referrer\" content=\"strict-origin-when-cross-origin\"> — başqa sayta keçəndə tam URL (içində token ola bilər) sızmasın.",
+            "CSP-ni <meta http-equiv=\"Content-Security-Policy\"> ilə vermək olar, amma HTTP başlığı daha güclüdür: meta variantında frame-ancestors və report-uri işləmir.",
+          ]},
+          { t: "qa", items: [
+            ["canonical nə üçündür?", "Eyni məzmunun bir neçə URL-i olanda əsas ünvanı göstərir ki, axtarış sistemi onları dublikat saymasın və «çəki» bir ünvanda toplansın."],
+            ["noindex ilə robots.txt Disallow fərqi?", "Disallow taramanı qadağan edir, amma səhifə başqa linklərdən indeksə düşə bilər. noindex indeksdən çıxarır — bunun üçün robot səhifəni oxuya bilməlidir, yəni ikisini birlikdə işlətmək səhvdir."],
+            ["SPA-da SEO problemi nədir?", "HTML boş gəlir, məzmun JS-dən sonra yaranır. Robot gec/natamam görür, sosial şəbəkə botları isə JS-i ümumiyyətlə icra etmir. Həll: SSR və ya statik generasiya."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Telegram-da link kartının şəklini hansı teq verir?", options: ["<meta name=\"description\">", "<meta property=\"og:image\">", "<link rel=\"icon\">"], answer: 1, why: "Sosial kartları Open Graph teqləri idarə edir." },
+          { t: "quiz", q: "Mobil-də səhifə kiçik görünür. Çox güman nə çatmır?", options: ["meta viewport", "meta charset", "canonical"], answer: 0, why: "viewport olmayanda telefon səhifəni ~980 px enində çəkib kiçildir." },
+          { t: "quiz", q: "Admin panelini gizlətməyin düzgün yolu?", options: ["robots.txt-də Disallow", "meta noindex", "Giriş (autentifikasiya) tələbi"], answer: 2, why: "robots.txt və noindex qoruma deyil — yalnız robotlara xahişdir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "«Python kursu» səhifəsi üçün tam head yaz: charset, viewport, unikal title, description, 4 Open Graph teqi (title, description, image, url), canonical link. body-də h1 olsun.",
+      starter: `<!DOCTYPE html>\n<html lang="az">\n<head>\n\n</head>\n<body>\n  <h1>Python kursu</h1>\n</body>\n</html>\n`,
+      expect: "charset utf-8 head-in əvvəlində, viewport width=device-width (user-scalable=no YOX), mənalı title və description, og:title/og:description/og:image (absolute URL)/og:url property atributu ilə, link rel=canonical var.",
+    },
+  },
+  {
+    slug: "elcatanliq",
+    title: "Əlçatanlıq (a11y) və ARIA",
+    intro: "Əlçatanlıq (accessibility, qısaca a11y) — saytı hamının işlədə bilməsidir: görməyən, siçan tuta bilməyən, günəş altında telefona baxan insan da. Əsası düzgün HTML-dir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Sayt hamı üçündür",
+        blocks: [
+          { t: "analogy", text: "Binanın girişində pilləkənlə yanaşı pandus da olur. Pandus təkcə əlil arabası üçün deyil — uşaq arabası, çamadan, velosiped üçün də rahatdır. Əlçatan sayt da belədir: hamıya xeyir edir." },
+          { t: "p", text: "Görməyən istifadəçi ekran oxuyucu (screen reader) işlədir: proqram səhifəni səslə oxuyur. O, şəkli görmür — alt mətnini oxuyur. Rəngi görmür — teqin mənasını deyir: «düymə», «link», «başlıq, səviyyə 2»." },
+          { t: "code", lang: "html", code: `<img src="pisik.jpg" alt="Pəncərədə oturan qara pişik">
+
+<label for="email">E-poçt</label>
+<input id="email" type="email">
+
+<button type="button">Səbətə at</button>
+
+<a href="/kurslar">Bütün kurslara bax</a>` },
+          { t: "terms", items: [
+            ["alt", "şəklin mətnlə təsviri. Şəkil yalnız bəzəkdirsə boş yaz: alt=\"\" — oxuyucu onu ötürəcək."],
+            ["label for", "input-un adı. Oxuyucu «E-poçt, mətn sahəsi» deyir; label-ə klik input-u fokuslayır."],
+            ["button / a", "hazır əlçatan elementlər: Tab ilə fokuslanır, Enter ilə işləyir."],
+          ]},
+          { t: "tip", text: "Ən sadə test: siçanı kənara qoy, saytı yalnız Tab, Shift+Tab, Enter və Space ilə işlət. Hər şeyə çata bilirsənsə, işin yarısı hazırdır." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "ARIA: HTML çatmayanda",
+        blocks: [
+          { t: "p", text: "ARIA (Accessible Rich Internet Applications) — elementə rol, ad və vəziyyət əlavə edən atributlardır. Görünüşü və davranışı DƏYİŞMİR, yalnız ekran oxuyucuya məlumat verir." },
+          { t: "code", lang: "html", code: `<!-- Yalnız ikon olan düymə: adı aria-label verir -->
+<button type="button" aria-label="Menyunu bağla">✕</button>
+
+<!-- Açılıb-bağlanan menyu: vəziyyəti bildir -->
+<button type="button" aria-expanded="false" aria-controls="menyu">Menyu</button>
+<ul id="menyu" hidden>...</ul>
+
+<!-- Dinamik mesaj: dəyişəndə oxuyucu özü səsləndirir -->
+<p role="status" aria-live="polite">Səbətə əlavə olundu</p>
+
+<!-- Bəzək ikonu oxunmasın -->
+<span aria-hidden="true">★</span> 4.8 reytinq` },
+          { t: "terms", items: [
+            ["aria-label", "görünən mətni olmayan elementə ad verir."],
+            ["aria-expanded", "açıqdır (true) ya bağlı (false). JS ilə özün dəyişməlisən."],
+            ["aria-live=\"polite\"", "məzmun dəyişəndə oxuyucu cari cümləni bitirib bunu oxuyur. Təcili xəta üçün role=\"alert\"."],
+            ["aria-hidden=\"true\"", "elementi əlçatanlıq ağacından çıxarır (ekranda qalır)."],
+          ]},
+          { t: "mistake", lang: "html", wrong: `<div role="button" onclick="sil()">Sil</div>`, right: `<button type="button" onclick="sil()">Sil</button>`, why: "role yalnız ad verir. Fokus (tabindex), Enter/Space, disabled davranışını özün yazmalı olacaqsan. ARIA-nın birinci qaydası: native element varsa, onu işlət." },
+          { t: "mistake", lang: "html", wrong: `<a href="/kurs/5">Buraya klik et</a>\n<img src="logo.png">`, right: `<a href="/kurs/5">Python kursuna bax</a>\n<img src="logo.png" alt="Kod Akademiyası">`, why: "Oxuyucu istifadəçisi linklərin siyahısını ayrıca dinləyir: «buraya klik et» heç nə demir. alt-sız şəkildə isə fayl adı oxunur." },
+          { t: "list", items: [
+            "Kontrast: mətnlə fon arasında ən azı 4.5:1 (iri mətn üçün 3:1). DevTools rəng seçicisində göstərilir.",
+            "Məlumatı təkcə rənglə vermə: xəta üçün qırmızı + ikon + mətn.",
+            "outline: none yazıb fokus halqasını silmə. Bəyənmirsənsə :focus-visible ilə öz stilini ver.",
+            "Toxunma hədəfi ən azı 44×44 px olsun.",
+          ]},
+        ],
+      },
+      {
+        level: "senior",
+        title: "Əlçatanlıq ağacı, fokus idarəsi, WCAG",
+        blocks: [
+          { t: "p", text: "Brauzer DOM-dan əlçatanlıq ağacı (accessibility tree) qurur və onu əməliyyat sisteminin API-si ilə ekran oxuyucuya ötürür. Hər düyündə 4 şey var: rol (button), ad (accessible name), vəziyyət (expanded, checked) və dəyər. Ad bu sıra ilə hesablanır: aria-labelledby → aria-label → label/məzmun mətni → title. DevTools → Elements → Accessibility panelində görə bilərsən." },
+          { t: "code", lang: "html", code: `<!-- Native dialog: fokus tələsi, Esc, arxa fonun bloklanması hazırdır -->
+<dialog id="tesdiq" aria-labelledby="d-bas">
+  <h2 id="d-bas">Silmək istəyirsən?</h2>
+  <form method="dialog">
+    <button value="yox">Xeyr</button>
+    <button value="he">Bəli, sil</button>
+  </form>
+</dialog>
+
+<button type="button" onclick="tesdiq.showModal()">Sil</button>
+
+<!-- Ekranda gizli, oxuyucuya açıq mətn -->
+<style>
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+</style>`, caption: "showModal() fokus tələsini (focus trap) və Esc-i özü idarə edir" },
+          { t: "list", items: [
+            "WCAG 2.2 — beynəlxalq standart, 4 prinsip (POUR): Qavranılan, İdarəolunan, Anlaşılan, Dayanıqlı. Hədəf adətən AA səviyyəsidir; Avropada (EAA) və dövlət saytlarında qanuni tələbdir.",
+            "tabindex=\"0\" — elementi Tab sırasına salır; \"-1\" — yalnız JS ilə (focus()) fokuslanır; müsbət ədəd (1, 2...) sıranı pozur, işlətmə.",
+            "SPA-da səhifə dəyişəndə fokus köhnə yerdə qalır. Marşrut dəyişəndə fokusu h1-ə və ya main-ə köçür, başlığı (title) yenilə.",
+            "Modal bağlananda fokusu onu açan düyməyə qaytar.",
+            "display:none və hidden həm ekrandan, həm ağacdan çıxarır; aria-hidden yalnız ağacdan; .sr-only yalnız ekrandan.",
+            "prefers-reduced-motion: animasiya bəzi insanlarda başgicəllənmə yaradır — hörmət et.",
+            "Avtomat alətlər (axe, Lighthouse) problemlərin ~30–40%-ni tapır. Qalanı əl ilə: klaviatura və real oxuyucu (NVDA, VoiceOver) testi.",
+            "TƏHLÜKƏSİZLİK: .sr-only, aria-hidden və ya display:none ilə «gizlədilən» məlumat HTML-də qalır — hər kəs mənbə kodunda görür. Məxfi məlumatı (başqasının e-poçtu, token) ümumiyyətlə göndərmə.",
+            "TƏHLÜKƏSİZLİK: aria-label, alt, title-a istifadəçi mətni qoyanda da escape et — atribut içindən dırnaqla çıxıb onerror=... əlavə etmək XSS-dir. CAPTCHA-nın səsli alternativi olmalıdır, yoxsa görməyən istifadəçini bloklayırsan.",
+          ]},
+          { t: "qa", items: [
+            ["ARIA-nın birinci qaydası?", "Lazımi semantika və davranışı verən native HTML elementi varsa, ARIA əvəzinə onu işlət. Pis ARIA heç ARIA olmamaqdan pisdir."],
+            ["aria-label ilə aria-labelledby fərqi?", "aria-label adı sətir kimi verir (görünmür). aria-labelledby səhifədəki mövcud elementin id-sinə istinad edir — görünən mətn təkrarlanmır və tərcümə ilə birlikdə dəyişir."],
+            ["Modal pəncərəni əlçatan etmək üçün nə lazımdır?", "role=dialog + ad, açılanda fokusu içəri salmaq, Tab-ı içəridə saxlamaq, Esc ilə bağlamaq, arxa fonu inert etmək, bağlananda fokusu qaytarmaq. <dialog>.showModal() bunların çoxunu hazır verir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Yalnız bəzək üçün olan şəklə nə yazılır?", options: ["alt atributu yazılmır", "alt=\"\"", "alt=\"şəkil\""], answer: 1, why: "Boş alt oxuyucuya «bunu ötür» deyir. alt olmasa fayl adı oxunar." },
+          { t: "quiz", q: "role=\"button\" div-ə nə verir?", options: ["Enter ilə işləməyi", "Tab ilə fokusu", "Yalnız oxuyucu üçün «düymə» adını"], answer: 2, why: "ARIA davranış əlavə etmir — yalnız məlumat verir." },
+          { t: "quiz", q: "Fokus halqasını (outline) silmək olar?", options: ["Hə, dizaynı korlayır", "Yalnız :focus-visible ilə əvəzini versən", "Mobil-də olar"], answer: 1, why: "Klaviatura istifadəçisi harada olduğunu görməlidir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Aşağıdakı əlçatan olmayan kodu düzəlt: şəklə alt ver, div-düyməni button et, ikon düyməsinə ad ver, input-a label bağla, «buraya klik» linkinə mənalı mətn yaz.",
+      starter: `<img src="kurs.jpg">\n\n<div class="btn" onclick="alert('Alındı')">Kursu al</div>\n\n<button>✕</button>\n\n<input type="email" placeholder="E-poçt">\n\n<a href="/kurslar">buraya klik et</a>\n`,
+      expect: "img-də mənalı alt; div əvəzinə button type=button; ✕ düyməsində aria-label; input-un id-si və ona for ilə bağlı label (və ya label içində input) var; link mətni təyinatı izah edir. role=button-lu div qəbul edilmir.",
+    },
+  },
+  {
+    slug: "validasiya",
+    title: "Forma validasiyası",
+    intro: "Validasiya — istifadəçinin daxil etdiyi məlumatın düzgünlüyünü yoxlamaqdır. HTML bunu JS-siz, atributlarla edə bilir: required, type, min, pattern.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Atributlarla yoxlama",
+        blocks: [
+          { t: "analogy", text: "Hava limanında qapıdakı nəzarətçi biletinə baxır: adın var? tarix düzdür? Problem varsa, səni elə qapıda saxlayır — təyyarəyə qədər getmirsən. Brauzer validasiyası da belədir: səhv forma serverə getmir." },
+          { t: "code", lang: "html", code: `<form action="/qeydiyyat" method="post">
+  <label for="ad">Ad</label>
+  <input id="ad" name="ad" required minlength="2" maxlength="40">
+
+  <label for="email">E-poçt</label>
+  <input id="email" name="email" type="email" required>
+
+  <label for="yas">Yaş</label>
+  <input id="yas" name="yas" type="number" min="16" max="99">
+
+  <button type="submit">Göndər</button>
+</form>` },
+          { t: "terms", items: [
+            ["required", "sahə boş qala bilməz."],
+            ["type=\"email\"", "mətn e-poçt formatında olmalıdır (içində @ və s.). url, number, date də var."],
+            ["minlength / maxlength", "simvol sayının aşağı və yuxarı həddi."],
+            ["min / max", "ədəd və ya tarix üçün hədlər."],
+          ]},
+          { t: "tip", text: "Düzgün type mobil-də həm də uyğun klaviatura açır: email-də @ düyməsi, tel-də rəqəmlər." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "pattern, xəta mesajı və stil",
+        blocks: [
+          { t: "code", lang: "html", code: `<label for="tel">Telefon</label>
+<input id="tel" name="tel" type="tel"
+       pattern="\\+994[0-9]{9}"
+       title="Format: +994501234567"
+       autocomplete="tel" required>
+
+<style>
+  input:user-invalid { border-color: #f43f5e; }
+  input:user-valid   { border-color: #22c55e; }
+</style>`, caption: "pattern — müntəzəm ifadə (regex); bütün dəyər ona uyğun gəlməlidir" },
+          { t: "terms", items: [
+            ["pattern", "müntəzəm ifadə (regular expression). Avtomatik ^ və $ ilə əhatələnir — tam uyğunluq tələb olunur."],
+            ["title", "pattern uyğun gəlməyəndə brauzer mesajına əlavə olunan izah."],
+            [":user-invalid", "sahə səhvdirsə VƏ istifadəçi ona toxunubsa. :invalid isə səhifə açılan kimi qırmızı edir — pis təcrübə."],
+            ["autocomplete", "brauzerə sahənin nə olduğunu deyir: email, tel, name, new-password, one-time-code."],
+          ]},
+          { t: "code", lang: "html", code: `<form id="f">
+  <input id="s1" type="password" minlength="8" required>
+  <input id="s2" type="password" required>
+  <button>Qeydiyyat</button>
+</form>
+<script>
+  const s1 = document.getElementById("s1");
+  const s2 = document.getElementById("s2");
+  s2.addEventListener("input", () => {
+    // boş sətir = «xəta yoxdur»
+    s2.setCustomValidity(s1.value === s2.value ? "" : "Şifrələr eyni deyil");
+  });
+</script>`, caption: "Constraint Validation API: öz qaydanı brauzer validasiyasına qoşmaq" },
+          { t: "mistake", lang: "html", wrong: `<input type="text" name="email">\n<!-- yoxlama yalnız JS-də, 30 sətir regex -->`, right: `<input type="email" name="email" required autocomplete="email">`, why: "Brauzer bunu hazır edir: format yoxlaması, tərcümə olunmuş mesaj, mobil klaviatura, avtomatik doldurma. JS yalnız HTML-in bacarmadığı qaydalar üçün lazımdır." },
+          { t: "mistake", lang: "html", wrong: `<input placeholder="E-poçt" required>`, right: `<label for="e">E-poçt</label>\n<input id="e" type="email" required aria-describedby="e-xeta">\n<p id="e-xeta" role="alert"></p>`, why: "placeholder label deyil: yazmağa başlayanda itir, kontrastı zəifdir. Xəta mətnini aria-describedby ilə sahəyə bağla ki, ekran oxuyucu da eşitsin." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Brauzer yoxlaması rahatlıqdır, təhlükəsizlik deyil",
+        blocks: [
+          { t: "p", text: "Göndərmə (submit) zamanı brauzer hər sahənin ValidityState obyektini yoxlayır: valueMissing, typeMismatch, patternMismatch, tooShort, rangeUnderflow, customError və s. Biri true olsa, submit hadisəsi BAŞ VERMİR, ilk səhv sahə fokuslanır və mesaj çıxır. form.checkValidity() yoxlayır, reportValidity() həm də mesajı göstərir. novalidate atributu bunu söndürür — öz dizaynlı xətalarını göstərmək istəyəndə işlədilir." },
+          { t: "warn", text: "TƏHLÜKƏSİZLİK: klient validasiyasını keçmək 5 saniyəlik işdir — DevTools-da required-i silmək, ya da curl/Postman ilə sorğunu birbaşa göndərmək. Server HƏR ŞEYİ yenidən yoxlamalıdır: tip, uzunluq, hədlər, icazə. HTML validasiyası UX-dir, qoruma deyil." },
+          { t: "list", items: [
+            "TƏHLÜKƏSİZLİK: maxlength, hidden input, disabled, select variantları — hamısı klientdə dəyişdirilə bilər. Qiyməti, rolu (role=admin), user id-ni gizli input-da göndərib ona inanma.",
+            "TƏHLÜKƏSİZLİK — ReDoS: (a+)+$ kimi iç-içə təkrarlı regex uzun girişdə eksponensial vaxt aparır. Eyni regex-i serverdə işlədirsənsə, bir sorğu serveri dondura bilər. Sadə regex yaz, uzunluğu əvvəl yoxla.",
+            "TƏHLÜKƏSİZLİK: validasiya ≠ təmizləmə. Düzgün formatlı giriş də zərərli ola bilər. SQL üçün parametrli sorğu, HTML çıxışı üçün escape — validasiyadan asılı olmayaraq.",
+            "Xəta mesajında artıq məlumat vermə: «bu e-poçt artıq qeydiyyatdadır» hücumçuya istifadəçi siyahısını yoxlamağa imkan verir (user enumeration).",
+            "Şifrə sahəsi: autocomplete=\"new-password\" / \"current-password\" — parol menecerləri düzgün işləsin. Yapışdırmanı (paste) qadağan etmə — bu, təhlükəsizliyi azaldır.",
+            "Faylda accept=\"image/*\" yalnız seçim pəncərəsini süzür. Serverdə faylın həqiqi tipini və ölçüsünü yoxla.",
+            "Validasiya qaydalarını bir yerdə saxla (məs. Zod sxemi) və həm klientdə, həm serverdə işlət — ikisi fərqlənməsin.",
+            "Xətanı blur-da (sahədən çıxanda) göstər, hər hərfdə yox; düzələn kimi dərhal sil.",
+          ]},
+          { t: "qa", items: [
+            ["Niyə həm klient, həm server validasiyası lazımdır?", "Klient — sürətli əks-əlaqə və az sorğu (UX). Server — yeganə etibarlı yoxlama, çünki klient tam istifadəçinin nəzarətindədir."],
+            ["setCustomValidity necə işləyir?", "Boş olmayan sətir verəndə sahə invalid sayılır (customError) və həmin mətn mesaj kimi göstərilir. Boş sətir xətanı silir. Hər input hadisəsində yenidən hesablanmalıdır."],
+            [":invalid ilə :user-invalid fərqi?", ":invalid səhifə yüklənən kimi boş required sahələrə də tətbiq olunur. :user-invalid yalnız istifadəçi sahə ilə işlədikdən və ya submit cəhdindən sonra."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Sahənin boş qalmamasını hansı atribut tələb edir?", options: ["pattern", "required", "minlength=\"0\""], answer: 1, why: "required boş dəyəri qəbul etmir." },
+          { t: "quiz", q: "HTML validasiyası olan formada server yoxlaması lazımdır?", options: ["Yox, brauzer yoxlayır", "Yalnız şifrə üçün", "Hə, həmişə"], answer: 2, why: "Klient yoxlamasını istənilən şəxs söndürə və ya ötürə bilər." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Qeydiyyat forması: ad (məcburi, 2–40 simvol), e-poçt (məcburi), telefon (+994 və 9 rəqəm, pattern + title), yaş (16–99), şifrə (ən azı 8 simvol). Hər sahənin label-i olsun, səhv sahə :user-invalid ilə qırmızı haşiyə alsın.",
+      starter: `<form>\n\n  <button type="submit">Qeydiyyat</button>\n</form>\n\n<style>\n\n</style>\n`,
+      expect: "Hər input-un for/id ilə bağlı label-i var; ad required+minlength+maxlength; type=email required; tel-də pattern (+994 və 9 rəqəm) və title; type=number min=16 max=99; type=password minlength=8 required; :user-invalid (və ya :invalid) stili yazılıb. Uyğun autocomplete dəyərləri üstünlükdür.",
+    },
+  },
+  {
+    slug: "dom",
+    title: "DOM ağacı necə qurulur",
+    intro: "DOM (Document Object Model) — brauzerin HTML mətnindən yaddaşda qurduğu obyekt ağacıdır. CSS və JavaScript HTML faylı ilə yox, məhz bu ağacla işləyir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Mətndən ağaca",
+        blocks: [
+          { t: "analogy", text: "Nəsil ağacını düşün: baba → ata → sən. Hər kəsin valideyni, uşaqları, qardaşları var. DOM da belə ağacdır: html — baba, body — onun uşağı, h1 və p — body-nin uşaqları, bir-birinin qardaşı." },
+          { t: "code", lang: "html", code: `<html>
+  <head>
+    <title>Salam</title>
+  </head>
+  <body>
+    <h1>Başlıq</h1>
+    <p>Mətn <b>qalın</b></p>
+  </body>
+</html>` },
+          { t: "code", lang: "text", code: `document
+└── html
+    ├── head
+    │   └── title
+    │       └── "Salam"
+    └── body
+        ├── h1
+        │   └── "Başlıq"
+        └── p
+            ├── "Mətn "
+            └── b
+                └── "qalın"`, caption: "Eyni səhifənin DOM ağacı" },
+          { t: "terms", items: [
+            ["düyün (node)", "ağacın hər bir nöqtəsi: element, mətn, şərh."],
+            ["element", "teqdən yaranan düyün: h1, p, body."],
+            ["mətn düyünü (text node)", "teqlərin arasındakı mətn. O da ayrıca düyündür."],
+            ["valideyn / uşaq / qardaş", "parent / child / sibling — düyünlər arasındakı qohumluq."],
+            ["document", "ağacın kökü. JS-də hər şeyə buradan çatırsan."],
+          ]},
+          { t: "tip", text: "F12 → Elements paneli HTML faylını yox, canlı DOM-u göstərir. «Səhifənin mənbəyinə bax» (Ctrl+U) isə serverdən gələn ilkin mətni." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "HTML ≠ DOM",
+        blocks: [
+          { t: "p", text: "DOM HTML-in surəti deyil. Üç səbəbdən fərqlənə bilər: brauzer səhvləri özü düzəldir, JavaScript ağacı dəyişir, bəzi düyünləri brauzer özü əlavə edir." },
+          { t: "code", lang: "html", code: `<!-- Sən yazdın: -->
+<table>
+  <tr><td>Əli</td></tr>
+</table>
+<p>Birinci
+<p>İkinci
+
+<!-- DOM-da alındı: -->
+<table>
+  <tbody>
+    <tr><td>Əli</td></tr>
+  </tbody>
+</table>
+<p>Birinci</p>
+<p>İkinci</p>`, caption: "Brauzer tbody əlavə etdi və bağlanmamış p-ləri bağladı" },
+          { t: "code", lang: "html", code: `<ul id="siyahi">
+  <li>HTML</li>
+</ul>
+
+<script>
+  const siyahi = document.getElementById("siyahi");
+
+  const li = document.createElement("li");   // yeni düyün
+  li.textContent = "CSS";                    // təhlükəsiz mətn
+  siyahi.append(li);                         // ağaca əlavə
+
+  console.log(siyahi.children.length);       // 2
+  console.log(li.parentElement.id);          // "siyahi"
+</script>`, caption: "JS DOM-u dəyişir — HTML faylı isə olduğu kimi qalır" },
+          { t: "mistake", lang: "html", wrong: `<head>\n  <script>\n    document.getElementById("btn").onclick = salam; // null!\n  </script>\n</head>\n<body>\n  <button id="btn">Salam</button>\n</body>`, right: `<head>\n  <script src="app.js" defer></script>\n</head>\n<body>\n  <button id="btn">Salam</button>\n</body>`, why: "Brauzer HTML-i yuxarıdan aşağı oxuyur. head-dəki skript işləyəndə button hələ DOM-da yoxdur. defer skripti ağac tam qurulandan sonra icra edir." },
+          { t: "mistake", lang: "html", wrong: `<div id="kart"></div>\n<div id="kart"></div>`, right: `<div class="kart"></div>\n<div class="kart"></div>`, why: "id sənəddə unikal olmalıdır. Təkrar olsa getElementById yalnız birincini qaytarır, label for və aria-labelledby səhv elementə bağlanır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Parser daxildən: tokenlər, bloklama, XSS",
+        blocks: [
+          { t: "p", text: "Yol belədir: baytlar → simvollar (charset) → tokenlər (açılış teqi, mətn, bağlanış teqi) → düyünlər → DOM. Parser axınla (streaming) işləyir: HTML hissə-hissə gəldikcə ağac qurulur, ona görə səhifə tam yüklənməmiş görünməyə başlayır. Xətalı HTML-in necə düzəldiləcəyi spesifikasiyada dəqiq yazılıb — bütün brauzerlər eyni ağacı qurur." },
+          { t: "list", items: [
+            "Adi <script> parseri DAYANDIRIR: yüklənir, icra olunur, sonra parser davam edir (çünki skript document.write ilə HTML-i dəyişə bilər). defer/async/type=module bloklamır.",
+            "Skript icradan əvvəl özündən yuxarıdakı CSS-in yüklənməsini də gözləyir — yəni CSS dolayı yolla parseri bloklaya bilər.",
+            "Preload scanner: parser dayananda ikinci, yüngül skaner HTML-i qabağa oxuyub şəkil/skript/CSS-ləri əvvəlcədən yükləyir. JS ilə əlavə olunan resursları isə görmür.",
+            "DOMContentLoaded — DOM hazırdır (defer skriptlər icra olunub); load — şəkillər, CSS də daxil hər şey yüklənib.",
+            "NodeList/HTMLCollection canlı (live) ola bilər: getElementsByClassName canlıdır, querySelectorAll statik surət qaytarır.",
+            "Böyük DOM (1500+ düyün, dərinlik 32+) stil hesablamasını, layout-u və yaddaşı ağırlaşdırır. Uzun siyahılar üçün virtuallaşdırma.",
+            "Çoxlu əlavəni DocumentFragment-də yığıb bir dəfəyə qoş — layout bir dəfə hesablansın. Shadow DOM isə komponent üçün ayrı, kapsullanmış alt-ağacdır.",
+          ]},
+          { t: "code", lang: "html", code: `<script>
+  const ad = new URLSearchParams(location.search).get("ad");
+
+  // ❌ XSS: ?ad=<img src=x onerror=alert(document.cookie)>
+  // salam.innerHTML = "Salam, " + ad;
+
+  // ✅ Mətn kimi yazılır, HTML kimi parse olunmur
+  salam.textContent = "Salam, " + ad;
+</script>`, caption: "TƏHLÜKƏSİZLİK: DOM əsaslı XSS" },
+          { t: "list", items: [
+            "TƏHLÜKƏSİZLİK: innerHTML, outerHTML, insertAdjacentHTML, document.write — sətri HTML kimi parse edir. İstifadəçidən, URL-dən və ya API-dən gələn mətni bunlara vermə. textContent / createElement işlət; HTML mütləq lazımdırsa DOMPurify ilə təmizlə.",
+            "TƏHLÜKƏSİZLİK — DOM clobbering: id və name-li elementlər window üzərində qlobal dəyişən olur. Hücumçu <a id=\"config\"> yeridə bilsə, window.config sənin obyektin yox, o element olar. Qlobal adlara güvənmə, dəyişənləri açıq elan et.",
+            "TƏHLÜKƏSİZLİK: href-ə istifadəçi URL-i qoyanda sxemi yoxla — javascript:alert(1) də «link»dir. Yalnız http/https-ə icazə ver.",
+            "Əlavə qat: CSP başlığı (inline skripti qadağan edir) və Trusted Types (innerHTML-ə adi sətir verməyi brauzer səviyyəsində bloklayır).",
+          ]},
+          { t: "qa", items: [
+            ["DOM ilə HTML mənbəyinin fərqi?", "HTML — serverdən gələn mətn. DOM — ondan qurulmuş canlı obyekt ağacı; parser düzəlişləri və JS dəyişiklikləri səbəbindən mənbədən fərqlənə bilər."],
+            ["Niyə skripti body-nin sonuna qoyurdular, indi niyə defer?", "Adi skript parseri bloklayır, sona qoyanda DOM artıq hazır olur. defer eyni nəticəni verir, amma fayl paralel yüklənir — daha sürətli."],
+            ["innerHTML ilə textContent fərqi?", "innerHTML sətri HTML kimi parse edib düyünlər yaradır (XSS riski, yavaş). textContent hər şeyi bir mətn düyünü kimi yazır — təhlükəsiz və sürətli."],
+            ["DOMContentLoaded və load fərqi?", "Birincisi DOM ağacı qurulanda, ikincisi bütün asılı resurslar (şəkil, CSS, iframe) yüklənəndə baş verir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "<p>Salam <b>dünya</b></p> — p-nin neçə uşaq düyünü var?", options: ["1", "2", "3"], answer: 1, why: "«Salam » mətn düyünü və b elementi. «dünya» b-nin uşağıdır." },
+          { t: "quiz", q: "İstifadəçinin yazdığı adı səhifəyə təhlükəsiz necə yazmaq olar?", options: ["el.innerHTML = ad", "el.textContent = ad", "document.write(ad)"], answer: 1, why: "textContent mətni HTML kimi parse etmir — skript icra oluna bilməz." },
+          { t: "quiz", q: "Elements paneli nəyi göstərir?", options: ["Serverdən gələn HTML faylını", "Canlı DOM ağacını", "CSS faylını"], answer: 1, why: "Panel JS dəyişiklikləri və parser düzəlişləri ilə birlikdə cari DOM-u göstərir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Siyahıya düymə ilə yeni bənd əlavə et: input-a yazılan mətn «Əlavə et» basılanda ul-a yeni li kimi düşsün. createElement + textContent işlət (innerHTML YOX). Boş mətn əlavə olunmasın, sonda bəndlərin sayını göstər.",
+      starter: `<input id="metn" placeholder="Yeni bənd">\n<button id="elave" type="button">Əlavə et</button>\n<ul id="siyahi">\n  <li>HTML</li>\n</ul>\n<p id="say"></p>\n\n<script>\n\n</script>\n`,
+      expect: "click hadisəsində createElement('li'), textContent ilə mətn, append/appendChild ilə ul-a əlavə; boş/boşluqdan ibarət mətn yoxlanır (trim); say children.length və ya querySelectorAll ilə göstərilir; istifadəçi mətni üçün innerHTML işlədilməyib.",
+    },
+  },
+  {
+    slug: "performans",
+    title: "Render, yükləmə və performans",
+    intro: "Sürətli sayt daha çox istifadəçi saxlayır və Google-da yuxarı çıxır. Sürətin böyük hissəsi HTML-də həll olunur: resurslar nə vaxt və hansı sıra ilə yüklənir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Brauzer səhifəni necə yükləyir",
+        blocks: [
+          { t: "analogy", text: "Restoranda ofisiant əvvəl çörək və suyu gətirir, əsas yeməyi sonra. Hər şeyi birdən gözləsəydin, yarım saat ac oturardın. Yaxşı səhifə də belədir: əvvəl vacib olanı göstərir, qalanını sonra yükləyir." },
+          { t: "code", lang: "html", code: `<head>
+  <link rel="stylesheet" href="stil.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <img src="banner.jpg" alt="Kurs banneri" width="1200" height="600">
+
+  <!-- Aşağıdakı şəkil: yalnız ona yaxınlaşanda yüklənsin -->
+  <img src="muellim.jpg" alt="Müəllim" width="400" height="400" loading="lazy">
+</body>` },
+          { t: "terms", items: [
+            ["defer", "skript arxa fonda yüklənir, HTML tam oxunandan sonra icra olunur. Səhifəni gözlətmir."],
+            ["loading=\"lazy\"", "şəkil yalnız ekrana yaxınlaşanda yüklənir (tənbəl yükləmə)."],
+            ["width / height", "brauzer şəkil gəlməmiş yerini ayırır — məzmun «tullanmır»."],
+          ]},
+          { t: "tip", text: "Ekranın yuxarısında görünən ilk böyük şəklə loading=\"lazy\" YAZMA — o, dərhal lazımdır." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Skriptlər, şəkillər və resurs ipucları",
+        blocks: [
+          { t: "code", lang: "text", code: `<script>         HTML ──■ dayanır: yüklə + icra ■── HTML davam
+<script async>   HTML ───────■ icra (hazır olan kimi) ■───
+<script defer>   HTML ────────────────────────■ icra (sonda, sıra ilə)`, caption: "Üç skript növü: nə vaxt icra olunur" },
+          { t: "list", items: [
+            "defer — öz kodun üçün default seçim: sıra saxlanılır, DOM hazır olur.",
+            "async — müstəqil skriptlər üçün (analitika): sıra zəmanəti yoxdur.",
+            "type=\"module\" skriptlər avtomatik defer kimidir.",
+          ]},
+          { t: "code", lang: "html", code: `<!-- Ekrana uyğun ölçü və müasir format -->
+<picture>
+  <source type="image/avif" srcset="kurs-800.avif 800w, kurs-1600.avif 1600w">
+  <source type="image/webp" srcset="kurs-800.webp 800w, kurs-1600.webp 1600w">
+  <img src="kurs-800.jpg" alt="Kurs"
+       sizes="(max-width: 600px) 100vw, 800px"
+       width="800" height="450" fetchpriority="high">
+</picture>
+
+<!-- Resurs ipucları -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>` },
+          { t: "terms", items: [
+            ["srcset + sizes", "brauzer ekranın eninə və sıxlığına görə ən uyğun faylı özü seçir. Telefon 1600 px şəkil yükləmir."],
+            ["fetchpriority=\"high\"", "bu resurs vacibdir, növbədə qabağa keçsin (əsas banner şəkli)."],
+            ["preconnect", "başqa domenlə bağlantını (DNS, TLS) əvvəlcədən qur."],
+            ["preload", "bu fayl mütləq lazım olacaq, indi yüklə (şrift, kritik şəkil)."],
+          ]},
+          { t: "mistake", lang: "html", wrong: `<img src="banner.jpg" alt="Banner">`, right: `<img src="banner.jpg" alt="Banner" width="1200" height="600">`, why: "Ölçü olmayanda şəkil yüklənənə qədər hündürlük 0-dır, sonra mətn birdən aşağı tullanır (layout shift). İstifadəçi səhv düyməyə basır." },
+          { t: "mistake", lang: "html", wrong: `<head>\n  <script src="analitika.js"></script>\n  <script src="chat-widget.js"></script>\n</head>`, right: `<head>\n  <script src="analitika.js" async></script>\n  <script src="chat-widget.js" defer></script>\n</head>`, why: "Adi skriptlər head-də səhifənin çəkilməsini dayandırır: fayllar yüklənib icra olunana qədər ekran ağ qalır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Kritik render yolu və Core Web Vitals",
+        blocks: [
+          { t: "p", text: "Kritik render yolu (critical rendering path): HTML → DOM, CSS → CSSOM, ikisi birləşib render ağacı → layout (ölçü və yer) → paint (rəngləmə) → composite (qatların birləşdirilməsi). CSS render-bloklayandır: CSSOM hazır olmadan heç nə çəkilmir. Adi skript isə parser-bloklayandır." },
+          { t: "terms", items: [
+            ["LCP (Largest Contentful Paint)", "ən böyük görünən elementin çəkilmə vaxtı. Yaxşı: ≤ 2.5 s. Adətən banner şəkli və ya h1."],
+            ["INP (Interaction to Next Paint)", "klikdən ekranın yenilənməsinə qədər gecikmə. Yaxşı: ≤ 200 ms. Ağır JS pozur."],
+            ["CLS (Cumulative Layout Shift)", "məzmunun gözlənilməz yerdəyişməsi. Yaxşı: ≤ 0.1. Ölçüsüz şəkil, reklam, gec gələn şrift pozur."],
+            ["TTFB", "serverin ilk baytı göndərmə vaxtı. Keş və CDN yaxşılaşdırır."],
+          ]},
+          { t: "list", items: [
+            "LCP şəkli HTML-də olsun (CSS background və ya JS ilə yox) ki, preload scanner onu dərhal tapsın; fetchpriority=\"high\", lazy YOX.",
+            "Kritik CSS-i (ilk ekran üçün) inline ver, qalanını sonra yüklə. Çap stili: media=\"print\" render-i bloklamır.",
+            "Şrift: woff2, font-display: swap, preload; mümkünsə öz serverindən (self-host).",
+            "preload-u az işlət: hər şeyi «vacib» etsən, heç nə vacib olmur və bant zolağı boşa gedir.",
+            "Aşağıdakı ağır bölmələr üçün CSS content-visibility: auto — ekrandan kənar hissənin render-i təxirə salınır.",
+            "iframe-lərə (YouTube, xəritə) loading=\"lazy\"; daha yaxşısı — şəkil-fasad, klikdə əsl iframe.",
+            "Sıxılma (Brotli), HTTP/2–3, uzunmüddətli keş (Cache-Control: immutable + fayl adında heş), CDN.",
+            "Ölç, təxmin etmə: Lighthouse (laboratoriya), Chrome DevTools Performance, real istifadəçi məlumatı (CrUX, web-vitals kitabxanası). Yavaş telefonda və 4G-də sına.",
+            "bfcache (geri/irəli keşi): unload hadisəsi və Cache-Control: no-store onu söndürür — geri düyməsi yavaşlayır.",
+          ]},
+          { t: "code", lang: "html", code: `<script src="https://cdn.example.com/lib@4.2.1/lib.min.js"
+        integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC"
+        crossorigin="anonymous" defer></script>`, caption: "TƏHLÜKƏSİZLİK: SRI (Subresource Integrity)" },
+          { t: "list", items: [
+            "TƏHLÜKƏSİZLİK: kənar skript (CDN, analitika, çat vidceti) sənin səhifəndə TAM hüquqla işləyir — formaları, cookie-ləri oxuya bilər. CDN sındırılsa, sən də sındırılırsan (supply chain hücumu). integrity heşi fayl dəyişibsə icranı bloklayır. Versiyanı sabitlə (@latest yox).",
+            "TƏHLÜKƏSİZLİK: hər kənar skript həm sürəti, həm riski artırır. Mümkünsə öz serverindən ver, CSP-də script-src ilə icazəli mənbələri məhdudlaşdır.",
+            "TƏHLÜKƏSİZLİK: dns-prefetch/preconnect istifadəçinin IP-sini həmin domenə bildirir; kənar şrift/şəkil də izləmə vasitəsi ola bilər (məxfilik, GDPR).",
+          ]},
+          { t: "qa", items: [
+            ["async ilə defer fərqi?", "İkisi də paralel yüklənir. async hazır olan kimi icra olunur (sıra yoxdur, parseri qısa dayandıra bilər). defer parse bitəndən sonra, sənəddəki sıra ilə, DOMContentLoaded-dən əvvəl icra olunur."],
+            ["LCP-ni necə yaxşılaşdırarsan?", "TTFB-ni azalt (keş/CDN), render-bloklayan CSS/JS-i azalt, LCP şəklini HTML-ə qoy + fetchpriority=high + düzgün ölçü/format (AVIF/WebP), lazy yükləmə."],
+            ["CLS-in əsas səbəbləri?", "Ölçüsü verilməyən şəkil/iframe/reklam, mövcud məzmunun üstünə dinamik əlavə olunan bloklar, şrift dəyişməsi (FOUT). Həll: width/height və ya aspect-ratio, yer ayırmaq, font-display + size-adjust."],
+            ["preload ilə prefetch fərqi?", "preload — cari səhifəyə mütləq lazım olan resurs, yüksək prioritet. prefetch — növbəti səhifə üçün ola bilsin lazım olacaq, aşağı prioritet, boş vaxtda."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Öz app.js faylın üçün ən yaxşı seçim?", options: ["<script src> head-də", "<script src defer>", "<script src async>"], answer: 1, why: "defer bloklamır, sıranı saxlayır və DOM hazır olanda icra olunur." },
+          { t: "quiz", q: "Şəklə width və height niyə yazılır?", options: ["Şəkil daha tez yüklənsin", "Yer əvvəlcədən ayrılsın, məzmun tullanmasın", "SEO üçün məcburidir"], answer: 1, why: "Brauzer nisbəti bilir və yeri əvvəlcədən saxlayır — CLS azalır." },
+          { t: "quiz", q: "Səhifənin yuxarısındakı əsas banner üçün hansı düzdür?", options: ["loading=\"lazy\"", "fetchpriority=\"high\"", "Heç bir fərqi yoxdur"], answer: 1, why: "LCP elementi mümkün qədər tez yüklənməlidir; lazy onu gecikdirir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Yavaş səhifəni sürətləndir: skriptləri bloklamayan et (app.js — defer, analitika — async), bütün şəkillərə width/height ver, yuxarıdakı bannerə fetchpriority, aşağıdakı iki şəklə və iframe-ə lazy yükləmə əlavə et.",
+      starter: `<head>\n  <script src="analitika.js"></script>\n  <script src="app.js"></script>\n</head>\n<body>\n  <img src="banner.jpg" alt="Banner">\n  <h1>Kurslar</h1>\n  <p>...uzun mətn...</p>\n  <img src="kurs1.jpg" alt="HTML kursu">\n  <img src="kurs2.jpg" alt="CSS kursu">\n  <iframe src="https://www.youtube.com/embed/abc" title="Tanıtım videosu"></iframe>\n</body>\n`,
+      expect: "analitika.js async, app.js defer; hər img-də width və height; banner-də fetchpriority=high və lazy YOXDUR; aşağıdakı iki img və iframe loading=lazy; alt-lar saxlanılıb.",
+    },
+  },
+  {
+    slug: "best-practice",
+    title: "Senior: arxitektura və best practice",
+    intro: "Bu dərs bütün HTML bölməsinin yekunudur: yaxşı HTML necə yazılır, böyük layihədə necə qorunur və canlıya çıxmazdan əvvəl nələr yoxlanır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Yaxşı HTML-in 5 qaydası",
+        blocks: [
+          { t: "analogy", text: "Ev tikəndə əvvəl bünövrə və divarlar qoyulur, sonra rəng və mebel. Bünövrə əyridirsə, ən bahalı mebel də evi düzəltmir. HTML saytın bünövrəsidir: CSS və JS onun üstündə dayanır." },
+          { t: "list", items: [
+            "Teqi GÖRÜNÜŞƏ görə yox, MƏNAYA görə seç: başlıq — h1–h6, düymə — button, keçid — a.",
+            "Bir səhifədə bir h1; başlıq səviyyələrini atlama (h2-dən sonra h4 yox).",
+            "Hər şəklin alt-ı, hər input-un label-i olsun.",
+            "Görünüş CSS-də, davranış JS-də, məzmun HTML-də. style=\"...\" və onclick=\"...\" ilə qarışdırma.",
+            "Kodu səliqəli yaz: 2 boşluq girinti, kiçik hərflə teqlər, atributlar dırnaqda.",
+          ]},
+          { t: "code", lang: "html", code: `<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kurslar — Kod Akademiyası</title>
+  <meta name="description" content="Front-end və back-end kursları.">
+  <link rel="stylesheet" href="/stil.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#esas">Əsas məzmuna keç</a>
+  <header>
+    <nav aria-label="Əsas menyu">...</nav>
+  </header>
+  <main id="esas">
+    <h1>Kurslar</h1>
+  </main>
+  <footer>...</footer>
+</body>
+</html>`, caption: "Hər yeni səhifənin başlanğıc skeleti" },
+          { t: "tip", text: "Kodu validator.w3.org-da yoxla: bağlanmamış teq, təkrar id, səhv yuvalama kimi xətaları dərhal göstərir." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Proqressiv təkmilləşdirmə və komponent düşüncəsi",
+        blocks: [
+          { t: "p", text: "Proqressiv təkmilləşdirmə (progressive enhancement): əvvəl JS-siz işləyən HTML qur, sonra CSS ilə gözəlləşdir, sonra JS ilə rahatlaşdır. JS yüklənməsə (zəif internet, xəta, bloklayıcı) sayt yenə işləyir." },
+          { t: "code", lang: "html", code: `<!-- JS-siz açılıb-bağlanan blok -->
+<details>
+  <summary>Kurs nə qədər davam edir?</summary>
+  <p>3 ay, həftədə 3 dərs.</p>
+</details>
+
+<!-- JS-siz işləyən axtarış: forma adi GET sorğusu göndərir -->
+<form action="/axtar" method="get" role="search">
+  <label for="q">Axtarış</label>
+  <input id="q" name="q" type="search" required>
+  <button>Axtar</button>
+</form>
+
+<!-- JS-siz açılan menyu (Popover API) -->
+<button type="button" popovertarget="menyu">Menyu</button>
+<div id="menyu" popover>...</div>`, caption: "Native elementlər: az kod, hazır əlçatanlıq" },
+          { t: "mistake", lang: "html", wrong: `<span class="link" onclick="location.href='/kurslar'">Kurslar</span>`, right: `<a href="/kurslar">Kurslar</a>`, why: "span-link yeni tabda açılmır, Tab ilə fokuslanmır, robot onu izləmir, JS-siz ölüdür. a bunların hamısını pulsuz verir." },
+          { t: "mistake", lang: "html", wrong: `<div class="card">\n  <div class="card-title">Python</div>\n  <div class="card-text">Sıfırdan</div>\n  <div class="card-btn">Bax</div>\n</div>`, right: `<article class="card">\n  <h3 class="card__title">Python</h3>\n  <p class="card__text">Sıfırdan</p>\n  <a class="card__link" href="/python">Kursa bax</a>\n</article>`, why: "Komponentin özü də semantik olmalıdır. Klass adı görünüşü yox, rolu bildirsin (BEM: blok__element)." },
+          { t: "list", items: [
+            "Yuvalama qaydaları: a içində a/button olmaz; p içində div olmaz; ul-un birbaşa uşağı yalnız li.",
+            "button-a həmişə type yaz: forma içində default submit-dir və gözlənilmədən formanı göndərir.",
+            "Boolean atribut: disabled, required, hidden — dəyərsiz yazılır. disabled=\"false\" da SÖNDÜRÜR.",
+            "data-* atributları — JS üçün öz məlumatın: <li data-id=\"42\">. Klassı stil üçün, data-nı məlumat üçün işlət.",
+          ]},
+        ],
+      },
+      {
+        level: "senior",
+        title: "Miqyas, keyfiyyət qapıları və təhlükəsiz HTML",
+        blocks: [
+          { t: "p", text: "Böyük layihədə HTML-i əllə yoxlamaq olmur — keyfiyyəti avtomatlaşdırırlar: linter (html-validate, eslint-plugin-jsx-a11y), CI-da Lighthouse və axe testləri, performans büdcəsi (məs. LCP ≤ 2.5 s, JS ≤ 170 KB). Qayda pozulursa, dəyişiklik birləşdirilmir (merge olunmur)." },
+          { t: "list", items: [
+            "Render strategiyası: məzmun saytı — statik (SSG); fərdi məlumat — server render (SSR); HTML-i axınla (streaming) göndərmək ilk baytı tezləşdirir. Tam klient render (CSR) SEO və ilk yükləməni zəiflədir.",
+            "Hidrasiya (hydration) uyğunsuzluğu: server və klient HTML-i fərqlidirsə (tarix, təsadüfi ədəd, səhv yuvalama — p içində div) React xəta verir və ağacı yenidən qurur.",
+            "Dizayn sistemi: Button, Input, Modal kimi komponentlər bir dəfə düzgün (semantik + əlçatan) yazılır, hər yerdə onlar işlədilir.",
+            "Beynəlxalqlaşdırma: lang və dir=\"rtl\", mətn uzunluğuna dözümlü düzülüş, tarix üçün <time datetime=\"2026-11-14\">.",
+            "E-poçt HTML-i ayrı dünyadır: cədvəl düzülüşü, inline stil — müasir qaydalar orada işləmir.",
+            "Köhnəlmiş (deprecated) teqlər: center, font, marquee, frameset — işlətmə.",
+          ]},
+          { t: "h", text: "Təhlükəsizlik yoxlama siyahısı" },
+          { t: "code", lang: "html", code: `<!-- 1. Kənar sayta yeni tabda link -->
+<a href="https://basqa.com" target="_blank" rel="noopener noreferrer">Mənbə</a>
+
+<!-- 2. İstifadəçi məzmunundakı linklər -->
+<a href="https://..." rel="nofollow ugc noopener">istifadəçi linki</a>
+
+<!-- 3. Etibarsız məzmunu təcrid et -->
+<iframe src="/onizleme.html" sandbox="allow-scripts"
+        referrerpolicy="no-referrer" loading="lazy" title="Önizləmə"></iframe>
+
+<!-- 4. Kənar skript: sabit versiya + heş -->
+<script src="https://cdn.example.com/lib@4.2.1/lib.min.js"
+        integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC"
+        crossorigin="anonymous" defer></script>
+
+<!-- 5. Məlumat dəyişən forma: POST + CSRF tokeni -->
+<form action="/profil" method="post">
+  <input type="hidden" name="csrf" value="SERVERDƏN-GƏLƏN-TOKEN">
+  <input name="ad" autocomplete="name" required>
+  <button type="submit">Yadda saxla</button>
+</form>` },
+          { t: "list", items: [
+            "XSS: istifadəçi mətnini HTML-ə qoyanda kontekstə görə escape et (element məzmunu, atribut, URL, script — hər birinin öz qaydası). Çərçivələr (React, Razor) default escape edir; dangerouslySetInnerHTML / Html.Raw / |safe — qırmızı bayraqdır.",
+            "sandbox-da allow-scripts və allow-same-origin-i BİRLİKDƏ vermə — iframe öz sandbox-unu silə bilər. target=\"_blank\"-də rel=\"noopener\" köhnə brauzerlərdə window.opener hücumunun qarşısını alır.",
+            "Clickjacking: saytını başqası görünməz iframe-də açıb istifadəçini düyməyə basdıra bilər. Qoruma HTTP başlığıdır: Content-Security-Policy: frame-ancestors 'none' (və X-Frame-Options: DENY).",
+            "CSP: script-src 'self' + nonce — inline və kənar skriptləri bloklayır, XSS-in zərərini kəskin azaldır. Bunun üçün inline onclick/style-dan imtina etməlisən.",
+            "Məxfi məlumatı HTML-ə yazma: şərhlər (<!-- TODO: admin şifrəsi... -->), hidden input, data-* — hamısı mənbə kodunda görünür. GET formada şifrə göndərmə: URL tarixçədə və server loglarında qalır.",
+            "Fayl yükləmə formaları: accept yalnız ipucudur; SVG faylı içində skript daşıya bilər — istifadəçi SVG-sini img ilə göstər, inline yox.",
+            "HTTPS hər yerdə; qarışıq məzmun (https səhifədə http resurs) bloklanır. HSTS başlığı əlavə et.",
+          ]},
+          { t: "qa", items: [
+            ["Proqressiv təkmilləşdirmə nədir?", "Əsas funksiyanın sadə HTML ilə işləməsi, CSS və JS-in isə üstünə təkmilləşdirmə kimi gəlməsi. Nəticə: dayanıqlılıq, əlçatanlıq, sürətli ilk render."],
+            ["rel=\"noopener\" nə üçündür?", "Yeni tabda açılan səhifənin window.opener vasitəsilə əvvəlki tabı idarə etməsinin (məs. fişinq səhifəsinə yönləndirməsinin) qarşısını alır."],
+            ["Kod review-da HTML-də nəyə baxırsan?", "Semantika və başlıq iyerarxiyası, klaviatura/ekran oxuyucu əlçatanlığı, forma label və validasiyası, şəkil ölçüləri və yükləmə strategiyası, escape olunmayan istifadəçi məzmunu, kənar skriptlər."],
+            ["XSS-ə qarşı qatlı müdafiə?", "1) Çıxışda kontekstə uyğun escape, 2) innerHTML əvəzinə textContent / təmizləyici (DOMPurify), 3) CSP + Trusted Types, 4) cookie-lərdə HttpOnly, 5) etibarsız məzmun üçün sandbox iframe."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "<button disabled=\"false\"> necə işləyir?", options: ["Aktivdir", "Söndürülüb", "Xəta verir"], answer: 1, why: "Boolean atributun mövcudluğu kifayətdir — dəyəri nəzərə alınmır." },
+          { t: "quiz", q: "sandbox iframe-də hansı cütlük təhlükəlidir?", options: ["allow-scripts + allow-same-origin", "allow-forms + allow-popups", "sandbox + loading=lazy"], answer: 0, why: "Bu ikisi birlikdə iframe-ə öz sandbox atributunu silməyə imkan verir." },
+          { t: "quiz", q: "JS yüklənməsə də işləyən açılan blok?", options: ["<div onclick>", "<details> + <summary>", "<span class=\"toggle\">"], answer: 1, why: "details native elementdir — JS tələb etmir, klaviatura ilə də işləyir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Yekun: «Kurslar» səhifəsini sıfırdan yaz. Tam head (charset, viewport, title, description), skip link, header>nav, main içində h1 və 2 kurs kartı (article: h2, p, şəkil alt+ölçü ilə, link), details ilə 1 sual-cavab, e-poçt abunə forması (label, type=email, required), footer-də kənar sayta təhlükəsiz link.",
+      starter: `<!DOCTYPE html>\n<html lang="az">\n<head>\n\n</head>\n<body>\n\n</body>\n</html>\n`,
+      expect: "DOCTYPE, lang, charset, viewport, title, description; skip link main id-sinə; header>nav, bir main, bir h1, article-larda h2 (səviyyə atlanmır); img-lərdə alt+width+height; details/summary; forma: label for/id, type=email, required, button type=submit; kənar link target=_blank + rel=noopener; div-düymə/span-link, inline onclick yoxdur.",
+    },
+  },
 ];

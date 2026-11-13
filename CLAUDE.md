@@ -44,24 +44,47 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
 - Tapşırığın `starter`-i `<` ilə başlayırsa (CSS/DOM tapşırıqları), `/mesq` onu avtomatik HTML önizləmə rejimində açır.
 - Dil sadə, cümlələr qısa. Termin ilk dəfə gələndə ingilis əsli mötərizədə.
 
-## Vəziyyət (son yeniləmə: 13.11.2026, commit «Giriş ekranı…», zip v4)
+## Vəziyyət (son yeniləmə: 13.11.2026, 117/234 dərs)
 - [x] Mərhələ 1: skelet; giriş ekranı — diaqonal bölünmüş döyüş afişası (mavi FRONT END / qırmızı BACK END), toqquşma + silkələnmə + işıq, klikdə bölmə rəngində lift qapısı (`Gate.tsx`, `DoorIntro.tsx`); header, mövzu siyahısı, dərs səhifəsi, irəliləyiş (localStorage, `src/lib/progress.ts`).
 - [x] Mərhələ 3: məşq səhifəsi `/mesq` — CodeMirror 6; Worker-də icra (`src/lib/runners.ts`): JS, TS (sucrase), Python (Pyodide), SQL (sql.js + nümunə baza: telebeler, kurslar, qeydiyyat); HTML/CSS iframe önizləmə. Runtime-lar `public/runtimes`-ə `scripts/copy-runtimes.mjs` ilə köçürülür (postinstall/prebuild, gitignore-da).
 - [x] Mərhələ 4: AI agent `/api/agent` — **Google Gemini** (istifadəçinin pullu açarı yoxdur, Claude API yox). REST, SDK yox. `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.8-flash`, sənəddən yoxlanmayıb). Sistem promptuna dərs mətni + mövzu linkləri gedir. IP limiti 15/dəq. Açarla hələ SINANMAYIB.
 - [x] Karyera yolu `/[track]/yol` (`src/data/career.ts`): Junior/Middle/Senior, addımlar, layihələr, imtahan (`/mesq?imtahan=backend-junior`; AI «NƏTİCƏ: ✅» → `markPassed`). Yoxlama: `node --experimental-strip-types scripts/check-data.mjs`.
 
 ## QALAN İŞLƏR (sıra ilə)
-1. **Dərslər (əsas iş).** 234 mövzudan 112-si hazırdır: BÜTÜN JUNIOR; `javascript`, `typescript`, `react`, `tailwind` TAM. Növbəti: css qalanları (deyisenler, kecid-animasiya, psevdo, arxitektura, performans), html qalanları (meta, elcatanliq, validasiya, dom, performans, best-practice), nextjs (15); sonra back middle/senior. Karyera sırası ilə yaz:
-   - Sonra Middle, sonra Senior (`career.ts`-dəki `steps` sırası).
-   - Hər dil üçün `src/data/lessons/<dil>.ts` yarat, `index.ts`-də `ALL`-a əlavə et. Qəlib yuxarıda («Məzmun quruluşu»). Hər dərsə `exercise` əlavə et.
-   - Bir partiyada 3–5 dərs yaz → build → istifadəçiyə göstər → davam. Token qənaəti: mövcud dərsi nümunə kimi bir dəfə oxu.
-2. **AI testi:** istifadəçi `.env.local`-a `GEMINI_API_KEY` qoyub yoxlayacaq. Model adı işləməsə `GEMINI_MODEL` dəyişdir.
-3. **Deploy (Vercel):** GitHub hesabı Claude-a QOŞULMAYIB (push mümkün deyil). İstifadəçi https://claude.ai/connect-github qoşmalı + repo yaratmalıdır; sonra push → Vercel-də import, `GEMINI_API_KEY` env.
-4. **İstəyə bağlı (istifadəçi təsdiqi lazım):** qeydiyyat/giriş + verilənlər bazası (C# ASP.NET API və ya Supabase), admin panel (kodsuz dərs əlavə), dərs səhifələrində kiçik AI çat pəncərəsi.
+1. **Dərslər (əsas iş). 234-dən 117-si hazırdır.** Hər dil `src/data/lessons/<dil>.ts`, `index.ts`-dəki `ALL`-a qoşulur. Qəlib yuxarıda («Məzmun quruluşu»). Hər dərsin senior hissəsində TƏHLÜKƏSİZLİK məqamı, hər dərsdə `exercise`.
+   - TAM: css 17, tailwind 12, javascript 22, typescript 13, react 16.
+   - html 10/16 — qalır: meta, elcatanliq, validasiya, dom, performans, best-practice
+   - nextjs 0/15 — giris, app-router, layout, link, server-client, data, dinamik, route-handler, server-actions, kesh, metadata, sekil-font, auth, deploy, senior (fayl yoxdur — yarat)
+   - sql 9/16 — acarlar, alt-sorgu, normallasdirma, index, tranzaksiya, window, optimizasiya (nümunələr məşq bazası ilə: telebeler, kurslar, qeydiyyat; sql.js ilə yoxla)
+   - python 9/18 — comprehension, fayllar, xetalar, modullar, oop, dekorator, async, fastapi, senior
+   - csharp 9/17 — interface, xetalar, generics, linq, delegate, async, yaddas, solid
+   - aspnet 0/16, nestjs 0/15, mysql 0/11, cpp 0/16 (cpp ixtiyari — sona saxla)
+   - Sıra: html → nextjs → sql → python → csharp → aspnet → nestjs → mysql → cpp. Hər partiya 4–5 dərs → `npx tsc --noEmit` → `npm run build` → commit → bu siyahını yenilə.
+   - Qalan dilləri yoxlamaq üçün skript: `python3` ilə languages.ts-dəki slug-ları lessons/*.ts-dəki `slug:` ilə müqayisə et.
+2. **RESPONSIVE DİZAYN — telefon və planşet (istifadəçi istəyi, evdə ediləcək).** Bütün səhifələri 360, 390, 768, 820, 1024 px enlərdə Playwright ilə yoxla (telefon: `devices["iPhone 13"]`, planşet: `devices["iPad Mini"]`), üfüqi scroll OLMAMALIDIR. Yoxlanacaq yerlər:
+   - `Header.tsx`: 360 px-də yuxarı linklər (Karyera yolu, Məşq, digər bölmə) sığmaya bilər → kiçik ekranda ☰ menyu (açılan panel) və ya ikonlar; dil naviqasiyası üfüqi scroll-dur — kənarda kölgə/ox göstəricisi.
+   - `[track]/[lang]/layout.tsx` (mövzu siyahısı sidebar): mobil-də yuxarıda yığılan (collapsible) «Mövzular» düyməsi / drawer; planşetdə dar sidebar.
+   - Dərs səhifəsi: kod blokları `overflow-x-auto`, `terms` cədvəli mobil-də sütunlar alt-alta, quiz düymələri tam en, toxunma hədəfləri ≥ 44 px.
+   - `/mesq` (`Playground.tsx`): mobil-də redaktor → konsol → AI paneli alt-alta, redaktor hündürlüyü ~50vh; planşetdə 2 sütun; idarə paneli (dil/tapşırıq select-ləri) sətrə sığsın (flex-wrap).
+   - `/[track]/yol` (`Roadmap.tsx`), dil kartları, giriş ekranı (`Gate.tsx` mobil-də yuxarı/aşağı bölünür — yoxla), lift qapısı animasiyası.
+   - Şriftlər: başlıqlar `clamp()` və ya `text-3xl md:text-5xl`; `min-h-dvh` (100vh yox).
+   - Landscape telefon (844×390) və 200% zoom.
+   - Hər düzəlişdən sonra ekran şəkli çək, `npx tsc --noEmit` + `npm run build`.
+3. **AI testi:** `.env.local`-a `GEMINI_API_KEY=...` (Google AI Studio-dan pulsuz açar). Model adı işləməsə `GEMINI_MODEL` dəyişdir (məs. `gemini-2.5-flash`). Hələ SINANMAYIB.
+4. **Deploy (Vercel):** GitHub repo yarat → push → vercel.com-da Import → Environment Variables-a `GEMINI_API_KEY`. Build əmri default (`npm run build`; prebuild runtime-ları köçürür).
+5. **İstəyə bağlı (istifadəçi təsdiqi lazım):** qeydiyyat/giriş + DB (Supabase və ya C# API), admin panel, dərs səhifələrində kiçik AI çat, React/Tailwind üçün canlı önizləmə (indi `runnable: "none"` — AI yoxlayır).
+
+## EVDƏ / YENİ KOMPÜTERDƏ DAVAM ETMƏK
+1. Node.js 20+ quraşdır. Zip-i aç (içində `.git` var — tarixçə qalır).
+2. Qovluqda: `npm install` (postinstall Pyodide/sql.js runtime-larını `public/runtimes`-ə köçürür).
+3. `.env.local` yarat: `GEMINI_API_KEY=açarın` (heç vaxt commit etmə, söhbətə yazma).
+4. `npm run dev` → http://localhost:3000. Yoxlama: `npx tsc --noEmit`, `npm run build`.
+5. Claude Code-u bu qovluqda aç və de: **«xatırla, CLAUDE.md-yə bax və davam et»**. Claude bu faylı oxuyub QALAN İŞLƏR-dən davam edəcək.
+6. GitHub qoşulubsa: `git remote add origin <url>` → `git push -u origin master` (və ya main).
 
 ## İstifadəçi haqqında qeydlər
 - Böyük işləri təsdiqsiz görmə — əvvəl soruş, tövsiyə ver.
 - **DƏRSLƏR ÜÇÜN İCAZƏ VAR: «bitirənə qədər davam elə, möhkəm yaz»** — partiyalar arasında soruşma, bütün 234 dərsi bitirənə qədər yaz (hər partiyadan sonra build + commit + bu faylı yenilə; zip-i bir neçə partiyada bir göndər). Hər dərsin senior hissəsində mövzuya aid TƏHLÜKƏSİZLİK məqamı olsun (XSS, injection, CSRF, sirlər və s.).
-- Nəticəni zip kimi istəyir: HƏMİŞƏ EYNİ ad: `rm -f kod-akademiyasi.zip && git archive --format=zip -o kod-akademiyasi.zip HEAD` → SendUserFile (versiya nömrəsi YOX — istifadəçi istəyi). Kompüterinə birbaşa çıxış yoxdur.
+- Nəticəni zip kimi istəyir, HƏMİŞƏ EYNİ ad `kod-akademiyasi.zip` (versiya nömrəsi YOX). `.git` daxil olsun ki, evdə tarixçə qalsın: `rm -f kod-akademiyasi.zip && zip -qr kod-akademiyasi.zip . -x 'node_modules/*' '.next/*' 'public/runtimes/*' '*.zip' '.env.local'` → SendUserFile. Kompüterinə birbaşa çıxış yoxdur.
 - Commit müəllifi: `-c user.name="ilkinQuliyev123" -c user.email="noreply@users.noreply.github.com"`.
 - Yoxlama serveri: `npx next start -p 3100` (köhnəsini əvvəl `pkill -f "next-server|next start"`), Playwright ilə ekran şəkli.

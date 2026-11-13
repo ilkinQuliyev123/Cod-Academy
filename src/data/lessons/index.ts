@@ -3,8 +3,9 @@ import { javascript } from "./javascript";
 import { html } from "./html";
 import { python } from "./python";
 import { css } from "./css";
+import { sql } from "./sql";
 
-const ALL: Record<string, Lesson[]> = { javascript, html, python, css };
+const ALL: Record<string, Lesson[]> = { javascript, html, python, css, sql };
 
 export const getLesson = (lang: string, slug: string) =>
   ALL[lang]?.find((l) => l.slug === slug);

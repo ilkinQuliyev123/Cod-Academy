@@ -721,4 +721,773 @@ DROP TABLE IF EXISTS kohne_cedvel;` },
       expect: "id INTEGER PRIMARY KEY; ad, muellif NOT NULL; qiymet CHECK (qiymet >= 0) (REAL/DECIMAL); isbn UNIQUE; stok DEFAULT 0; INSERT sütun adları ilə; mənfi qiymət CHECK xətası verir.",
     },
   },
+  {
+    slug: "acarlar",
+    title: "Primary və foreign key",
+    intro: "Açarlar cədvəlləri bir-birinə bağlayır. Primary key hər sətri unikal tanıdır, foreign key isə başqa cədvəlin sətrinə istinad edir və «yetim» məlumatın yaranmasına imkan vermir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "PK və FK",
+        blocks: [
+          { t: "analogy", text: "Primary key — şəxsiyyət vəsiqəsinin FİN kodudur: iki nəfərdə eyni ola bilməz, boş ola bilməz. Foreign key — arayışdakı «FİN: 5ABC123» yazısıdır: başqa sənəddəki adama işarə edir. Belə FİN-li adam yoxdursa, arayış etibarsızdır." },
+          { t: "code", lang: "sql", code: `PRAGMA foreign_keys = ON;  -- SQLite-də FK yoxlaması belə açılır
+
+CREATE TABLE muellifler (
+  id INTEGER PRIMARY KEY,
+  ad TEXT NOT NULL
+);
+
+CREATE TABLE kitablar (
+  id         INTEGER PRIMARY KEY,
+  ad         TEXT NOT NULL,
+  muellif_id INTEGER NOT NULL REFERENCES muellifler(id)
+);
+
+INSERT INTO muellifler VALUES (1, 'Nizami');
+INSERT INTO kitablar VALUES (1, 'Xəmsə', 1);    -- olar
+INSERT INTO kitablar VALUES (2, 'Naməlum', 99); -- XƏTA: 99 nömrəli müəllif yoxdur` },
+          { t: "terms", items: [
+            ["PRIMARY KEY (PK)", "sətrin unikal identifikatoru; NULL ola bilməz, təkrarlana bilməz."],
+            ["FOREIGN KEY (FK)", "başqa cədvəlin PK-sına istinad edən sütun."],
+            ["REFERENCES", "FK-nın hansı cədvəl və sütuna bağlandığını göstərir."],
+            ["istinad bütövlüyü (referential integrity)", "hər FK dəyərinin real mövcud sətrə işarə etməsi zəmanəti."],
+          ]},
+          { t: "tip", text: "Məşq bazasında qeydiyyat.telebe_id → telebeler.id və qeydiyyat.kurs_id → kurslar.id foreign key-dir. JOIN-lər məhz bu əlaqə üzrə qurulur." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Əlaqə növləri, mürəkkəb açar, ON DELETE",
+        blocks: [
+          { t: "list", items: [
+            "Birə-çox (1:N): bir müəllifin çox kitabı. FK «çox» tərəfdə dayanır (kitablar.muellif_id).",
+            "Çoxa-çox (N:M): tələbə çox kursa, kurs çox tələbəyə. Aralıq cədvəl lazımdır (qeydiyyat) — iki FK ilə.",
+            "Birə-bir (1:1): istifadəçi və onun profili. FK + UNIQUE.",
+          ]},
+          { t: "code", lang: "sql", caption: "Aralıq cədvəl: mürəkkəb (composite) PK və silinmə qaydası", code: `PRAGMA foreign_keys = ON;
+
+CREATE TABLE istirak (
+  telebe_id INTEGER NOT NULL REFERENCES telebeler(id) ON DELETE CASCADE,
+  kurs_id   INTEGER NOT NULL REFERENCES kurslar(id)   ON DELETE RESTRICT,
+  tarix     TEXT DEFAULT CURRENT_DATE,
+  PRIMARY KEY (telebe_id, kurs_id)   -- eyni cüt iki dəfə yazıla bilməz
+);
+
+INSERT INTO telebeler VALUES (6, 'Kamran', 'Əhmədov', 23, 'Şəki');
+INSERT INTO istirak (telebe_id, kurs_id) VALUES (6, 2), (3, 2);
+
+DELETE FROM telebeler WHERE id = 6;  -- CASCADE: onun istirak sətri də silinir
+SELECT * FROM istirak;               -- yalnız (3, 2) qalır
+-- DELETE FROM kurslar WHERE id = 2; -- RESTRICT: XƏTA, kursa yazılan var` },
+          { t: "code", lang: "text", caption: "Valideyn sətir silinəndə nə olsun?", code: `ON DELETE RESTRICT / NO ACTION   silməyə icazə vermir (default, ən təhlükəsiz)
+ON DELETE CASCADE                asılı sətirləri də silir
+ON DELETE SET NULL               FK-nı NULL edir (sütun nullable olmalıdır)` },
+          { t: "mistake", lang: "sql", wrong: `CREATE TABLE sifarisler (
+  id INTEGER PRIMARY KEY,
+  musteri_id INTEGER  -- FK yoxdur
+);`, right: `CREATE TABLE sifarisler (
+  id INTEGER PRIMARY KEY,
+  musteri_id INTEGER NOT NULL REFERENCES musteriler(id)
+);`, why: "FK olmadan silinmiş müştərinin sifarişləri «yetim» qalır, JOIN-lər sətir itirir, hesabatlar səhv çıxır. Bazanın özü qorusun." },
+          { t: "mistake", lang: "sql", wrong: `CREATE TABLE istifadeciler (
+  email TEXT PRIMARY KEY  -- təbii açar
+);`, right: `CREATE TABLE istifadeciler (
+  id    INTEGER PRIMARY KEY,   -- surroqat açar
+  email TEXT NOT NULL UNIQUE
+);`, why: "Email dəyişə bilər. PK dəyişəndə ona istinad edən bütün cədvəllər yenilənməlidir. Dəyişməyən süni id seç, email-ə UNIQUE qoy." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Açar seçimi, performans və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "PK-ya indeks avtomatik qurulur, FK sütununa isə əksər bazalarda (PostgreSQL, SQL Server) YOX. FK-ya indeks qoymasan, JOIN və valideyn silinməsi bütün cədvəli skan edir.",
+            "Surroqat açar növləri: ardıcıl BIGINT (kiçik, sürətli, sıralı) və ya UUID (paylanmış sistemlərdə rahat, amma təsadüfi UUIDv4 indeksi parçalayır — UUIDv7/ULID vaxta görə sıralıdır).",
+            "CASCADE güclü və təhlükəlidir: bir DELETE milyonlarla sətri apara bilər. Maliyyə və audit məlumatında RESTRICT + «yumşaq silmə» (silinib_tarix sütunu) işlət.",
+            "Böyük cədvələ FK əlavə etmək bütün sətirləri yoxlayır və kilidləyir. PostgreSQL-də NOT VALID ilə əlavə et, sonra VALIDATE CONSTRAINT.",
+            "TƏHLÜKƏSİZLİK — IDOR: ardıcıl id-lər təxmin olunur (/sifaris/1001 → /1002). Əsas müdafiə — hər sorğuda sahibliyi yoxlamaq: WHERE id = ? AND istifadeci_id = ?. Xarici ünvanlarda UUID əlavə qatdır, əvəz deyil.",
+            "TƏHLÜKƏSİZLİK: FK yoxlamasını «sürət üçün» söndürmə (SET FOREIGN_KEY_CHECKS = 0). Zədəli istinadlar icazə yoxlamalarından yan keçən «sahibsiz» qeydlər yaradır.",
+            "TƏHLÜKƏSİZLİK: tətbiq istifadəçisinə DROP/ALTER hüququ vermə — yalnız SELECT/INSERT/UPDATE/DELETE (ən az imtiyaz prinsipi).",
+          ]},
+          { t: "qa", items: [
+            ["Təbii və surroqat açar fərqi?", "Təbii — məlumatın özündən (email, FİN); surroqat — süni id. Surroqat dəyişmir və kiçikdir; təbii dəyərə UNIQUE qoyulur."],
+            ["ON DELETE CASCADE nə vaxt uyğundur?", "Asılı sətir valideynsiz mənasızdırsa (sifarişin sətirləri). Tarixçə və maliyyə məlumatında yox."],
+            ["Niyə FK sütununa indeks lazımdır?", "JOIN-lər və valideyn sətrin silinməsi/yenilənməsi həmin sütunda axtarış edir; indekssiz tam skan olur."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Çoxa-çox əlaqə necə qurulur?", options: ["Bir cədvəldə iki PK ilə", "Aralıq cədvəl və iki FK ilə", "Mümkün deyil"], answer: 1, why: "Aralıq cədvəl hər iki tərəfə istinad edir (qeydiyyat kimi)." },
+          { t: "quiz", q: "Birə-çox əlaqədə FK hansı cədvəldə olur?", options: ["«Bir» tərəfdə", "«Çox» tərəfdə", "Hər ikisində"], answer: 1, why: "Hər kitab bir müəllifə işarə edir — FK kitablardadır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Kitabxana sxemi qur (əvvəl PRAGMA foreign_keys = ON). uzvler (id PK, ad məcburi), kitablar2 (id PK, ad məcburi), icare (uzv_id → uzvler, üzv silinəndə icarələri də silinsin; kitab_id → kitablar2, kitab silinməsinə icazə verilməsin; PK — cüt). 2 üzv, 2 kitab, 3 icarə əlavə et. Sonra mövcud olmayan üzv üçün icarə yazmağa çalış və xətanı gör.",
+      starter: `PRAGMA foreign_keys = ON;\n\nCREATE TABLE uzvler (\n\n);\n`,
+      expect: "Üç cədvəl; icare-də iki FK REFERENCES ilə; uzv_id ON DELETE CASCADE, kitab_id ON DELETE RESTRICT (və ya default); PRIMARY KEY (uzv_id, kitab_id); INSERT-lər işləyir; olmayan üzv üçün INSERT FOREIGN KEY xətası verir.",
+    },
+  },
+  {
+    slug: "alt-sorgu",
+    title: "Alt sorğular",
+    intro: "Alt sorğu (subquery) — sorğunun içində yazılmış başqa sorğudur. Əvvəl içəridəki cavablanır, nəticəsi bayırdakı sorğuda işlədilir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Sorğu içində sorğu",
+        blocks: [
+          { t: "analogy", text: "«Sinifdə ortalamadan hündür olanlar kimdir?» Bu suala cavab üçün əvvəl başqa suala cavab lazımdır: «Ortalama boy nə qədərdir?». Alt sorğu həmin ilk sualdır — mötərizədə yazılır, əvvəl hesablanır." },
+          { t: "code", lang: "sql", code: `-- Orta yaşdan böyük tələbələr
+SELECT ad, yas
+FROM telebeler
+WHERE yas > (SELECT AVG(yas) FROM telebeler);
+
+-- JavaScript kursuna yazılanlar
+SELECT ad
+FROM telebeler
+WHERE id IN (SELECT telebe_id FROM qeydiyyat WHERE kurs_id = 2);` },
+          { t: "terms", items: [
+            ["alt sorğu (subquery)", "mötərizə içində yazılan daxili SELECT."],
+            ["skalyar alt sorğu", "bir sətir, bir sütun — yəni tək dəyər qaytarır; = > < ilə işlənir."],
+            ["IN (alt sorğu)", "dəyərin alt sorğunun qaytardığı siyahıda olub-olmadığını yoxlayır."],
+          ]},
+          { t: "tip", text: "Alt sorğunu ayrıca işlət və nəticəsinə bax — sonra onu böyük sorğuya yerləşdir. Mürəkkəb sorğular belə qurulur: hissə-hissə." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "EXISTS, FROM-da alt sorğu, korrelyasiya, CTE",
+        blocks: [
+          { t: "code", lang: "sql", caption: "EXISTS — «ən azı biri varmı?»", code: `INSERT INTO telebeler VALUES (6, 'Kamran', 'Əhmədov', 23, 'Şəki'); -- hələ kursu yoxdur
+
+-- Heç bir kursa yazılmayan tələbələr
+SELECT t.ad
+FROM telebeler t
+WHERE NOT EXISTS (
+  SELECT 1 FROM qeydiyyat q WHERE q.telebe_id = t.id
+);` },
+          { t: "code", lang: "sql", caption: "Korrelyasiyalı alt sorğu — bayırdakı sətrə istinad edir", code: `-- Hər tələbənin öz ən yüksək balı
+SELECT t.ad,
+       (SELECT MAX(q.bal) FROM qeydiyyat q WHERE q.telebe_id = t.id) AS en_yuksek
+FROM telebeler t;` },
+          { t: "code", lang: "sql", caption: "CTE (WITH) — alt sorğuya ad vermək", code: `WITH ortalar AS (
+  SELECT telebe_id, AVG(bal) AS orta
+  FROM qeydiyyat
+  GROUP BY telebe_id
+)
+SELECT t.ad, ROUND(o.orta, 1) AS orta_bal
+FROM ortalar o
+JOIN telebeler t ON t.id = o.telebe_id
+WHERE o.orta > 85
+ORDER BY o.orta DESC;` },
+          { t: "mistake", lang: "sql", wrong: `SELECT ad FROM telebeler
+WHERE id NOT IN (SELECT telebe_id FROM qeydiyyat);
+-- alt sorğuda bir NULL olsa, nəticə BOŞ çıxır`, right: `SELECT t.ad FROM telebeler t
+WHERE NOT EXISTS (
+  SELECT 1 FROM qeydiyyat q WHERE q.telebe_id = t.id
+);`, why: "NOT IN siyahısında NULL varsa, müqayisə «naməlum» olur və heç bir sətir qayıtmır. NOT EXISTS NULL-dan təsirlənmir." },
+          { t: "mistake", lang: "sql", wrong: `SELECT ad FROM telebeler
+WHERE yas = (SELECT yas FROM telebeler WHERE seher = 'Bakı');
+-- alt sorğu bir neçə sətir qaytarır`, right: `SELECT ad FROM telebeler
+WHERE yas IN (SELECT yas FROM telebeler WHERE seher = 'Bakı');`, why: "= yalnız tək dəyərlə işləyir. Alt sorğu bir neçə sətir qaytara bilirsə, IN, ANY və ya EXISTS işlət (əksər bazalar = ilə xəta verir, SQLite isə səssizcə yalnız birinci sətri götürür — daha pis)." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Planlayıcı necə baxır? Rekursiv CTE, təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Müasir planlayıcılar IN/EXISTS alt sorğusunu semi-join-a, NOT EXISTS-i anti-join-a çevirir — çox vaxt JOIN ilə eyni plan alınır. Oxunaqlılığa görə seç, sonra EXPLAIN ilə yoxla.",
+            "Korrelyasiyalı skalyar alt sorğu SELECT siyahısında hər sətir üçün ayrıca icra oluna bilər (N+1-in SQL variantı). Böyük cədvəldə JOIN + GROUP BY və ya window funksiyası ilə əvəz et.",
+            "CTE: PostgreSQL 12-dən əvvəl həmişə materiallaşırdı (optimizasiya baryeri). İndi tək istifadəli CTE sorğuya əridilir; MATERIALIZED / NOT MATERIALIZED ilə idarə olunur.",
+            "Rekursiv CTE (WITH RECURSIVE) iyerarxiya üçündür: kateqoriya ağacı, təşkilat strukturu, qraf yolu. Mütləq dayanma şərti qoy.",
+            "LATERAL JOIN (PostgreSQL) / CROSS APPLY (SQL Server): hər sətir üçün «ilk N» tipli alt sorğu — məs. hər müştərinin son 3 sifarişi.",
+            "TƏHLÜKƏSİZLİK — SQL injection: alt sorğu hücumçunun əsas alətidir. Zəif yerə ' UNION SELECT parol FROM istifadeciler -- əlavə edib başqa cədvəli oxuyur. Qarşısı yalnız parametrli sorğudur.",
+            "TƏHLÜKƏSİZLİK: çoxkirayəçili (multi-tenant) sistemdə şərti HƏR alt sorğuya yaz. Bayır sorğuda tenant_id = ? var, alt sorğuda unudulub — başqa müştərinin məlumatı sızır. PostgreSQL Row Level Security bunu bazada məcburi edir.",
+            "TƏHLÜKƏSİZLİK: dayanma şərti olmayan rekursiv CTE və ya dekart hasili — DoS. statement_timeout qoy.",
+          ]},
+          { t: "code", lang: "sql", caption: "Rekursiv CTE: 1-dən 5-ə", code: `WITH RECURSIVE sayqac(n) AS (
+  SELECT 1
+  UNION ALL
+  SELECT n + 1 FROM sayqac WHERE n < 5   -- dayanma şərti
+)
+SELECT n FROM sayqac;` },
+          { t: "qa", items: [
+            ["IN ilə EXISTS fərqi?", "IN dəyəri siyahı ilə müqayisə edir; EXISTS sətrin varlığını yoxlayır və ilk uyğunluqda dayanır. NOT IN NULL-la təhlükəlidir, NOT EXISTS yox."],
+            ["Korrelyasiyalı alt sorğu nədir?", "Bayırdakı sorğunun sütununa istinad edən alt sorğu; məntiqən hər bayır sətir üçün yenidən hesablanır."],
+            ["CTE nə vaxt lazımdır?", "Mürəkkəb sorğunu adlı addımlara bölmək, eyni alt nəticəni bir neçə dəfə işlətmək və rekursiya üçün."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "WHERE bal > (SELECT AVG(bal) FROM qeydiyyat) — alt sorğu neçə dəyər qaytarmalıdır?", options: ["Bir", "Ən azı iki", "Fərqi yoxdur"], answer: 0, why: "> operatoru tək (skalyar) dəyər tələb edir." },
+          { t: "quiz", q: "«Olmayanları» tapmaq üçün ən etibarlı yol?", options: ["NOT IN", "NOT EXISTS", "<> ALL"], answer: 1, why: "NOT EXISTS NULL dəyərlərindən təsirlənmir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Üç sorğu yaz: 1) balı bütün balların ortasından yüksək olan qeydiyyatlar (tələbə adı, kurs adı, bal); 2) heç bir tələbənin yazılmadığı kursları NOT EXISTS ilə tap (əvvəl kurslar-a 'Python', 40 əlavə et); 3) CTE ilə hər kursun orta balını hesabla və ortası 80-dən yuxarı olan kursların adını göstər.",
+      starter: `-- 1)\n\n-- 2)\nINSERT INTO kurslar VALUES (5, 'Python', 40);\n\n-- 3)\n`,
+      expect: "1) WHERE bal > (SELECT AVG(bal) FROM qeydiyyat) + iki JOIN; 2) NOT EXISTS korrelyasiyalı alt sorğu, nəticə Python; 3) WITH ... AS (SELECT kurs_id, AVG(bal) ... GROUP BY kurs_id) + JOIN kurslar + WHERE orta > 80. NOT IN işlədilməyib.",
+    },
+  },
+  {
+    slug: "normallasdirma",
+    title: "Normallaşdırma",
+    intro: "Normallaşdırma — cədvəlləri elə bölməkdir ki, hər fakt yalnız bir yerdə saxlansın. Təkrar olmayanda ziddiyyət də olmur: bir yeri dəyişirsən — hər yerdə dəyişir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Təkrarın problemi",
+        blocks: [
+          { t: "analogy", text: "Dostunun nömrəsini beş fərqli dəftərə yazmısan. O, nömrəsini dəyişir — sən üç dəftəri düzəldir, ikisini unudursan. İndi hansı nömrə düzdür? Normallaşdırma — nömrəni bir dəftərdə saxlayıb, digərlərində «bax: telefon dəftəri» yazmaqdır." },
+          { t: "code", lang: "sql", caption: "Pis: hər şey bir cədvəldə", code: `CREATE TABLE sifarisler_pis (
+  id INTEGER PRIMARY KEY,
+  musteri_ad TEXT, musteri_telefon TEXT,
+  mehsullar TEXT   -- 'Qələm, Dəftər, Çanta'
+);
+INSERT INTO sifarisler_pis VALUES
+  (1, 'Aysel', '050-111', 'Qələm, Dəftər'),
+  (2, 'Aysel', '050-999', 'Çanta');   -- telefon fərqlidir: hansı düzdür?
+
+SELECT * FROM sifarisler_pis;` },
+          { t: "list", items: [
+            "Yeniləmə anomaliyası: telefon dəyişəndə bütün sətirləri dəyişməlisən — biri qalsa, ziddiyyət yaranır.",
+            "Əlavə anomaliyası: sifarişi olmayan müştərini yaza bilmirsən.",
+            "Silmə anomaliyası: son sifarişi silsən, müştərinin özü də itir.",
+          ]},
+          { t: "terms", items: [
+            ["normallaşdırma", "təkrarı aradan qaldırmaq üçün cədvəllərin bölünməsi."],
+            ["anomaliya", "təkrar məlumatın yaratdığı ziddiyyət və ya itki."],
+            ["atomar dəyər", "bölünməyən tək dəyər; bir xanada siyahı olmur."],
+          ]},
+        ],
+      },
+      {
+        level: "orta",
+        title: "1NF, 2NF, 3NF",
+        blocks: [
+          { t: "list", items: [
+            "1NF: hər xana atomardır (siyahı yox), təkrarlanan sütun qrupu yoxdur (mehsul1, mehsul2…), hər sətrin açarı var.",
+            "2NF: 1NF + açar olmayan hər sütun BÜTÖV açardan asılıdır (mürəkkəb açarın yalnız bir hissəsindən yox).",
+            "3NF: 2NF + açar olmayan sütun başqa açar olmayan sütundan asılı deyil (tranzitiv asılılıq yoxdur).",
+            "Yadda saxla: hər sütun «açardan, bütöv açardan və yalnız açardan» asılı olmalıdır.",
+          ]},
+          { t: "code", lang: "sql", caption: "Yaxşı: 3NF", code: `CREATE TABLE musteriler (
+  id INTEGER PRIMARY KEY, ad TEXT NOT NULL, telefon TEXT
+);
+CREATE TABLE mehsullar (
+  id INTEGER PRIMARY KEY, ad TEXT NOT NULL, qiymet REAL NOT NULL
+);
+CREATE TABLE sifarisler (
+  id INTEGER PRIMARY KEY,
+  musteri_id INTEGER NOT NULL REFERENCES musteriler(id),
+  tarix TEXT DEFAULT CURRENT_DATE
+);
+CREATE TABLE sifaris_setirleri (
+  sifaris_id INTEGER REFERENCES sifarisler(id),
+  mehsul_id  INTEGER REFERENCES mehsullar(id),
+  say        INTEGER NOT NULL CHECK (say > 0),
+  qiymet     REAL NOT NULL,   -- satış anındakı qiymət (tarixi fakt)
+  PRIMARY KEY (sifaris_id, mehsul_id)
+);` },
+          { t: "mistake", lang: "sql", wrong: `CREATE TABLE telebe (
+  id INTEGER PRIMARY KEY, ad TEXT,
+  kurs1 TEXT, kurs2 TEXT, kurs3 TEXT
+);`, right: `-- telebeler, kurslar və aralıq cədvəl:
+-- qeydiyyat (telebe_id, kurs_id)`, why: "Nömrəli sütunlar 1NF-i pozur: dördüncü kurs üçün cədvəli dəyişməlisən, «SQL-ə yazılanlar» sorğusu üç sütunda axtarmalıdır." },
+          { t: "mistake", lang: "sql", wrong: `CREATE TABLE isciler (
+  id INTEGER PRIMARY KEY, ad TEXT,
+  sobe_id INTEGER, sobe_adi TEXT, sobe_mudiri TEXT
+);`, right: `CREATE TABLE sobeler (id INTEGER PRIMARY KEY, ad TEXT, mudir TEXT);
+CREATE TABLE isciler (
+  id INTEGER PRIMARY KEY, ad TEXT,
+  sobe_id INTEGER REFERENCES sobeler(id)
+);`, why: "sobe_adi işçidən yox, sobe_id-dən asılıdır (tranzitiv asılılıq — 3NF pozulur). Şöbənin adı dəyişəndə yüzlərlə sətir yenilənməli olur." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Denormallaşdırma: nə vaxt qaydanı pozmaq olar?",
+        blocks: [
+          { t: "p", text: "Normallaşdırma yazmanı sadə və təhlükəsiz edir, amma oxuma zamanı JOIN tələb edir. Denormallaşdırma — oxumanı sürətləndirmək üçün şüurlu şəkildə təkrar saxlamaqdır. Bu, optimizasiyadır: ölçmədən əvvəl etmə." },
+          { t: "list", items: [
+            "Qanuni «təkrar»: tarixi fakt. Sifariş sətrindəki qiymət məhsulun indiki qiyməti deyil — satış anının şəklidir. Bu denormallaşdırma deyil, düzgün modeldir.",
+            "Hesablanan sütunlar (sifariş cəmi, rəy sayı): ya hər dəfə hesabla, ya saxla və sinxron saxlamağın yolunu təmin et (trigger, eyni tranzaksiya, materialized view).",
+            "Hesabat/analitika: ulduz sxem (fakt + ölçü cədvəlləri) qəsdən denormaldır. OLTP (əməliyyat) normal, OLAP (analiz) denormal.",
+            "JSON sütunu: struktur dəyişkəndirsə (məhsul xüsusiyyətləri) rahatdır, amma içində axtarış, FK və constraint zəifdir. Əsas əlaqələri JSON-a qoyma.",
+            "BCNF, 4NF, 5NF nəzəri davamdır; praktikada 3NF əksər sistemlər üçün kifayətdir.",
+            "TƏHLÜKƏSİZLİK: həssas məlumatın (email, telefon, FİN) hər nüsxəsi ayrıca sızma nöqtəsidir. Denormal nüsxə şifrələmədən, maskalamadan və «məni unut» (GDPR silmə) prosesindən kənarda qala bilər — məlumat bir yerdə silinir, o birində yaşayır.",
+            "TƏHLÜKƏSİZLİK: icazə məlumatını (rol, sahiblik) təkrar saxlama. Rol bir cədvəldə ləğv olunub, köhnə nüsxədə qalıbsa — istifadəçi hələ də admindir.",
+            "TƏHLÜKƏSİZLİK: ayrı cədvəl ayrı icazə deməkdir. Həssas sütunları (parol_hash, ödəniş) ayrı cədvələ çıxar — hesabat istifadəçisinə yalnız lazımi cədvələ GRANT ver.",
+          ]},
+          { t: "qa", items: [
+            ["3NF-i bir cümlə ilə izah et.", "Açar olmayan hər sütun açardan, bütöv açardan və yalnız açardan asılıdır."],
+            ["Denormallaşdırma nə vaxt əsaslıdır?", "Ölçülmüş oxuma problemi olanda və sinxronluğu təmin edən mexanizm olanda (trigger, materialized view, tranzaksiya)."],
+            ["Sifariş sətrində qiyməti saxlamaq təkrardırmı?", "Xeyr. O, satış anındakı qiymətdir — məhsulun cari qiymətindən fərqli faktdır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Bir xanada 'Qələm, Dəftər, Çanta' saxlamaq hansı formanı pozur?", options: ["1NF", "2NF", "3NF"], answer: 0, why: "1NF atomar dəyər tələb edir." },
+          { t: "quiz", q: "isciler cədvəlində sobe_adi sütunu niyə problemdir?", options: ["Çox yer tutur", "Şöbədən asılıdır, işçidən yox — təkrar və ziddiyyət", "Tipi səhvdir"], answer: 1, why: "Tranzitiv asılılıq — 3NF pozulur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Bu pis cədvəli 3NF-ə gətir: derzler(id, telebe_ad, telebe_email, muellim_ad, muellim_telefon, fennler) — fennler xanasında 'Riyaziyyat, Fizika' kimi siyahı var. Lazımi cədvəlləri CREATE TABLE ilə yaz (PK, FK, NOT NULL, UNIQUE), hər birinə 2 sətir əlavə et və JOIN ilə «tələbə — fənn — müəllim» siyahısını çıxar.",
+      starter: `-- telebeler2, muellimler2, fennler, ... cədvəllərini yarat\n`,
+      expect: "Ən azı 4 cədvəl: tələbələr, müəllimlər, fənlər (müəllimə FK) və aralıq cədvəl (tələbə–fənn, mürəkkəb PK); siyahı sütunu yoxdur; email UNIQUE; müəllim telefonu yalnız müəllim cədvəlində; JOIN sorğusu işləyir.",
+    },
+  },
+  {
+    slug: "index",
+    title: "İndekslər",
+    intro: "İndeks — axtarışı sürətləndirən əlavə quruluşdur. Onsuz baza lazımi sətri tapmaq üçün bütün cədvəli oxuyur; indekslə birbaşa lazımi yerə gedir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Kitabın göstəricisi",
+        blocks: [
+          { t: "analogy", text: "500 səhifəlik kitabda «JOIN» sözünü axtarırsan. Göstərici (indeks) yoxdursa, bütün səhifələri vərəqləyirsən. Kitabın sonundakı əlifba göstəricisində isə: «JOIN — səh. 214». İndeks məhz budur: sıralanmış siyahı + ünvan." },
+          { t: "code", lang: "sql", code: `-- İndekssiz: bütün cədvəl oxunur
+EXPLAIN QUERY PLAN
+SELECT * FROM telebeler WHERE seher = 'Gəncə';
+-- SCAN telebeler
+
+CREATE INDEX idx_telebeler_seher ON telebeler(seher);
+
+-- İndekslə: birbaşa axtarış
+EXPLAIN QUERY PLAN
+SELECT * FROM telebeler WHERE seher = 'Gəncə';
+-- SEARCH telebeler USING INDEX idx_telebeler_seher (seher=?)` },
+          { t: "terms", items: [
+            ["indeks (index)", "sütun dəyərlərinin sıralanmış nüsxəsi + sətrin ünvanı."],
+            ["tam skan (full scan)", "cədvəlin bütün sətirlərinin oxunması."],
+            ["EXPLAIN", "bazanın sorğunu necə icra edəcəyini (planı) göstərir."],
+            ["CREATE INDEX", "indeks yaradır; DROP INDEX silir."],
+          ]},
+          { t: "tip", text: "PRIMARY KEY və UNIQUE sütunlarına indeks avtomatik qurulur. Əl ilə indeks ən çox WHERE, JOIN və ORDER BY-da işlənən sütunlara lazımdır." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Mürəkkəb indeks və indeksin qiyməti",
+        blocks: [
+          { t: "code", lang: "sql", caption: "Mürəkkəb (composite) indeks — sütun sırası vacibdir", code: `CREATE INDEX idx_seher_yas ON telebeler(seher, yas);
+
+-- İşlədir: sol sütundan başlayır
+EXPLAIN QUERY PLAN SELECT * FROM telebeler WHERE seher = 'Bakı';
+EXPLAIN QUERY PLAN SELECT * FROM telebeler WHERE seher = 'Bakı' AND yas > 19;
+
+-- İşlətmir: sol sütun (seher) yoxdur
+EXPLAIN QUERY PLAN SELECT * FROM telebeler WHERE yas > 19;` },
+          { t: "p", text: "Telefon kitabçasını düşün: soyad, sonra ad üzrə sıralanıb. «Quliyev» soyadlıları tapmaq asandır; «adı Tural olan hər kəs» üçün isə bütün kitabı oxumalısan. Mürəkkəb indeks də belədir — soldan sağa işləyir (leftmost prefix)." },
+          { t: "list", items: [
+            "İndeks pulsuz deyil: hər INSERT/UPDATE/DELETE indeksi də yeniləyir və indeks disk tutur.",
+            "Az fərqli dəyəri olan sütun (cins, aktiv/passiv) tək başına zəif indeksdir — onsuz da sətirlərin yarısı qayıdır.",
+            "Kiçik cədvəldə (yüzlərlə sətir) tam skan indeksdən sürətli ola bilər — planlayıcı özü seçir.",
+            "Unikal indeks həm sürət, həm qaydadır: CREATE UNIQUE INDEX ... ON istifadeciler(email).",
+          ]},
+          { t: "mistake", lang: "sql", wrong: `SELECT * FROM telebeler WHERE UPPER(seher) = 'BAKI';
+-- sütuna funksiya tətbiq olunub → indeks işləmir`, right: `SELECT * FROM telebeler WHERE seher = 'Bakı';
+-- və ya ifadə indeksi:
+CREATE INDEX idx_seher_upper ON telebeler(UPPER(seher));`, why: "İndeks sütunun xam dəyərini saxlayır. Sütunu funksiyaya və ya hesablamaya salsan (yas + 1 > 20), indeks istifadə olunmur." },
+          { t: "mistake", lang: "sql", wrong: `SELECT * FROM telebeler WHERE ad LIKE '%sel';
+-- əvvəldə % → indeks işləmir`, right: `SELECT * FROM telebeler WHERE ad LIKE 'Ay%';
+-- prefiks axtarışı indeksi işlədə bilir`, why: "Sıralanmış siyahıda sözün sonuna görə axtarmaq olmur. İçində axtarış üçün tam mətn (full-text) və ya trigram indeksi lazımdır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "B-tree, örtən indeks, planlayıcı və təhlükəsizlik",
+        blocks: [
+          { t: "p", text: "Default indeks B-tree-dir: balanslı ağac, yarpaqları sıralıdır. Axtarış O(log n): milyard sətirdə 4–5 səviyyə. Bərabərlik, aralıq (BETWEEN, >), prefiks LIKE və ORDER BY üçün işləyir. Mürəkkəb indeksdə qayda: əvvəl bərabərlik sütunları, sonra aralıq/sıralama sütunu." },
+          { t: "list", items: [
+            "Örtən indeks (covering): sorğuya lazım olan bütün sütunlar indeksdədirsə, cədvələ heç baxılmır (index-only scan). PostgreSQL/SQL Server-də INCLUDE (...).",
+            "Qismən indeks (partial): CREATE INDEX ... WHERE silinib IS NULL — yalnız lazımi sətirlər, kiçik və sürətli.",
+            "Seçicilik (selectivity): planlayıcı statistikaya baxır. Sətirlərin böyük hissəsi qayıdacaqsa, indeks yerinə skan seçir. Statistika köhnədirsə (ANALYZE), plan pis olur.",
+            "Klasterli indeks: InnoDB və SQL Server-də cədvəlin özü PK üzrə sıralı saxlanır; ikinci dərəcəli indekslər PK-nı saxlayır — uzun PK bütün indeksləri şişirdir.",
+            "Xüsusi növlər: Hash (yalnız =), GIN (JSONB, massiv, tam mətn), GiST (coğrafi), BRIN (çox böyük, təbii sıralı cədvəllər).",
+            "İstifadəsiz indeksləri sil: yazmanı yavaşladır. PostgreSQL-də pg_stat_user_indexes. Production-da CREATE INDEX CONCURRENTLY — cədvəli kilidləmir.",
+            "TƏHLÜKƏSİZLİK — DoS: indekssiz sütunda axtarışa icazə verən açıq API (məs. ?axtar=%a%) hər sorğuda tam skan edir. Hücumçu bir neçə paralel sorğu ilə bazanı dondurur. Filtr sahələrini ağ siyahıya al, LIMIT və statement_timeout qoy.",
+            "TƏHLÜKƏSİZLİK: unikal indeks yarış vəziyyətinə (race condition) qarşı yeganə etibarlı müdafiədir. «Əvvəl SELECT ilə yoxla, sonra INSERT et» iki paralel sorğuda dublikat hesab yaradır.",
+            "TƏHLÜKƏSİZLİK: indeks məlumatın nüsxəsidir. Şifrələnmiş sütunun açıq dəyərinə indeks qurma; unikal pozuntu xətasını istifadəçiyə olduğu kimi göstərmə («bu email artıq var» — hesab siyahıyaalması).",
+          ]},
+          { t: "qa", items: [
+            ["İndeks niyə yazmanı yavaşladır?", "Hər INSERT/UPDATE/DELETE cədvəllə yanaşı bütün əlaqəli indeksləri də yeniləməlidir."],
+            ["(a, b) indeksi WHERE b = 5 üçün işləyirmi?", "Adətən yox — indeks soldan sağa işləyir, a şərti olmadan b üzrə sıralı deyil."],
+            ["Örtən indeks nədir?", "Sorğunun bütün sütunlarını özündə saxlayan indeks; cədvələ müraciət lazım olmur."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "İndeks ən çox hansı əməliyyatı sürətləndirir?", options: ["INSERT", "WHERE ilə axtarış", "DROP TABLE"], answer: 1, why: "İndeks oxumanı sürətləndirir, yazmanı isə bir qədər yavaşladır." },
+          { t: "quiz", q: "(seher, yas) indeksi hansı sorğuda işləmir?", options: ["WHERE seher = 'Bakı'", "WHERE seher = 'Bakı' AND yas = 20", "WHERE yas = 20"], answer: 2, why: "Sol sütun (seher) şərtdə yoxdur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) EXPLAIN QUERY PLAN ilə «qeydiyyat-da bal > 85» sorğusunun planına bax. 2) bal sütununa indeks yarat və planı yenidən yoxla. 3) (kurs_id, bal) mürəkkəb indeksi yarat və «kurs_id = 2 AND bal > 80» sorğusunun onu işlətdiyini göstər. 4) telebeler-in soyad sütununa UNIQUE indeks yarat və eyni soyadlı tələbə əlavə etməyə çalış.",
+      starter: `-- 1)\nEXPLAIN QUERY PLAN\nSELECT * FROM qeydiyyat WHERE bal > 85;\n\n-- 2)\n`,
+      expect: "Əvvəl SCAN, CREATE INDEX ... ON qeydiyyat(bal)-dan sonra SEARCH ... USING INDEX; mürəkkəb indeks (kurs_id, bal) sırası ilə və plan onu göstərir; CREATE UNIQUE INDEX ... ON telebeler(soyad); təkrar soyadlı INSERT UNIQUE constraint xətası verir.",
+    },
+  },
+  {
+    slug: "tranzaksiya",
+    title: "Tranzaksiyalar və ACID",
+    intro: "Tranzaksiya — bir neçə əmri tək bölünməz əməliyyata çevirir: ya hamısı icra olunur, ya heç biri. Pul köçürməsi, sifariş, stok — hər yerdə lazımdır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Ya hamısı, ya heç nə",
+        blocks: [
+          { t: "analogy", text: "Bankomatdan kartdan karta pul köçürürsən. İki addım var: sənin hesabından çıxmaq və dostunun hesabına əlavə etmək. Birinci addımdan sonra işıq sönsə? Pul səndən çıxıb, dostuna çatmayıb. Tranzaksiya deyir: «ikisi də olmayıbsa, heç biri olmayıb» — pul geri qayıdır." },
+          { t: "code", lang: "sql", code: `CREATE TABLE hesablar (
+  id INTEGER PRIMARY KEY,
+  sahib TEXT NOT NULL,
+  balans REAL NOT NULL CHECK (balans >= 0)
+);
+INSERT INTO hesablar VALUES (1, 'Aysel', 100), (2, 'Murad', 50);
+
+BEGIN;
+  UPDATE hesablar SET balans = balans - 30 WHERE id = 1;
+  UPDATE hesablar SET balans = balans + 30 WHERE id = 2;
+COMMIT;   -- dəyişikliklər daimi oldu
+
+BEGIN;
+  UPDATE hesablar SET balans = 0;   -- səhvən WHERE unuduldu!
+  SELECT * FROM hesablar;           -- hamının balansı 0 görünür
+ROLLBACK;                           -- hər şeyi geri qaytar
+
+SELECT * FROM hesablar;             -- 70 və 80 yerindədir` },
+          { t: "p", text: "Tranzaksiyanın içində xəta baş verərsə (məs. balans CHECK qaydasını pozarsa), tətbiq kodu xətanı tutub ROLLBACK çağırmalıdır — yarımçıq dəyişiklik bazada qalmamalıdır." },
+          { t: "terms", items: [
+            ["tranzaksiya", "bir vahid kimi icra olunan əmrlər qrupu."],
+            ["BEGIN", "tranzaksiyanı başladır."],
+            ["COMMIT", "dəyişiklikləri təsdiqləyir — daimi olur."],
+            ["ROLLBACK", "tranzaksiyadakı bütün dəyişiklikləri ləğv edir."],
+          ]},
+          { t: "tip", text: "BEGIN yazmasan, hər əmr özü ayrıca tranzaksiyadır (autocommit) — dərhal təsdiqlənir və geri qaytarılmır." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "ACID və paralel işləmə",
+        blocks: [
+          { t: "list", items: [
+            "A — Atomicity (bölünməzlik): ya hamısı, ya heç biri.",
+            "C — Consistency (uyğunluq): tranzaksiya bazanı bir düzgün vəziyyətdən digərinə aparır; constraint-lər pozulmur.",
+            "I — Isolation (təcrid): paralel tranzaksiyalar bir-birinin yarımçıq işini görmür.",
+            "D — Durability (davamlılıq): COMMIT-dən sonra işıq sönsə də məlumat itmir.",
+          ]},
+          { t: "code", lang: "text", caption: "Təcrid səviyyələri və qarşısını aldığı problemlər", code: `Səviyyə            dirty read   non-repeatable read   phantom
+READ UNCOMMITTED   mümkün       mümkün                mümkün
+READ COMMITTED     yox          mümkün                mümkün     (PostgreSQL, SQL Server default)
+REPEATABLE READ    yox          yox                   mümkün*    (MySQL InnoDB default)
+SERIALIZABLE       yox          yox                   yox        (ən ciddi, ən yavaş)` },
+          { t: "terms", items: [
+            ["dirty read", "başqasının hələ COMMIT etmədiyi dəyişikliyi oxumaq."],
+            ["non-repeatable read", "eyni sətri iki dəfə oxuyanda fərqli nəticə almaq."],
+            ["phantom read", "eyni şərtlə ikinci oxuyuşda yeni sətirlərin peyda olması."],
+            ["lost update", "iki tranzaksiya eyni dəyəri oxuyub yazır — biri digərinin dəyişikliyini silir."],
+          ]},
+          { t: "mistake", lang: "sql", wrong: `-- tətbiq kodunda:
+-- 1) SELECT stok FROM mehsullar WHERE id = 7;  → 1
+-- 2) if (stok > 0) UPDATE mehsullar SET stok = 0 WHERE id = 7;
+-- iki alıcı eyni anda: ikisi də 1 oxuyur, ikisi də alır`, right: `UPDATE mehsullar
+SET stok = stok - 1
+WHERE id = 7 AND stok > 0;
+-- dəyişən sətir sayı 0-dırsa — mal bitib`, why: "«Oxu, yoxla, yaz» ardıcıllığı paralel sorğularda yarış vəziyyəti yaradır. Yoxlamanı və dəyişikliyi bir atomar əmrə sal və ya sətri kilidlə (SELECT … FOR UPDATE)." },
+          { t: "mistake", lang: "sql", wrong: `BEGIN;
+UPDATE hesablar SET balans = balans - 30 WHERE id = 1;
+-- ...xarici API-yə sorğu, 10 saniyə gözləmə...
+COMMIT;`, right: `-- xarici çağırışı tranzaksiyadan ƏVVƏL və ya SONRA et;
+-- tranzaksiya qısa olsun`, why: "Açıq tranzaksiya kilidləri saxlayır: başqa sorğular gözləyir, bağlantılar tükənir. Tranzaksiyanın içində şəbəkə çağırışı və istifadəçi gözləməsi olmamalıdır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "MVCC, kilidlər, deadlock və yarış hücumları",
+        blocks: [
+          { t: "list", items: [
+            "MVCC (PostgreSQL, InnoDB): hər tranzaksiya məlumatın öz «şəklini» (snapshot) görür; oxuyanlar yazanları bloklamır. Əvəzində köhnə versiyalar təmizlənməlidir (VACUUM).",
+            "Pessimist kilid: SELECT … FOR UPDATE sətri tranzaksiya bitənə qədər kilidləyir. Növbə işləri üçün FOR UPDATE SKIP LOCKED.",
+            "Optimist kilid: sətirdə versiya sütunu; UPDATE … WHERE id = ? AND versiya = ?. Sıfır sətir dəyişibsə — başqası qabaqlayıb, yenidən cəhd et.",
+            "Deadlock: A tranzaksiyası 1-ci sətri tutub 2-cini gözləyir, B isə əksinə. Baza birini ləğv edir. Qarşısı: sətirləri həmişə eyni sırada kilidlə, tranzaksiyanı qısa saxla, xətada yenidən cəhd et.",
+            "SERIALIZABLE və deadlock xətaları normaldır — tətbiq onları tutub tranzaksiyanı təkrarlamalıdır.",
+            "Davamlılıq WAL (write-ahead log) ilə təmin olunur: dəyişiklik əvvəl jurnala yazılır, sonra cədvələ. Replikasiya və bərpa da bu jurnala əsaslanır.",
+            "Bir neçə xidmət arasında tək ACID tranzaksiya olmur: saga, outbox nümunəsi və idempotent əməliyyatlar işlədilir.",
+            "TƏHLÜKƏSİZLİK — yarış hücumu (race condition): hücumçu eyni sorğunu paralel 50 dəfə göndərir — bir kuponu 50 dəfə işlədir, balansından artıq pul çıxarır. Müdafiə: atomar UPDATE … WHERE şərt, unikal indeks, FOR UPDATE.",
+            "TƏHLÜKƏSİZLİK — idempotentlik: ödəniş sorğusu şəbəkə xətasına görə təkrarlanırsa, ikiqat çıxılmamalıdır. Müştəri unikal açar (idempotency key) göndərir, server onu UNIQUE sütunda saxlayır.",
+            "TƏHLÜKƏSİZLİK: pul və icazə əməliyyatlarını eyni tranzaksiyada audit cədvəlinə yaz — əməliyyat var, jurnal yoxdur halı olmasın. READ UNCOMMITTED-i maliyyə məlumatında işlətmə.",
+          ]},
+          { t: "code", lang: "sql", caption: "PostgreSQL: sətri kilidləyərək təhlükəsiz köçürmə", code: `BEGIN;
+  SELECT balans FROM hesablar WHERE id = 1 FOR UPDATE;  -- sətir kilidləndi
+  UPDATE hesablar SET balans = balans - 30 WHERE id = 1 AND balans >= 30;
+  UPDATE hesablar SET balans = balans + 30 WHERE id = 2;
+  INSERT INTO audit (hesab_id, mebleg, nov) VALUES (1, -30, 'kocurme');
+COMMIT;` },
+          { t: "qa", items: [
+            ["ACID nədir?", "Atomicity, Consistency, Isolation, Durability — tranzaksiyanın dörd zəmanəti."],
+            ["Optimist və pessimist kilid fərqi?", "Pessimist sətri əvvəlcədən kilidləyir (toqquşma çoxdursa); optimist kilidsiz işləyir və yazanda versiyanı yoxlayır (toqquşma nadirdirsə)."],
+            ["Deadlock-un qarşısı necə alınır?", "Resursları sabit sırada kilidləmək, qısa tranzaksiyalar, xətada yenidən cəhd."],
+            ["Lost update necə baş verir?", "İki tranzaksiya eyni dəyəri oxuyur, hərəsi öz hesablamasını yazır — sonuncu əvvəlkini əzir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Tranzaksiyanın ortasında xəta oldu. Dəyişiklikləri ləğv edən əmr?", options: ["COMMIT", "ROLLBACK", "DELETE"], answer: 1, why: "ROLLBACK BEGIN-dən bəri olan hər şeyi geri qaytarır." },
+          { t: "quiz", q: "COMMIT-dən sonra server sönsə, məlumat qalır. Bu hansı xüsusiyyətdir?", options: ["Atomicity", "Isolation", "Durability"], answer: 2, why: "Durability — təsdiqlənmiş məlumat itmir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "anbar (id PK, mehsul, stok — mənfi ola bilməz) cədvəli yarat, 'Klaviatura' 5 ədəd əlavə et. 1) Tranzaksiya ilə 2 ədəd sat və COMMIT et. 2) Yeni tranzaksiyada 10 ədəd satmağa çalış — yoxlama UPDATE-in öz WHERE şərtində olsun (stok >= 10), sonra ROLLBACK et. 3) Sonda stokun 3 olduğunu SELECT ilə göstər.",
+      starter: `CREATE TABLE anbar (\n\n);\n\nBEGIN;\n-- ...\nCOMMIT;\n`,
+      expect: "stok CHECK (stok >= 0); birinci BEGIN ... UPDATE stok = stok - 2 ... COMMIT; ikinci UPDATE ... WHERE ... AND stok >= 10 (atomar yoxlama) və ROLLBACK; son SELECT stok = 3 göstərir; ayrıca SELECT ilə yoxlayıb sonra UPDATE etmə nümunəsi yoxdur.",
+    },
+  },
+  {
+    slug: "window",
+    title: "Senior: window funksiyaları",
+    intro: "Window funksiyası sətirləri qruplaşdırıb birləşdirmir — hər sətri saxlayır və ona «pəncərədəki» qonşu sətirlər üzrə hesablama əlavə edir: sıra nömrəsi, yığılan cəm, əvvəlki sətirlə fərq.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "OVER — sətri itirmədən hesabla",
+        blocks: [
+          { t: "analogy", text: "GROUP BY — sinfin orta balını lövhəyə yazmaqdır: tələbələr «itir», bir rəqəm qalır. Window funksiyası — hər tələbənin jurnalındakı balının yanına əlavə sütun yazmaqdır: «sinif ortası 82, sən 3-cü yerdəsən». Tələbə də qalır, hesablama da." },
+          { t: "code", lang: "sql", code: `SELECT telebe_id, kurs_id, bal,
+       AVG(bal)     OVER ()                      AS umumi_orta,
+       RANK()       OVER (ORDER BY bal DESC)     AS yer,
+       ROW_NUMBER() OVER (ORDER BY bal DESC)     AS sira
+FROM qeydiyyat;` },
+          { t: "terms", items: [
+            ["window funksiyası", "sətirləri birləşdirmədən, əlaqəli sətirlər çoxluğu üzrə hesablayan funksiya."],
+            ["OVER (...)", "pəncərəni təyin edir; boş OVER () — bütün nəticə."],
+            ["ROW_NUMBER()", "ardıcıl nömrə: 1, 2, 3, 4."],
+            ["RANK()", "yer; bərabərlərdə eyni, sonra boşluq: 1, 2, 2, 4."],
+            ["DENSE_RANK()", "yer; boşluqsuz: 1, 2, 2, 3."],
+          ]},
+          { t: "tip", text: "Fərq: GROUP BY 8 sətirdən 4 qrup düzəldir. Window funksiyası 8 sətri 8 sətir saxlayır və hərəsinə hesablama əlavə edir." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "PARTITION BY, LAG/LEAD, yığılan cəm",
+        blocks: [
+          { t: "code", lang: "sql", caption: "PARTITION BY — hər qrup üçün ayrı pəncərə", code: `SELECT k.ad AS kurs, t.ad AS telebe, q.bal,
+       RANK() OVER (PARTITION BY q.kurs_id ORDER BY q.bal DESC) AS kursda_yer,
+       ROUND(AVG(q.bal) OVER (PARTITION BY q.kurs_id), 1)       AS kurs_ortasi,
+       q.bal - AVG(q.bal) OVER (PARTITION BY q.kurs_id)         AS ortadan_ferq
+FROM qeydiyyat q
+JOIN telebeler t ON t.id = q.telebe_id
+JOIN kurslar  k ON k.id = q.kurs_id
+ORDER BY kurs, kursda_yer;` },
+          { t: "code", lang: "sql", caption: "Hər kursun ən yaxşı tələbəsi (top-N per group)", code: `WITH siralanmis AS (
+  SELECT q.*, ROW_NUMBER() OVER (
+           PARTITION BY kurs_id ORDER BY bal DESC, telebe_id
+         ) AS rn
+  FROM qeydiyyat q
+)
+SELECT kurs_id, telebe_id, bal
+FROM siralanmis
+WHERE rn = 1;` },
+          { t: "code", lang: "sql", caption: "LAG və yığılan cəm (running total)", code: `SELECT telebe_id, kurs_id, bal,
+       LAG(bal) OVER (ORDER BY bal)              AS evvelki_bal,
+       bal - LAG(bal) OVER (ORDER BY bal)        AS ferq,
+       SUM(bal) OVER (ORDER BY bal, telebe_id)   AS yigilan_cem
+FROM qeydiyyat;` },
+          { t: "mistake", lang: "sql", wrong: `SELECT telebe_id, bal,
+       RANK() OVER (ORDER BY bal DESC) AS yer
+FROM qeydiyyat
+WHERE yer <= 3;  -- XƏTA: yer hələ mövcud deyil`, right: `SELECT * FROM (
+  SELECT telebe_id, bal,
+         RANK() OVER (ORDER BY bal DESC) AS yer
+  FROM qeydiyyat
+) s
+WHERE yer <= 3;`, why: "Window funksiyaları WHERE, GROUP BY və HAVING-dən SONRA hesablanır. Nəticəsinə görə filtrləmək üçün alt sorğu və ya CTE lazımdır." },
+          { t: "mistake", lang: "sql", wrong: `ROW_NUMBER() OVER (PARTITION BY kurs_id ORDER BY bal DESC)
+-- eyni ballı iki tələbə: kim birinci olacaq — təsadüfi`, right: `ROW_NUMBER() OVER (PARTITION BY kurs_id ORDER BY bal DESC, telebe_id)`, why: "Sıralama birmənalı deyilsə, nəticə hər icrada dəyişə bilər. ORDER BY-a unikal sütun əlavə et (tiebreaker)." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Çərçivə (frame), icra və təhlükəsizlik",
+        blocks: [
+          { t: "p", text: "Pəncərənin üç hissəsi var: PARTITION BY (bölmə), ORDER BY (sıra) və çərçivə (frame) — cari sətrə nisbətən hansı sətirlər hesablanır. ORDER BY varsa, default çərçivə RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW-dur — yəni «əvvəldən bura qədər»." },
+          { t: "code", lang: "sql", caption: "Sürüşən orta: cari və əvvəlki 2 sətir", code: `SELECT telebe_id, bal,
+       ROUND(AVG(bal) OVER (
+         ORDER BY bal, telebe_id
+         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+       ), 1) AS suruşen_orta
+FROM qeydiyyat;` },
+          { t: "list", items: [
+            "ROWS fiziki sətirləri sayır; RANGE dəyərə görə işləyir və eyni ORDER BY dəyərli sətirləri birlikdə götürür. Yığılan cəmdə bərabər dəyərlər varsa, default RANGE gözlənilməz «sıçrayış» verir — ROWS yaz və ya tiebreaker əlavə et.",
+            "LAST_VALUE tələsi: default çərçivə cari sətirdə bitir, ona görə LAST_VALUE cari sətrin özünü qaytarır. ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING yaz.",
+            "Məntiqi icra sırası: FROM → WHERE → GROUP BY → HAVING → window → SELECT → DISTINCT → ORDER BY → LIMIT. Ona görə window funksiyası aqreqatın üstündə işləyə bilər: SUM(SUM(mebleg)) OVER (...).",
+            "Performans: hər fərqli pəncərə tərifi ayrıca sıralama tələb edir. Eyni tərifi WINDOW w AS (...) ilə adlandırıb təkrar işlət; (partition sütunları, order sütunları) indeksi sıralamanı aradan qaldıra bilər.",
+            "Tipik istifadə: top-N per group, dublikatların silinməsi (rn > 1), ardıcıl günlər (gaps and islands), faiz payı, hərəkətli orta, əvvəlki dövrlə müqayisə.",
+            "NTILE(4) — kvartillərə bölmə; PERCENT_RANK, CUME_DIST — faiz mövqeyi; FIRST_VALUE / NTH_VALUE — pəncərədən konkret sətir.",
+            "TƏHLÜKƏSİZLİK: window funksiyası filtrdən KEÇƏN sətirlər üzrə hesablanır. İcazə filtri (tenant_id, sahiblik) window-dan əvvəl WHERE-də olmalıdır. Filtri bayır sorğuda qoysan, RANK və AVG başqalarının məlumatı üzrə hesablanıb sızır («sən 4827 nəfərdən 12-cisən», orta maaş).",
+            "TƏHLÜKƏSİZLİK — nəticədən çıxarış (inference): kiçik qrupda orta və sıra fərdi dəyəri açır (2 nəfərlik şöbədə orta maaş). Hesabatlarda minimum qrup ölçüsü tətbiq et.",
+            "TƏHLÜKƏSİZLİK: ORDER BY sütununu istifadəçidən gələn sətirlə qurma — sütun adı parametr ola bilmir, ona görə birləşdirmə injection-dur. Yalnız ağ siyahıdan seç.",
+          ]},
+          { t: "qa", items: [
+            ["ROW_NUMBER, RANK, DENSE_RANK fərqi?", "Bərabər dəyərlərdə: ROW_NUMBER 1,2,3,4; RANK 1,2,2,4; DENSE_RANK 1,2,2,3."],
+            ["Niyə window nəticəsini WHERE-də işlətmək olmur?", "WHERE window-dan əvvəl icra olunur. Alt sorğu/CTE lazımdır (bəzi bazalarda QUALIFY var)."],
+            ["ROWS ilə RANGE fərqi?", "ROWS sətir sayına görə, RANGE dəyərə görə çərçivə qurur; bərabər dəyərli sətirlər RANGE-də birlikdə hesablanır."],
+            ["Hər qrupdan ilk N sətri necə alırsan?", "ROW_NUMBER() OVER (PARTITION BY qrup ORDER BY ...) və bayırda WHERE rn <= N."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Ballar: 99, 95, 95, 91. RANK() nəticəsi?", options: ["1, 2, 3, 4", "1, 2, 2, 4", "1, 2, 2, 3"], answer: 1, why: "RANK bərabərlərə eyni yer verir və növbəti yeri atlayır." },
+          { t: "quiz", q: "8 sətirlik cədvəldə AVG(bal) OVER () neçə sətir qaytarır?", options: ["1", "8", "Qrup sayı qədər"], answer: 1, why: "Window funksiyası sətirləri birləşdirmir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Bir sorğu ilə hər qeydiyyat üçün göstər: tələbə adı, kurs adı, bal, kurs daxilində yer (RANK, ən yüksək bal 1-ci), kursun orta balı (1 onluqla) və ümumi sıralamada sıra nömrəsi (ROW_NUMBER, birmənalı). Sonra ikinci sorğu ilə hər tələbənin ən yüksək ballı qeydiyyatını (top-1 per tələbə) CTE + ROW_NUMBER ilə çıxar.",
+      starter: `-- 1)\nSELECT t.ad, k.ad AS kurs, q.bal\n  -- window sütunları\nFROM qeydiyyat q\nJOIN telebeler t ON t.id = q.telebe_id\nJOIN kurslar k ON k.id = q.kurs_id;\n\n-- 2)\n`,
+      expect: "RANK() OVER (PARTITION BY q.kurs_id ORDER BY q.bal DESC); ROUND(AVG(q.bal) OVER (PARTITION BY q.kurs_id), 1); ROW_NUMBER() OVER (ORDER BY q.bal DESC, + unikal tiebreaker); 2-ci sorğuda CTE-də ROW_NUMBER() OVER (PARTITION BY telebe_id ORDER BY bal DESC ...) və bayırda WHERE rn = 1 — 5 sətir; window nəticəsi birbaşa WHERE-də işlədilməyib.",
+    },
+  },
+  {
+    slug: "optimizasiya",
+    title: "Senior: sorğu optimizasiyası",
+    intro: "Yavaş sorğunu təxminlə sürətləndirmək olmur. Senior yanaşma: ölç → planı oxu → səbəbi tap → düzəlt → yenidən ölç. Bu dərs bütün SQL bölməsinin yekunudur.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Əvvəl ölç: EXPLAIN",
+        blocks: [
+          { t: "analogy", text: "Maşın yavaş gedir. Usta kapotu açmadan «mühərriki dəyişək» demir — əvvəl diaqnostika cihazını qoşur. EXPLAIN bazanın diaqnostika cihazıdır: sorğunun hansı yolla icra olunacağını göstərir. Çox vaxt problem mühərrikdə yox, əl əyləcinin çəkili qalmasındadır (çatışmayan bir indeks)." },
+          { t: "code", lang: "sql", code: `EXPLAIN QUERY PLAN
+SELECT t.ad, k.ad, q.bal
+FROM qeydiyyat q
+JOIN telebeler t ON t.id = q.telebe_id
+JOIN kurslar  k ON k.id = q.kurs_id
+WHERE q.bal > 85;
+-- SCAN q                                        ← bütün qeydiyyat oxunur
+-- SEARCH t USING INTEGER PRIMARY KEY (rowid=?)  ← açarla birbaşa
+-- SEARCH k USING INTEGER PRIMARY KEY (rowid=?)` },
+          { t: "terms", items: [
+            ["icra planı (execution plan)", "bazanın sorğunu yerinə yetirmək üçün seçdiyi addımlar."],
+            ["SCAN", "bütün cədvəlin oxunması (böyük cədvəldə bahadır)."],
+            ["SEARCH", "indeks və ya açarla birbaşa tapmaq."],
+            ["planlayıcı (optimizer)", "mümkün planlardan ən ucuzunu seçən baza komponenti."],
+          ]},
+          { t: "tip", text: "PostgreSQL-də EXPLAIN ANALYZE sorğunu həqiqətən icra edib real vaxtı və sətir sayını göstərir. Təxmini sətir sayı realdan çox fərqlidirsə — statistika köhnədir (ANALYZE işlət)." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Ən çox rast gələn səbəblər",
+        blocks: [
+          { t: "list", items: [
+            "Çatışmayan indeks: WHERE, JOIN və ORDER BY sütunlarında.",
+            "SELECT *: lazımsız sütunlar şəbəkəni yükləyir və örtən indeksi mümkünsüz edir.",
+            "N+1: siyahı üçün 1 sorğu + hər sətir üçün 1 sorğu. Bir JOIN və ya IN (...) ilə əvəz et.",
+            "Sargable olmayan şərt: sütuna funksiya, hesablama, əvvəldə % olan LIKE, tip uyğunsuzluğu.",
+            "Böyük OFFSET: əvvəlki bütün sətirlər oxunub atılır — keyset pagination işlət.",
+            "Lazımsız DISTINCT və ya ORDER BY: əlavə sıralama əməliyyatı.",
+          ]},
+          { t: "code", lang: "sql", caption: "Səhifələmə: OFFSET əvəzinə keyset", code: `-- Yavaş (dərin səhifədə): 100000 sətir oxunub atılır
+-- SELECT * FROM qeydiyyat ORDER BY bal DESC LIMIT 20 OFFSET 100000;
+
+-- Sürətli: son gördüyün dəyərdən davam et
+SELECT telebe_id, kurs_id, bal
+FROM qeydiyyat
+WHERE bal < 91            -- əvvəlki səhifənin son balı
+ORDER BY bal DESC
+LIMIT 3;` },
+          { t: "mistake", lang: "sql", wrong: `-- tətbiq kodunda dövr:
+SELECT * FROM telebeler;
+-- hər tələbə üçün ayrıca:
+SELECT * FROM qeydiyyat WHERE telebe_id = 1;
+SELECT * FROM qeydiyyat WHERE telebe_id = 2;
+-- ... 1 + N sorğu`, right: `SELECT t.ad, q.kurs_id, q.bal
+FROM telebeler t
+LEFT JOIN qeydiyyat q ON q.telebe_id = t.id;
+-- 1 sorğu`, why: "Hər sorğunun şəbəkə gediş-gəlişi var. 1000 tələbə — 1001 sorğu. ORM-lərdə bu gizli baş verir: eager loading / JOIN işlət." },
+          { t: "mistake", lang: "sql", wrong: `SELECT * FROM telebeler
+WHERE yas + 1 > 21;`, right: `SELECT id, ad, yas FROM telebeler
+WHERE yas > 20;`, why: "Sütun hesablamanın içindədirsə, indeks işləmir. Hesablamanı sabit tərəfə keçir. Və yalnız lazım olan sütunları seç." },
+          { t: "mistake", lang: "sql", wrong: `SELECT COUNT(*) FROM qeydiyyat WHERE kurs_id = 2;
+-- nəticə > 0 isə «var»`, right: `SELECT EXISTS (SELECT 1 FROM qeydiyyat WHERE kurs_id = 2);`, why: "Varlığı yoxlamaq üçün hamısını saymaq lazım deyil. EXISTS ilk uyğun sətirdə dayanır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Planı oxumaq, sistem səviyyəsi və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Planı içəridən bayıra oxu. Bax: tam skanlar, təxmini və real sətir sayının fərqi, diskə düşən sıralama/heş, böyük cədvəldə nested loop.",
+            "JOIN alqoritmləri: nested loop (kiçik + indeks), hash join (böyük, bərabərlik), merge join (hər iki tərəf sıralı). Planlayıcı statistikaya görə seçir — statistika səhvdirsə, seçim də səhvdir.",
+            "Parametr «iyləmə» (parameter sniffing): keşlənmiş plan ilk parametrə görə qurulur və başqa dəyər üçün pis ola bilər (SQL Server-də tez-tez).",
+            "Yavaş sorğuları tap: pg_stat_statements, MySQL slow query log, SQL Server Query Store. Ən çox CƏMİ vaxt aparan sorğunu optimallaşdır — ən yavaş tək sorğunu yox.",
+            "Sorğudan kənar: bağlantı hovuzu (connection pool), oxuma replikaları, keş (Redis), materialized view, arxivləmə və partition — amma əvvəl sorğunu və indeksi düzəlt.",
+            "Yazma tərəfi: toplu INSERT (batch), böyük UPDATE/DELETE-i hissələrə böl (kilid və jurnal şişməsin), tranzaksiyanı qısa saxla.",
+            "Vaxtından əvvəl optimizasiya etmə: düzgün sxem + əsas indekslər + ölçmə. Hər indeks yazmanın qiymətidir.",
+            "TƏHLÜKƏSİZLİK — parametrli sorğu həm təhlükəsizlik, həm sürətdir: injection-u bağlayır VƏ plan keşini işlədir. Sətir birləşdirmə ilə qurulan hər sorğu yeni plan tələb edir və hücuma açıqdır.",
+            "TƏHLÜKƏSİZLİK — resurs tükətmə (DoS): limitsiz sorğuya icazə vermə. Həmişə LIMIT (maksimum səhifə ölçüsü serverdə məhdudlaşsın), statement_timeout, sıralama/filtr sahələri ağ siyahıdan. Bir bahalı sorğunu paralel çağıran hücumçu bazanı dayandırır.",
+            "TƏHLÜKƏSİZLİK — vaxta əsaslanan sızma: cavab vaxtı məlumat açır (kor SQL injection məhz belə işləyir: şərt doğrudursa gecikmə). Xəta mesajlarında SQL mətni, cədvəl adı və plan göstərmə.",
+            "TƏHLÜKƏSİZLİK: yavaş sorğu jurnalında parametr dəyərləri (email, token, şəxsi məlumat) qala bilər — jurnalı qoru və maskala. Tətbiq istifadəçisinə ən az imtiyaz ver; hesabatlar üçün yalnız oxuma hüquqlu ayrıca istifadəçi.",
+          ]},
+          { t: "code", lang: "sql", caption: "Düzəlişi sübut et: əvvəl və sonra", code: `EXPLAIN QUERY PLAN
+SELECT telebe_id, bal FROM qeydiyyat WHERE kurs_id = 2 AND bal > 80;
+-- SCAN qeydiyyat
+
+CREATE INDEX idx_qeyd_kurs_bal ON qeydiyyat(kurs_id, bal, telebe_id);
+
+EXPLAIN QUERY PLAN
+SELECT telebe_id, bal FROM qeydiyyat WHERE kurs_id = 2 AND bal > 80;
+-- SEARCH qeydiyyat USING COVERING INDEX idx_qeyd_kurs_bal (kurs_id=? AND bal>?)` },
+          { t: "qa", items: [
+            ["Yavaş sorğunu necə araşdırırsan?", "Ölçürəm, EXPLAIN (ANALYZE) ilə planı oxuyuram: skanlar, sətir təxminləri, sıralamalar. Səbəbi tapıb düzəldirəm (indeks, sorğunun yenidən yazılması), sonra yenidən ölçürəm."],
+            ["N+1 problemi nədir?", "Siyahı üçün 1 sorğu, sonra hər element üçün ayrıca sorğu. JOIN, IN və ya ORM-in eager loading-i ilə həll olunur."],
+            ["Sargable nə deməkdir?", "Search ARGument ABLE — şərtin indeksdən istifadə edə bilməsi. Sütuna funksiya/hesablama tətbiq etmək bunu pozur."],
+            ["İndeks əlavə etmək həmişə kömək edirmi?", "Xeyr. Yazmanı yavaşladır, yer tutur; az seçici sütunda planlayıcı onu işlətmir. Hər indeks ölçmə ilə əsaslandırılmalıdır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Optimizasiyanın ilk addımı?", options: ["İndeks əlavə etmək", "Ölçmək və planı oxumaq", "Serveri böyütmək"], answer: 1, why: "Səbəbi bilmədən edilən dəyişiklik təxmindir." },
+          { t: "quiz", q: "100 müəllif və hər biri üçün ayrıca «kitabları» sorğusu — bu nədir?", options: ["Deadlock", "N+1 problemi", "Normallaşdırma"], answer: 1, why: "1 + N sorğu; bir JOIN ilə əvəz olunmalıdır." },
+          { t: "quiz", q: "Parametrli sorğunun iki faydası?", options: ["Sürət və rəng", "Injection-dan qorunma və plan keşi", "Az yer və çox indeks"], answer: 1, why: "Dəyər koddan ayrı ötürülür; plan təkrar istifadə olunur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Bu yavaş sorğunu optimallaşdır və sübut et: SELECT * FROM qeydiyyat q, telebeler t WHERE q.telebe_id = t.id AND UPPER(t.seher) = 'BAKI' AND q.bal + 0 > 80 ORDER BY q.bal DESC. 1) EXPLAIN QUERY PLAN ilə əvvəlki planı göstər. 2) Sorğunu yenidən yaz: açıq JOIN, yalnız lazımi sütunlar (ad, kurs_id, bal), sargable şərtlər. 3) Uyğun indeks(lər) yarat. 4) Yeni planı göstər.",
+      starter: `-- 1) əvvəlki plan\nEXPLAIN QUERY PLAN\nSELECT * FROM qeydiyyat q, telebeler t\nWHERE q.telebe_id = t.id AND UPPER(t.seher) = 'BAKI' AND q.bal + 0 > 80\nORDER BY q.bal DESC;\n\n-- 2) yeni sorğu\n`,
+      expect: "Yeni sorğuda JOIN ... ON, SELECT * yoxdur; t.seher = 'Bakı' (funksiyasız) və q.bal > 80 (hesablamasız); ən azı bir CREATE INDEX (məs. telebeler(seher) və/və ya qeydiyyat(telebe_id, bal)); iki EXPLAIN QUERY PLAN — sonuncuda SEARCH ... USING INDEX görünür; nəticə eyni sətirləri qaytarır.",
+    },
+  },
 ];

@@ -44,20 +44,20 @@ Next.js qaydaları üçün @AGENTS.md (bu versiya fərqlidir — şübhədə `no
 - Tapşırığın `starter`-i `<` ilə başlayırsa (CSS/DOM tapşırıqları), `/mesq` onu avtomatik HTML önizləmə rejimində açır.
 - Dil sadə, cümlələr qısa. Termin ilk dəfə gələndə ingilis əsli mötərizədə.
 
-## Vəziyyət (son yeniləmə: 14.11.2026, 138/220 dərs — FRONT END TAM)
+## Vəziyyət (son yeniləmə: 14.11.2026, 145/220 dərs — FRONT END TAM, SQL TAM)
 - [x] Mərhələ 1: skelet; giriş ekranı — diaqonal bölünmüş döyüş afişası (mavi FRONT END / qırmızı BACK END), toqquşma + silkələnmə + işıq, klikdə bölmə rəngində lift qapısı (`Gate.tsx`, `DoorIntro.tsx`); header, mövzu siyahısı, dərs səhifəsi, irəliləyiş (localStorage, `src/lib/progress.ts`).
 - [x] Mərhələ 3: məşq səhifəsi `/mesq` — CodeMirror 6; Worker-də icra (`src/lib/runners.ts`): JS, TS (sucrase), Python (Pyodide), SQL (sql.js + nümunə baza: telebeler, kurslar, qeydiyyat); HTML/CSS iframe önizləmə. Runtime-lar `public/runtimes`-ə `scripts/copy-runtimes.mjs` ilə köçürülür (postinstall/prebuild, gitignore-da).
 - [x] Mərhələ 4: AI agent `/api/agent` — **Google Gemini** (istifadəçinin pullu açarı yoxdur, Claude API yox). REST, SDK yox. `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.8-flash`, sənəddən yoxlanmayıb). Sistem promptuna dərs mətni + mövzu linkləri gedir. IP limiti 15/dəq. Açarla hələ SINANMAYIB.
 - [x] Karyera yolu `/[track]/yol` (`src/data/career.ts`): Junior/Middle/Senior, addımlar, layihələr, imtahan (`/mesq?imtahan=backend-junior`; AI «NƏTİCƏ: ✅» → `markPassed`). Yoxlama: `node --experimental-strip-types scripts/check-data.mjs`.
 
 ## QALAN İŞLƏR (sıra ilə)
-1. **Dərslər (əsas iş). 220-dən 138-i hazırdır** (əvvəlki «234» build-dəki yol sayı idi; mövzu sayı 220-dir). Hər dil `src/data/lessons/<dil>.ts`, `index.ts`-dəki `ALL`-a qoşulur. Qəlib yuxarıda («Məzmun quruluşu»). Hər dərsin senior hissəsində TƏHLÜKƏSİZLİK məqamı, hər dərsdə `exercise`.
+1. **Dərslər (əsas iş). 220-dən 145-i hazırdır** (əvvəlki «234» build-dəki yol sayı idi; mövzu sayı 220-dir). Hər dil `src/data/lessons/<dil>.ts`, `index.ts`-dəki `ALL`-a qoşulur. Qəlib yuxarıda («Məzmun quruluşu»). Hər dərsin senior hissəsində TƏHLÜKƏSİZLİK məqamı, hər dərsdə `exercise`.
    - TAM (Front End bütöv): html 16, css 17, tailwind 12, javascript 22, typescript 13, react 16, nextjs 15 (Next 16 sənədinə görə yazılıb: proxy.ts, "use cache", cacheLife/cacheTag/updateTag, params Promise, Image `preload`).
-   - sql 9/16 — acarlar, alt-sorgu, normallasdirma, index, tranzaksiya, window, optimizasiya (nümunələr məşq bazası ilə: telebeler, kurslar, qeydiyyat; sql.js ilə yoxla)
+   - TAM (Back End): sql 16 (bütün runnable nümunələr sql.js-də məşq bazası ilə sınanıb).
    - python 9/18 — comprehension, fayllar, xetalar, modullar, oop, dekorator, async, fastapi, senior
    - csharp 9/17 — interface, xetalar, generics, linq, delegate, async, yaddas, solid
    - aspnet 0/16, nestjs 0/15, mysql 0/11, cpp 0/16 (cpp ixtiyari — sona saxla)
-   - Sıra: sql → python → csharp → aspnet → nestjs → mysql → cpp. Hər partiya 4–5 dərs → `npx tsc --noEmit` → `npm run build` → commit → bu siyahını yenilə.
+   - Sıra: python → csharp → aspnet → nestjs → mysql → cpp. Hər partiya 4–5 dərs → `npx tsc --noEmit` → `npm run build` → commit → bu siyahını yenilə.
    - Qalan dərsləri göstərən skript: `node --experimental-strip-types scripts/check-lessons.mjs`.
    - Dərs kodunda backtick və `${` varsa escape et — dərs kodu template literal içindədir.
    - DİQQƏT: eyni qovluqda iki Claude sessiyası paralel işləməsin (14.11-də belə oldu) — eyni faylı iki tərəf yazarsa iş itir.

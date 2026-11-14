@@ -17,7 +17,10 @@ interface Body {
 
 // Birinci model yüklənibsə (503) və ya tapılmasa (404), növbəti sınanır
 const MODELS = [...new Set([process.env.GEMINI_MODEL || "gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash"])];
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 15_000;
+const TOTAL_MS = 50_000; // Vercel funksiya limitindən (maxDuration) əvvəl cavab ver
+/** Vercel: funksiya 504 ilə kəsilməsin (AI gec cavab verəndə) */
+export const maxDuration = 60;
 const LIMIT = { body: 40_000, code: 8000, output: 3000, msg: 2000, msgs: 12, perMin: 15, ips: 5000, perHour: 900 };
 const LANG_IDS = new Set(LANGUAGES.map((l) => l.id));
 
@@ -150,22 +153,28 @@ export async function POST(req: Request) {
     generationConfig: { temperature: 0.4, maxOutputTokens: 4000 }, // düşünmə tokenləri də bu limitə daxildir
   });
 
+  // Müvəqqəti yüklənmədə (503/500/404) bütün modelləri sınayır; hamısı yüklüdürsə 1 dəfə təkrar edir
+  const started = Date.now();
   let res: Response | null = null;
-  for (const model of MODELS) {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: payload,
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    }).catch(() => null);
-    // Yalnız müvəqqəti / model xətalarında növbətiyə keç; 429 və 4xx-də dayan
-    if (res && (res.ok || ![404, 500, 503].includes(res.status))) break;
+  rounds: for (let round = 0; round < 2; round++) {
+    for (const model of MODELS) {
+      if (Date.now() - started > TOTAL_MS - TIMEOUT_MS) break rounds;
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: payload,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      }).catch(() => null);
+      // Yalnız müvəqqəti / model xətalarında növbətiyə keç; 429 və 4xx-də dayan
+      if (res && (res.ok || ![404, 500, 503].includes(res.status))) break rounds;
+    }
+    if (round === 0) await new Promise((r) => setTimeout(r, 1200));
   }
 
   if (!res) return json({ error: "AI serverinə qoşulmaq olmadı." }, 502);
   if (!res.ok) {
     const status = res.status === 429 ? 429 : 502;
-    const msg = res.status === 429 ? "AI-nin pulsuz limiti doldu. Bir az sonra yenə yoxla." : `AI xətası (${res.status}).`;
+    const msg = res.status === 429 ? "AI-nin pulsuz limiti doldu. Bir az sonra yenə yoxla." : "AI müvəqqəti yüklüdür. Bir neçə saniyə sonra yenidən yoxla.";
     return json({ error: msg }, status);
   }
   const data = await res.json().catch(() => null);

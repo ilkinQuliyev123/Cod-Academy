@@ -34,7 +34,7 @@ export default function AgentPanel({ lang, topic, exam, getContext, checkSignal 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode, lang, topic, exam, ...getContext(), messages: history }),
       });
-      const d = await res.json();
+      const d: { text?: string; error?: string } = await res.json().catch(() => ({ error: "Server gözlənilməz cavab qaytardı. Bir az sonra yenidən yoxla." }));
       const passed = exam && mode === "check" && /NƏTİCƏ:\s*✅[^\n]*\s*$/.test(d.text ?? "");
       if (passed) markPassed(exam);
       setMsgs([...history, { role: "model", text: (d.text ?? `⚠ ${d.error ?? "Xəta baş verdi"}`) + (passed ? "\n\n🎉 **Təbriklər! Mərhələ imtahanını keçdin.** Karyera yolunda növbəti mərhələ açıldı." : "") }]);

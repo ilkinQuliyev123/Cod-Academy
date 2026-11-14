@@ -21,7 +21,7 @@ Deploy-dan əvvəl yoxlama siyahısı və saytın mövcud müdafiələri.
 1. `GEMINI_API_KEY` yalnız Vercel → Settings → Environment Variables (Production). Heç vaxt `NEXT_PUBLIC_` prefiksi ilə yazma.
 2. Açarı Google AI Studio-da yalnız Gemini API ilə məhdudlaşdır; kvotanı aşağı saxla.
 3. Repo-ya `.env.local` düşməyib: `git ls-files | grep env` yalnız `.env.example` göstərməlidir.
-4. Deploy-dan sonra yoxla: `curl -sI https://SAYT | grep -i -E "content-security|strict-transport|x-frame"`; `/mesq`-in CSP-sində `unsafe-eval` olmalı, `/frontend`-də olmamalıdır.
+4. Deploy-dan sonra `node scripts/smoke.mjs https://SAYT` işlət (aşağıdakıları avtomatik yoxlayır). Əl ilə yoxla: `curl -sI https://SAYT | grep -i -E "content-security|strict-transport|x-frame"`; `/mesq`-in CSP-sində `unsafe-eval` olmalı, `/frontend`-də olmamalıdır.
 5. `curl -X POST https://SAYT/api/agent -H "Origin: https://evil.example" -H "Content-Type: application/json" -d "{}"` → 403.
 6. İlk gün Vercel loglarında 429/403 sayına bax; limit pozuntusu varsa `LIMIT` dəyərlərini azalt.
 

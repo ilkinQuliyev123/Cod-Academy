@@ -89,9 +89,9 @@ export default function Playground({ langs, langId, topic, task, starter, tasks,
         </p>
       )}
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <div className="flex min-h-0 flex-col gap-4">
-          <div className="min-h-[320px] flex-1 overflow-hidden rounded-xl border border-line">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <div className="flex min-h-0 min-w-0 flex-col gap-4">
+          <div className="min-h-[320px] min-w-0 flex-1 overflow-hidden rounded-xl border border-line">
             <Editor value={starter} editor={lang.editor} resetKey={`${langId}/${topic}`} onChange={(v) => (code.current = v)} onRun={onRun} />
           </div>
           {/* Nəticə */}

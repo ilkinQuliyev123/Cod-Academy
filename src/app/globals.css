@@ -25,6 +25,7 @@ html {
   color-scheme: dark;
 }
 body {
+  overflow-x: clip; /* dekorativ qatlamlar üfüqi scroll yaratmasın */
   background: var(--color-ink);
   color: #e5e7eb;
 }

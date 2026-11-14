@@ -74,7 +74,7 @@ export default function Roadmap({ track, stages, names }: {
                           const d = done.has(`${st.lang}/${t}`);
                           return (
                             <li key={t}>
-                              <Link href={`/${track}/${st.lang}/${t}`} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-300 hover:bg-white/5 hover:text-white">
+                              <Link href={`/${track}/${st.lang}/${t}`} className="flex items-center gap-2 rounded px-2 py-2.5 md:py-1 text-sm text-slate-300 hover:bg-white/5 hover:text-white">
                                 <span className={d ? "text-accent" : "text-slate-600"}>{d ? "✓" : "○"}</span>
                                 {n.topics[t]}
                               </Link>
@@ -104,7 +104,7 @@ export default function Roadmap({ track, stages, names }: {
                   <p className="font-mono text-[11px] uppercase tracking-widest text-accent">🎓 Mərhələ imtahanı · {names[s.exam.lang].name}</p>
                   <p className="mt-1 text-sm text-slate-200">{s.exam.task}</p>
                 </div>
-                <Link href={`/mesq?imtahan=${exam}`} className="rounded-lg bg-accent px-4 py-2 text-sm font-bold text-ink hover:brightness-110">
+                <Link href={`/mesq?imtahan=${exam}`} className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 py-2 text-sm font-bold text-ink hover:brightness-110">
                   {ok ? "Yenidən həll et" : "İmtahana gir →"}
                 </Link>
               </div>

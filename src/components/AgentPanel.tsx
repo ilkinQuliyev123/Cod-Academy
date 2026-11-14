@@ -35,7 +35,7 @@ export default function AgentPanel({ lang, topic, exam, getContext, checkSignal 
         body: JSON.stringify({ mode, lang, topic, exam, ...getContext(), messages: history }),
       });
       const d = await res.json();
-      const passed = exam && mode === "check" && /NƏTİCƏ:\s*✅/.test(d.text ?? "");
+      const passed = exam && mode === "check" && /NƏTİCƏ:\s*✅[^\n]*\s*$/.test(d.text ?? "");
       if (passed) markPassed(exam);
       setMsgs([...history, { role: "model", text: (d.text ?? `⚠ ${d.error ?? "Xəta baş verdi"}`) + (passed ? "\n\n🎉 **Təbriklər! Mərhələ imtahanını keçdin.** Karyera yolunda növbəti mərhələ açıldı." : "") }]);
     } catch {
@@ -53,7 +53,7 @@ export default function AgentPanel({ lang, topic, exam, getContext, checkSignal 
   }, [checkSignal]);
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col rounded-xl border border-line bg-panel">
+    <section className="flex min-h-[24rem] min-w-0 flex-1 flex-col rounded-xl border border-line bg-panel lg:min-h-0">
       <header className="flex items-center gap-2 border-b border-line px-4 py-2.5">
         <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />

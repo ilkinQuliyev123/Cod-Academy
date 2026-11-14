@@ -7,7 +7,7 @@ export default function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={() => navigator.clipboard.writeText(text).then(() => { setOk(true); setTimeout(() => setOk(false), 1200); })}
-      className="font-mono text-[10px] text-slate-500 hover:text-accent"
+      className="-my-2 inline-flex min-h-10 items-center px-2 font-mono text-[10px] text-slate-500 hover:text-accent"
     >
       {ok ? "kopyalandı ✓" : "kopyala"}
     </button>

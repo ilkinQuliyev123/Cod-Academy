@@ -31,7 +31,7 @@ export default function TopicList({ lang, ready }: { lang: Language; ready: stri
             <li key={t.slug}>
               <Link
                 href={href}
-                className={`flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                className={`flex items-center gap-3 rounded-md px-2 py-2.5 md:py-1.5 text-sm transition-colors ${
                   on ? "bg-accent/15 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
                 }`}
               >

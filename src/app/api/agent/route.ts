@@ -18,7 +18,7 @@ interface Body {
 // Birinci model yüklənibsə (503) və ya tapılmasa (404), növbəti sınanır
 const MODELS = [...new Set([process.env.GEMINI_MODEL || "gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash"])];
 const TIMEOUT_MS = 20_000;
-const LIMIT = { body: 40_000, code: 8000, output: 3000, msg: 2000, msgs: 12, perMin: 15, ips: 5000 };
+const LIMIT = { body: 40_000, code: 8000, output: 3000, msg: 2000, msgs: 12, perMin: 15, ips: 5000, perHour: 900 };
 const LANG_IDS = new Set(LANGUAGES.map((l) => l.id));
 
 // Sadə IP limiti (serverless-də hər instansiya üçün ayrıca — əsas qoruma kimi kifayətdir)
@@ -31,6 +31,42 @@ function limited(ip: string) {
   hits.set(ip, arr);
   return arr.length > LIMIT.perMin;
 }
+
+// Ümumi saatlıq büdcə (instansiya üzrə): çoxlu IP ilə açarın limitini yandırmağa qarşı ehtiyat kəsici
+let budget = { start: Date.now(), n: 0 };
+function overBudget() {
+  const now = Date.now();
+  if (now - budget.start > 3_600_000) budget = { start: now, n: 0 };
+  return ++budget.n > LIMIT.perHour;
+}
+
+/** Müştəri IP-si: platformanın qoyduğu başlıqlara üstünlük (istifadəçi tərəfindən saxtalaşdırıla bilən X-Forwarded-For-un ilk elementinə yox) */
+function clientIp(req: Request) {
+  const h = req.headers;
+  return (h.get("x-vercel-forwarded-for") ?? h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",").at(-1) ?? "local").trim().slice(0, 64);
+}
+
+/** İstifadəçi mətnini ``` hasarından çıxa bilməyəcək hala salır (prompt-injection / format pozma) */
+const fence = (t: string) => t.replace(/`{3,}/g, "ʼʼʼ");
+
+/** Gövdəni ölçü limiti ilə oxuyur (Content-Length yalan ola bilər / chunked) */
+async function readLimited(req: Request, max: number): Promise<string | null> {
+  const reader = req.body?.getReader();
+  if (!reader) return "";
+  const dec = new TextDecoder();
+  let out = "";
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return out + dec.decode();
+    size += value.byteLength;
+    if (size > max) { await reader.cancel().catch(() => {}); return null; }
+    out += dec.decode(value, { stream: true });
+  }
+}
+
+const NO_STORE = { "Cache-Control": "no-store" };
+const json = (data: unknown, status = 200) => Response.json(data, { status, headers: NO_STORE });
 
 function systemPrompt(b: Body) {
   const lang = LANGUAGES.find((l) => l.id === b.lang);
@@ -59,42 +95,45 @@ ${lesson ? `\n--- DƏRS MƏTNİ ---\n${lessonText(lesson).slice(0, 6000)}\n--- S
 }
 
 export async function POST(req: Request) {
-  // Yalnız öz saytımızdan gələn sorğular (başqa sayt bizim AI limitimizi yandırmasın)
+  // Yalnız öz saytımızdan gələn brauzer sorğuları (başqa sayt bizim AI limitimizi yandırmasın)
   const origin = req.headers.get("origin");
   const host = req.headers.get("host");
   const sameSite = (() => { try { return !origin || new URL(origin).host === host; } catch { return false; } })();
-  if (!sameSite)
-    return Response.json({ error: "İcazə yoxdur" }, { status: 403 });
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (!sameSite || (fetchSite && fetchSite !== "same-origin"))
+    return json({ error: "İcazə yoxdur" }, 403);
+  if (!(req.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json"))
+    return json({ error: "Yanlış sorğu" }, 415);
   if (Number(req.headers.get("content-length") ?? 0) > LIMIT.body)
-    return Response.json({ error: "Sorğu çox böyükdür" }, { status: 413 });
+    return json({ error: "Sorğu çox böyükdür" }, 413);
 
   const key = process.env.GEMINI_API_KEY;
-  if (!key) return Response.json({ error: "AI açarı qoşulmayıb (GEMINI_API_KEY)." }, { status: 503 });
+  if (!key) return json({ error: "AI açarı qoşulmayıb (GEMINI_API_KEY)." }, 503);
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "local";
-  if (limited(ip)) return Response.json({ error: "Çox tez-tez sorğu. Bir dəqiqə gözlə." }, { status: 429 });
+  if (limited(clientIp(req))) return json({ error: "Çox tez-tez sorğu. Bir dəqiqə gözlə." }, 429);
+  if (overBudget()) return json({ error: "AI müvəqqəti yüklənib. Bir az sonra yenə yoxla." }, 429);
 
   let b: Body;
   try {
-    const raw = await req.text();
-    if (raw.length > LIMIT.body) return Response.json({ error: "Sorğu çox böyükdür" }, { status: 413 });
+    const raw = await readLimited(req, LIMIT.body);
+    if (raw === null) return json({ error: "Sorğu çox böyükdür" }, 413);
     b = JSON.parse(raw);
-  } catch { return Response.json({ error: "Yanlış sorğu" }, { status: 400 }); }
-  if (!b || typeof b !== "object" || (b.mode !== "check" && b.mode !== "chat") || !LANG_IDS.has(b.lang))
-    return Response.json({ error: "Yanlış sorğu" }, { status: 400 });
+  } catch { return json({ error: "Yanlış sorğu" }, 400); }
+  if (!b || typeof b !== "object" || (b.mode !== "check" && b.mode !== "chat") || typeof b.lang !== "string" || !LANG_IDS.has(b.lang))
+    return json({ error: "Yanlış sorğu" }, 400);
   if (typeof b.topic !== "string" || !getLesson(b.lang, b.topic)) b.topic = undefined;
   if (typeof b.exam !== "string" || !getExam(b.exam)) b.exam = undefined;
 
-  const code = String(b.code ?? "").slice(0, LIMIT.code);
-  const output = String(b.output ?? "").slice(0, LIMIT.output);
+  const code = fence(String(b.code ?? "").slice(0, LIMIT.code));
+  const output = fence(String(b.output ?? "").slice(0, LIMIT.output));
   const history = (Array.isArray(b.messages) ? b.messages : [])
     .filter((m): m is Msg => !!m && typeof m === "object" && typeof m.text === "string")
     .slice(-LIMIT.msgs).map((m) => ({
     role: m.role === "model" ? "model" : "user",
-    parts: [{ text: String(m.text).slice(0, LIMIT.msg) }],
+    parts: [{ text: fence(String(m.text).slice(0, LIMIT.msg)) }],
   }));
 
-  if (b.mode === "chat" && !history.length) return Response.json({ error: "Sual boşdur" }, { status: 400 });
+  if (b.mode === "chat" && !history.length) return json({ error: "Sual boşdur" }, 400);
 
   const ctx = `Tələbənin kodu:\n\`\`\`\n${code || "(boş)"}\n\`\`\`\nİcra nəticəsi / xətalar:\n${output || "(işə salınmayıb)"}`;
   const contents =
@@ -123,13 +162,13 @@ export async function POST(req: Request) {
     if (res && (res.ok || ![404, 500, 503].includes(res.status))) break;
   }
 
-  if (!res) return Response.json({ error: "AI serverinə qoşulmaq olmadı." }, { status: 502 });
+  if (!res) return json({ error: "AI serverinə qoşulmaq olmadı." }, 502);
   if (!res.ok) {
     const status = res.status === 429 ? 429 : 502;
     const msg = res.status === 429 ? "AI-nin pulsuz limiti doldu. Bir az sonra yenə yoxla." : `AI xətası (${res.status}).`;
-    return Response.json({ error: msg }, { status });
+    return json({ error: msg }, status);
   }
-  const data = await res.json();
+  const data = await res.json().catch(() => null);
   const text: string = data?.candidates?.[0]?.content?.parts?.filter((p: { thought?: boolean }) => !p.thought).map((p: { text?: string }) => p.text ?? "").join("") ?? "";
-  return Response.json({ text: text || "Cavab alınmadı, yenidən cəhd et." });
+  return json({ text: text || "Cavab alınmadı, yenidən cəhd et." });
 }

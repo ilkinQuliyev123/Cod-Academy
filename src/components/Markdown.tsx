@@ -5,7 +5,7 @@ import CodeBlock from "./CodeBlock";
 /** AI cavabları üçün kiçik, təhlükəsiz markdown (innerHTML yox, yalnız daxili linklər) */
 function inline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
-  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|\[([^\]]+)\]\((\/[^)\s]*)\)/g;
+  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|\[([^\]]+)\]\((\/(?![\/\\])[^)\s]*)\)/g;
   let last = 0;
   for (const m of text.matchAll(re)) {
     out.push(text.slice(last, m.index));

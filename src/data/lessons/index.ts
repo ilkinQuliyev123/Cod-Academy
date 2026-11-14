@@ -11,8 +11,16 @@ import { tailwind } from "./tailwind";
 import { nextjs } from "./nextjs";
 import { mysql } from "./mysql";
 import { aspnet } from "./aspnet";
+import { nestjs as nest } from "./nestjs";
+import { nestjsB } from "./nestjs-b";
+import { nestjsC } from "./nestjs-c";
+import { nestjsD } from "./nestjs-d";
+import { cppA } from "./cpp-a";
+import { cppB } from "./cpp-b";
+import { cppC } from "./cpp-c";
+import { cppD } from "./cpp-d";
 
-const ALL: Record<string, Lesson[]> = { javascript, html, python, css, sql, csharp, typescript, react, tailwind, nextjs, mysql, aspnet };
+const ALL: Record<string, Lesson[]> = { javascript, html, python, css, sql, csharp, typescript, react, tailwind, nextjs, mysql, aspnet, nestjs: [...nest, ...nestjsB, ...nestjsC, ...nestjsD], cpp: [...cppA, ...cppB, ...cppC, ...cppD] };
 
 export const getLesson = (lang: string, slug: string) =>
   ALL[lang]?.find((l) => l.slug === slug);

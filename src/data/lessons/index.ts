@@ -10,8 +10,9 @@ import { react } from "./react";
 import { tailwind } from "./tailwind";
 import { nextjs } from "./nextjs";
 import { mysql } from "./mysql";
+import { aspnet } from "./aspnet";
 
-const ALL: Record<string, Lesson[]> = { javascript, html, python, css, sql, csharp, typescript, react, tailwind, nextjs, mysql };
+const ALL: Record<string, Lesson[]> = { javascript, html, python, css, sql, csharp, typescript, react, tailwind, nextjs, mysql, aspnet };
 
 export const getLesson = (lang: string, slug: string) =>
   ALL[lang]?.find((l) => l.slug === slug);

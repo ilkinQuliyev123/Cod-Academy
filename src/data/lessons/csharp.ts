@@ -1556,4 +1556,820 @@ public async Task<List<SifarisDto>> SifarisleriAl(int istifadeciId, string siral
       expect: "1) Where + OrderBy + Select; 2) OrderByDescending + Take(3); 3) GroupBy + Select anonim tip (Key, Count(), Average); 4) Sum(m => m.Qiymet * m.Stok); 5) FirstOrDefault + null yoxlaması (First yox); 6) Any (Count() > 0 yox); foreach/for ilə əl filtri yoxdur; decimal saxlanılıb.",
     },
   },
+  {
+    slug: "delegate",
+    title: "Delegate, lambda, event",
+    intro: "Delegate — metodu dəyişən kimi saxlamağa və başqa metoda ötürməyə imkan verən tipdir. Lambda onu qısa yazmağın yolu, event isə «nəsə baş verdi» xəbərini abunəçilərə çatdırmaq üsuludur.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Metodu dəyişəndə saxlamaq",
+        blocks: [
+          { t: "analogy", text: "Delegate — vizit kartıdır. Kartda ustanın özü yox, ona necə zəng etmək yazılıb. Kartı kimə versən, lazım olanda o zəng edəcək. Event isə qəzet abunəsidir: abunə olursan, yeni nömrə çıxanda sənə özü gəlir." },
+          { t: "code", lang: "csharp", code: `// Hazır delegate tipləri
+Func<int, int, int> topla = (a, b) => a + b;        // 2 giriş, int qaytarır
+Action<string> salamla = ad => Console.WriteLine($"Salam, {ad}!");   // heç nə qaytarmır
+Predicate<int> cutdur = n => n % 2 == 0;            // bool qaytarır
+
+Console.WriteLine(topla(3, 4));    // 7
+salamla("Aysel");                  // Salam, Aysel!
+Console.WriteLine(cutdur(10));     // True
+
+// Metodu parametr kimi ötürmək
+int Hesabla(int a, int b, Func<int, int, int> emeliyyat) => emeliyyat(a, b);
+
+Console.WriteLine(Hesabla(6, 3, (x, y) => x * y));   // 18
+Console.WriteLine(Hesabla(6, 3, Math.Max));          // 6 — hazır metod da olar` },
+          { t: "terms", items: [
+            ["delegate", "metoda istinad saxlayan tip; imzası (parametrlər və qaytardığı tip) sabitdir."],
+            ["Func<T, TResult>", "dəyər qaytaran hazır delegate; sonuncu tip — nəticənin tipidir."],
+            ["Action<T>", "heç nə qaytarmayan (void) hazır delegate."],
+            ["Predicate<T>", "bool qaytaran delegate — şərt yoxlaması üçün."],
+            ["lambda", "adsız qısa funksiya: (parametrlər) => ifadə."],
+          ]},
+          { t: "tip", text: "Öz delegate tipini yazmağa nadir hallarda ehtiyac olur. Func və Action demək olar ki, bütün halları örtür." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Lambda, closure və event",
+        blocks: [
+          { t: "code", lang: "csharp", code: `// Çoxsətirli lambda
+Func<int, string> qiymetlendir = bal =>
+{
+    if (bal >= 91) return "Əla";
+    if (bal >= 51) return "Keçdi";
+    return "Kəsildi";
+};
+
+// Closure: lambda kənar dəyişəni «tutur»
+int sayac = 0;
+Action artir = () => sayac++;
+artir(); artir();
+Console.WriteLine(sayac);   // 2
+
+// Event: yayımçı sinif
+public class Sifaris
+{
+    public event EventHandler<SifarisArgs>? Tamamlandi;
+
+    public void Tamamla(decimal mebleg)
+    {
+        // ... iş görülür
+        Tamamlandi?.Invoke(this, new SifarisArgs(mebleg));   // abunəçi yoxdursa null-dur
+    }
+}
+
+public class SifarisArgs(decimal mebleg) : EventArgs
+{
+    public decimal Mebleg { get; } = mebleg;
+}
+
+// Abunəçi
+var sifaris = new Sifaris();
+sifaris.Tamamlandi += (gonderen, e) => Console.WriteLine($"Ödənildi: {e.Mebleg} AZN");
+sifaris.Tamamlandi += EmailGonder;
+sifaris.Tamamla(120m);
+sifaris.Tamamlandi -= EmailGonder;    // abunəni ləğv et
+
+void EmailGonder(object? gonderen, SifarisArgs e) => Console.WriteLine("Email göndərildi");` },
+          { t: "p", text: "Event — məhdudlaşdırılmış delegate-dir: kənardan yalnız += və -= etmək olar. Onu çağırmaq (Invoke) və ya sıfırlamaq yalnız sinfin öz içində mümkündür. Bu, abunəçilərin bir-birini silməsinin qarşısını alır." },
+          { t: "mistake", lang: "csharp", wrong: `var isler = new List<Action>();
+for (int i = 0; i < 3; i++)
+    isler.Add(() => Console.WriteLine(i));
+
+foreach (var f in isler) f();   // 3 3 3`, right: `for (int i = 0; i < 3; i++)
+{
+    int nusxe = i;                       // hər dövrə öz dəyişəni
+    isler.Add(() => Console.WriteLine(nusxe));
+}
+// 0 1 2`, why: "Lambda dəyişənin dəyərini yox, özünü tutur. for-da i bir dəyişəndir və dövr bitəndə 3-dür. Lokal nüsxə götür. (foreach-də bu problem yoxdur — hər addımda yeni dəyişən yaranır.)" },
+          { t: "mistake", lang: "csharp", wrong: `public class Panel
+{
+    public Panel(Sifaris s) => s.Tamamlandi += Yenile;   // abunə olur, heç vaxt çıxmır
+    void Yenile(object? g, SifarisArgs e) { }
+}`, right: `public sealed class Panel : IDisposable
+{
+    private readonly Sifaris _s;
+    public Panel(Sifaris s) { _s = s; _s.Tamamlandi += Yenile; }
+    public void Dispose() => _s.Tamamlandi -= Yenile;
+    void Yenile(object? g, SifarisArgs e) { }
+}`, why: "Yayımçı abunəçiyə istinad saxlayır. Abunə ləğv olunmasa, abunəçi obyekt GC tərəfindən yığılmır — yaddaş sızması (memory leak). Uzunömürlü yayımçıya abunə olursansa, -= etməyi unutma." },
+          { t: "mistake", lang: "csharp", wrong: `public Action<string>? MesajGeldi;   // açıq delegate sahəsi
+// kənardan: obj.MesajGeldi = null;  — bütün abunəçilər silindi`, right: `public event Action<string>? MesajGeldi;   // yalnız += və -=`, why: "Açıq delegate sahəsini hər kəs sıfırlaya və ya çağıra bilər. event açar sözü bunu qadağan edir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Daxili quruluş, performans, təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Delegate — sinifdir (System.MulticastDelegate): hədəf obyekt (Target) və metod göstəricisi (Method) saxlayır. += yeni delegate yaradır (dəyişməzdir), çağırış siyahısı ardıcıl icra olunur.",
+            "Çoxlu abunəçidə yalnız sonuncunun nəticəsi qayıdır. Biri istisna atsa, qalanlar çağırılmır. Hamısını çağırmaq lazımdırsa, GetInvocationList() ilə gəz və hər birini try/catch-ə al.",
+            "Closure kompilyator tərəfindən gizli sinfə çevrilir: tutulan dəyişənlər onun sahələri olur və heap-də yaşayır. İsti dövrdə closure-lu lambda hər dəfə yaddaş ayırır.",
+            "static lambda (static x => x * 2) heç nə tuta bilməz — kompilyator delegate-i keşləyir, ayırma olmur. Vəziyyəti parametr kimi ötür.",
+            "Expression<Func<T, bool>> — kodun özü yox, onun ağac təsviridir. EF Core onu SQL-ə çevirir. Func isə kompilyasiya olunmuş koddur — bazaya tərcümə edilə bilməz.",
+            "Event çağırışında yarış: Tamamlandi?.Invoke(...) təhlükəsizdir, çünki dəyəri bir dəfə oxuyur. Köhnə «if (X != null) X(...)» iki oxunuş arasında null ola bilər.",
+            "async void yalnız event handler üçündür. İstisnası tutulmur və prosesi yıxa bilər — içində mütləq try/catch olsun.",
+            "Zəif event (weak event) və ya IObservable/Channel uzunömürlü yayımçılarda sızmanın qarşısını alır.",
+            "Təhlükəsizlik — dinamik çağırış: istifadəçidən gələn sətrlə metod seçmə (reflection: GetMethod(ad).Invoke). Hücumçu gizli metodu çağıra bilər. Yalnız ağ siyahı: Dictionary<string, Func<...>>.",
+            "Təhlükəsizlik — abunəçi etibarsızdır: plugin və ya kənar kod event-ə abunə olursa, onun istisnası və ya ləngiməsi sənin axınını dayandırır (DoS). Hər abunəçini ayrıca, try/catch və vaxt limiti ilə çağır.",
+            "Təhlükəsizlik — closure-da sirr: lambda parol və ya tokeni tutursa, o, delegate yaşadıqca yaddaşda qalır və dump-a düşə bilər. Sirri tutma, lazım olanda xidmətdən al.",
+            "Təhlükəsizlik — deserializasiya: delegate və ya tip adlarını etibarsız mənbədən deserializasiya etmə (BinaryFormatter qadağandır) — bu, uzaqdan kod icrasına (RCE) aparır.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Ağ siyahı ilə əməliyyat seçimi və təhlükəsiz yayım", code: `private static readonly Dictionary<string, Func<decimal, decimal, decimal>> Emeliyyatlar = new()
+{
+    ["topla"] = static (a, b) => a + b,
+    ["cix"] = static (a, b) => a - b,
+    ["vur"] = static (a, b) => a * b,
+};
+
+public static decimal Icra(string ad, decimal a, decimal b) =>
+    Emeliyyatlar.TryGetValue(ad, out var f)
+        ? f(a, b)
+        : throw new ArgumentException("Naməlum əməliyyat");
+
+// Bir abunəçinin xətası digərlərini dayandırmasın
+public void Yay(SifarisArgs e)
+{
+    var siyahi = Tamamlandi?.GetInvocationList();
+    if (siyahi is null) return;
+
+    foreach (EventHandler<SifarisArgs> abuneci in siyahi)
+    {
+        try { abuneci(this, e); }
+        catch (Exception ex) { _log.LogError(ex, "Abunəçi xətası"); }
+    }
+}` },
+          { t: "qa", items: [
+            ["Delegate nədir?", "Müəyyən imzalı metoda (və ya metodlara) istinad saxlayan tip təhlükəsiz obyekt."],
+            ["Func, Action, Predicate fərqi?", "Func dəyər qaytarır, Action void-dir, Predicate<T> bool qaytaran tək parametrli delegate-dir."],
+            ["Event ilə delegate sahəsinin fərqi?", "Event kənardan yalnız += / -= icazə verir; çağırmaq və mənimsətmək yalnız sinfin daxilində mümkündür."],
+            ["Closure nədir və hansı riski var?", "Lambda-nın kənar dəyişəni tutmasıdır. Dəyişən paylaşılır (for tələsi), heap-də ayrılır və obyektin ömrünü uzada bilər."],
+            ["Event niyə yaddaş sızması yarada bilər?", "Yayımçı abunəçiyə güclü istinad saxlayır; abunə ləğv olunmasa abunəçi yığılmır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Heç nə qaytarmayan metod üçün hansı delegate?", options: ["Func", "Action", "Predicate"], answer: 1, why: "Action void metodlar üçündür." },
+          { t: "quiz", q: "Func<int, string, bool> nə qaytarır?", options: ["int", "string", "bool"], answer: 2, why: "Func-da sonuncu tip nəticənin tipidir." },
+          { t: "quiz", q: "Event-ə kənardan nə etmək olar?", options: ["Çağırmaq", "= null yazmaq", "Yalnız += və -="], answer: 2, why: "Event yalnız abunə olmağa və çıxmağa icazə verir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Temperatur sensoru yaz. 1) `Sensor` sinfində `event EventHandler<TemperaturArgs>? HeddiAsdi` olsun. 2) `Olc(double derece)` metodu dərəcə 30-dan böyükdürsə event-i qaldırsın. 3) İki abunəçi qoş: biri konsola xəbərdarlıq yazsın, o biri (lambda) aşma sayını sayğacda artırsın. 4) 25, 31, 35 dəyərlərini ölç, sonda sayğacı çap et. 5) Birinci abunəçini -= ilə çıxar və 40 ölç. 6) Ayrıca `Func<double, double>` ilə Selsini Farengeytə çevirən lambda yaz və işlət.",
+      starter: `var sensor = new Sensor();\n\n// abunəçilər, ölçmələr\n\npublic class TemperaturArgs(double derece) : EventArgs\n{\n    public double Derece { get; } = derece;\n}\n\npublic class Sensor\n{\n    // event və Olc metodu\n}\n`,
+      expect: "event EventHandler<TemperaturArgs>? elan olunub (açıq delegate sahəsi yox); Olc içində HeddiAsdi?.Invoke(this, new TemperaturArgs(derece)) yalnız derece > 30 olanda; iki abunəçi += ilə qoşulub, biri adlı metod (çıxarmaq üçün), biri sayğacı artıran lambda (closure); sayğac 2 çap olunur; -= ilə abunə ləğv edilib; Func<double, double> c => c * 9 / 5 + 32.",
+    },
+  },
+  {
+    slug: "async",
+    title: "async/await və Task",
+    intro: "Asinxron kod gözləmə tələb edən işlərdə (şəbəkə, fayl, baza) axını (thread) boş saxlamır. async/await bu kodu adi ardıcıl kod kimi yazmağa imkan verir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Gözləyərkən başqa iş görmək",
+        blocks: [
+          { t: "analogy", text: "Restoranda ofisiant sifarişi mətbəxə verir və yemək bişənə qədər qapıda dayanmır — başqa masalara xidmət edir. Yemək hazır olanda qayıdıb onu gətirir. await — «hazır olanda davam edərəm» deməkdir." },
+          { t: "code", lang: "csharp", code: `using var http = new HttpClient();
+
+string metn = await SehifeniYukle("https://example.com");
+Console.WriteLine(metn.Length);
+
+async Task<string> SehifeniYukle(string url)
+{
+    Console.WriteLine("Yüklənir...");
+    string cavab = await http.GetStringAsync(url);   // burada axın sərbəst qalır
+    Console.WriteLine("Hazırdır");
+    return cavab;
+}
+
+async Task Gozle()
+{
+    await Task.Delay(1000);     // 1 saniyə — axını bloklamadan
+    Console.WriteLine("1 saniyə keçdi");
+}` },
+          { t: "terms", items: [
+            ["async", "metodun içində await işlədilə biləcəyini bildirir."],
+            ["await", "tapşırıq bitənə qədər metodu dayandırır, axını isə buraxır."],
+            ["Task", "gələcəkdə bitəcək iş (nəticəsiz)."],
+            ["Task<T>", "gələcəkdə T tipli nəticə verəcək iş."],
+            ["Async şəkilçisi", "asinxron metodun adı adətən ...Async ilə bitir (GetStringAsync)."],
+          ]},
+          { t: "tip", text: "Qayda sadədir: Task qaytaran metodu çağırırsansa, qarşısına await yaz. await yazdığın metod isə async olmalıdır." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Paralel işlər, ləğv və xətalar",
+        blocks: [
+          { t: "code", lang: "csharp", code: `// Ardıcıl: 3 saniyə
+var a = await QiymetAl("AZN");
+var b = await QiymetAl("USD");
+var c = await QiymetAl("EUR");
+
+// Eyni vaxtda: ~1 saniyə
+Task<decimal> t1 = QiymetAl("AZN");
+Task<decimal> t2 = QiymetAl("USD");
+Task<decimal> t3 = QiymetAl("EUR");
+decimal[] hamisi = await Task.WhenAll(t1, t2, t3);
+
+// Hansı birinci bitsə
+Task birinci = await Task.WhenAny(t1, t2);
+
+// Ləğv (cancellation) və vaxt limiti
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+try
+{
+    var netice = await UzunIs(cts.Token);
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine("Vaxt bitdi, ləğv olundu");
+}
+
+async Task<int> UzunIs(CancellationToken ct)
+{
+    for (int i = 0; i < 100; i++)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Task.Delay(100, ct);        // tokeni aşağı ötür
+    }
+    return 42;
+}
+
+// Xəta adi try/catch ilə tutulur
+try { await http.GetStringAsync("https://yoxdur.invalid"); }
+catch (HttpRequestException ex) { Console.WriteLine(ex.Message); }
+
+// Asinxron axın
+await foreach (var setir in SetirleriOxu("log.txt"))
+    Console.WriteLine(setir);
+
+async IAsyncEnumerable<string> SetirleriOxu(string yol)
+{
+    using var oxuyan = new StreamReader(yol);
+    while (await oxuyan.ReadLineAsync() is { } setir)
+        yield return setir;
+}` },
+          { t: "p", text: "await «axın yaratmır». Giriş-çıxış (I/O) işlərində heç bir axın gözləmir — əməliyyat sistemi iş bitəndə xəbər verir. Ağır hesablama (CPU) üçün isə Task.Run işi axın hovuzuna (thread pool) göndərir." },
+          { t: "mistake", lang: "csharp", wrong: `string metn = SehifeniYukle(url).Result;     // bloklayır
+SehifeniYukle(url).Wait();`, right: `string metn = await SehifeniYukle(url);`, why: ".Result və .Wait() axını bloklayır. UI və köhnə ASP.NET-də bu deadlock (qarşılıqlı kilid) yaradır, serverdə isə axın hovuzunu tükəndirir. Asinxronluq zəncirin sonuna qədər getməlidir («async all the way»)." },
+          { t: "mistake", lang: "csharp", wrong: `async void Saxla()          // xətanı tutmaq olmur
+{
+    await db.SaveChangesAsync();
+}`, right: `async Task Saxla()
+{
+    await db.SaveChangesAsync();
+}`, why: "async void-i gözləmək olmur, istisnası çağırana çatmır və prosesi yıxa bilər. Həmişə Task qaytar. Yeganə istisna — event handler." },
+          { t: "mistake", lang: "csharp", wrong: `SaxlaAsync();               // await unudulub — «atəş aç və unut»
+Console.WriteLine("Saxlandı");`, right: `await SaxlaAsync();
+Console.WriteLine("Saxlandı");`, why: "await olmasa kod işin bitməsini gözləmir, xəta isə səssizcə itir. Kompilyator CS4014 xəbərdarlığı verir — onu ciddi qəbul et." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Vəziyyət maşını, performans, təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Kompilyator async metodu vəziyyət maşınına (state machine) çevirir: hər await bir vəziyyətdir, lokal dəyişənlər strukturun sahələri olur. Tapşırıq bitməyibsə, davam (continuation) qeydə alınır və metod qayıdır.",
+            "SynchronizationContext: UI tətbiqində await-dən sonra kod UI axınına qayıdır. ASP.NET Core-da kontekst yoxdur — davam hovuzun istənilən axınında icra olunur.",
+            "Kitabxana kodunda ConfigureAwait(false) kontekstə qayıtmanı söndürür: deadlock riskini azaldır, bir az sürətlidir. ASP.NET Core tətbiq kodunda lazım deyil.",
+            "ValueTask<T> — nəticə çox vaxt sinxron hazır olanda (keş) ayırmanı azaldır. Qaydası sərtdir: yalnız bir dəfə await et, saxlama, .Result götürmə.",
+            "Task.Run yalnız CPU işi üçündür. Serverdə I/O-nu Task.Run-a bükmək faydasızdır — bir axını azad edib başqasını tutursan.",
+            "Axın hovuzu aclığı (thread pool starvation): bloklayan çağırışlar (.Result, Thread.Sleep, sinxron I/O) hovuzu tükəndirir, gecikmə kəskin artır. «Sync over async» ən çox rast gələn production problemidir.",
+            "Paralelliyi məhdudlaşdır: 10 000 sorğunu Task.WhenAll-a vermə. SemaphoreSlim, Parallel.ForEachAsync (MaxDegreeOfParallelism) və ya Channel işlət.",
+            "WhenAll-da bir neçə tapşırıq xəta versə, await yalnız birincini atır; hamısı task.Exception-dadır (AggregateException).",
+            "lock içində await olmaz — SemaphoreSlim.WaitAsync işlət. AsyncLocal<T> dəyəri await-lər arasında daşıyır.",
+            "IDisposable əvəzinə IAsyncDisposable: await using var x = ...; — bağlanış da asinxron olsun.",
+            "Təhlükəsizlik — vaxt limiti və ləğv (DoS): xarici çağırışın limiti yoxdursa, yavaş cavab verən server (slowloris) bütün axınlarını və bağlantılarını tutur. HttpClient.Timeout, CancellationToken və HttpContext.RequestAborted həmişə ötürülsün.",
+            "Təhlükəsizlik — limitsiz paralellik: istifadəçinin göndərdiyi siyahının hər elementi üçün tapşırıq açma. Siyahı ölçüsünü yoxla, paralelliyi məhdudlaşdır — əks halda bir sorğu bazanın bağlantı hovuzunu tükəndirir.",
+            "Təhlükəsizlik — yarış vəziyyəti (race condition): «yoxla, sonra et» arasında await varsa, başqa sorğu araya girir (balansı iki dəfə xərcləmək, eyni kuponu iki dəfə işlətmək). Baza tranzaksiyası, unikal məhdudiyyət və ya atom əməliyyatı (UPDATE ... WHERE balans >= @m) işlət.",
+            "Təhlükəsizlik — paylaşılan vəziyyət: static sahədə və ya singleton xidmətdə «cari istifadəçi» saxlama. Asinxron sorğular qarışır və bir istifadəçi başqasının məlumatını görür. Vəziyyəti sorğu səviyyəsində (scoped) saxla.",
+            "Təhlükəsizlik — itən xətalar: gözlənilməyən tapşırığın istisnası loglanmır, hücum izi itir. Fon işini IHostedService / növbə ilə idarə et, TaskScheduler.UnobservedTaskException-u logla.",
+            "Təhlükəsizlik — SSRF: istifadəçinin verdiyi URL-i HttpClient ilə yükləmə — daxili şəbəkəyə (169.254.169.254, localhost) sorğu göndərə bilər. Host-u ağ siyahı ilə yoxla, yönləndirməni söndür.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Məhdud paralellik, vaxt limiti və ləğv", code: `public async Task<IReadOnlyList<string>> HamisiniYukle(
+    IReadOnlyList<Uri> unvanlar, CancellationToken ct)
+{
+    if (unvanlar.Count > 50)
+        throw new ArgumentException("Ən çox 50 ünvan");            // giriş limiti
+
+    using var kilid = new SemaphoreSlim(5);                          // eyni anda ən çox 5
+    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+    cts.CancelAfter(TimeSpan.FromSeconds(10));                       // ümumi vaxt limiti
+
+    var isler = unvanlar.Select(async u =>
+    {
+        if (!IcazeliHostlar.Contains(u.Host))                        // SSRF-ə qarşı ağ siyahı
+            throw new InvalidOperationException("İcazəsiz host");
+
+        await kilid.WaitAsync(cts.Token);
+        try { return await _http.GetStringAsync(u, cts.Token); }
+        finally { kilid.Release(); }
+    });
+
+    return await Task.WhenAll(isler);
+}
+
+// Yarışa davamlı: yoxlama və dəyişiklik bir atom sorğuda
+int deyisen = await _db.Database.ExecuteSqlInterpolatedAsync(
+    $"UPDATE Hesablar SET Balans = Balans - {mebleg} WHERE Id = {id} AND Balans >= {mebleg}", ct);
+if (deyisen == 0) throw new InvalidOperationException("Balans çatmır");` },
+          { t: "qa", items: [
+            ["await axını bloklayırmı?", "Xeyr. Metod dayanır, axın isə sərbəst qalır; iş bitəndə davam icra olunur."],
+            ["Task ilə Thread fərqi?", "Thread — əməliyyat sisteminin axınıdır. Task — bitəcək işin təsviridir; I/O tapşırığı heç bir axın tutmaya bilər."],
+            ["Niyə .Result deadlock yarada bilər?", "Axın nəticəni gözləyərək bloklanır, davam isə məhz həmin kontekstə (axına) qayıtmalıdır — hər ikisi bir-birini gözləyir."],
+            ["async void nə vaxt olar?", "Yalnız event handler-lərdə. Başqa hallarda Task qaytar."],
+            ["Task.WhenAll ilə ardıcıl await fərqi?", "WhenAll işləri eyni vaxtda aparır və hamısını gözləyir; ardıcıl await birini bitirib o birinə keçir."],
+            ["ConfigureAwait(false) nə edir?", "Davamın tutulmuş kontekstə qayıtmasını söndürür; kitabxana kodunda tövsiyə olunur."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Nəticə qaytarmayan asinxron metodun tipi?", options: ["void", "Task", "Task<void>"], answer: 1, why: "async void-dən qaç, Task qaytar." },
+          { t: "quiz", q: "Üç müstəqil sorğunu ən tez necə gözləmək olar?", options: ["Üç ardıcıl await", "Task.WhenAll", ".Result"], answer: 1, why: "WhenAll işləri eyni vaxtda aparır." },
+          { t: "quiz", q: "await zamanı axın (thread) nə edir?", options: ["Bloklanıb gözləyir", "Sərbəst qalır", "Silinir"], answer: 1, why: "await axını buraxır, iş bitəndə davam edir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Üç «xidmətdən» qiymət alan proqram yaz. 1) `async Task<decimal> QiymetAl(string magaza, int gecikmeMs, CancellationToken ct)` — Task.Delay ilə gözləsin, sonra təsadüfi qiymət qaytarsın. 2) Üç mağazanı (500, 800, 1200 ms) EYNİ VAXTDA çağır, Task.WhenAll ilə gözlə və ən ucuz qiyməti çap et. 3) Stopwatch ilə ümumi vaxtı ölç — təxminən 1.2 s olmalıdır, 2.5 s yox. 4) 1 saniyəlik CancellationTokenSource ilə təkrar çağır və OperationCanceledException-u tutub «vaxt bitdi» yaz.",
+      starter: `using System.Diagnostics;\n\nvar saat = Stopwatch.StartNew();\n\n// üç mağazanı eyni vaxtda çağır\n\nConsole.WriteLine($"{saat.ElapsedMilliseconds} ms");\n\nasync Task<decimal> QiymetAl(string magaza, int gecikmeMs, CancellationToken ct)\n{\n    // Task.Delay + qiymət\n    return 0m;\n}\n`,
+      expect: "QiymetAl async Task<decimal>-dır və await Task.Delay(gecikmeMs, ct) işlədir (Thread.Sleep yox, token ötürülür); üç tapşırıq əvvəl yaradılıb sonra await Task.WhenAll ilə gözlənilir (ardıcıl await yox); Min ilə ən ucuz tapılır; .Result/.Wait() yoxdur; async void yoxdur; CancellationTokenSource(TimeSpan.FromSeconds(1)) və try/catch OperationCanceledException (TaskCanceledException da qəbuldur).",
+    },
+  },
+  {
+    slug: "yaddas",
+    title: "Senior: yaddaş, GC, struct vs class",
+    intro: "C#-da yaddaşı özün boşaltmırsan — bunu zibil yığan (Garbage Collector, GC) edir. Amma dəyərin harada saxlandığını və GC-nin necə işlədiyini bilmək sürətli və etibarlı kod üçün vacibdir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Dəyər tipi və istinad tipi",
+        blocks: [
+          { t: "analogy", text: "Dəyər tipi (struct) — kağızdakı qeydin surətidir: dostuna verdiyin surətə o nə yazsa, sənin kağızın dəyişmir. İstinad tipi (class) — evin ünvanıdır: ünvanı kimə versən, hamı eyni evə gəlir və biri divarı rəngləsə, hamı görür." },
+          { t: "code", lang: "csharp", code: `// struct — dəyər tipi: mənimsətmə surət çıxarır
+var a = new Noqte(1, 2);
+var b = a;          // tam surət
+b.X = 99;
+Console.WriteLine(a.X);   // 1 — dəyişmədi
+
+// class — istinad tipi: mənimsətmə ünvanı köçürür
+var t1 = new Telebe { Ad = "Aysel" };
+var t2 = t1;        // eyni obyekt
+t2.Ad = "Murad";
+Console.WriteLine(t1.Ad); // Murad — eyni obyektdir
+
+public struct Noqte(int x, int y)
+{
+    public int X = x;
+    public int Y = y;
+}
+
+public class Telebe
+{
+    public string Ad { get; set; } = "";
+}` },
+          { t: "terms", items: [
+            ["dəyər tipi (value type)", "dəyərin özünü saxlayır: int, double, bool, struct, enum."],
+            ["istinad tipi (reference type)", "obyektin ünvanını saxlayır: class, string, massiv, record."],
+            ["stack", "metodun lokal dəyişənləri üçün sürətli yaddaş; metod bitəndə özü boşalır."],
+            ["heap", "obyektlərin yaşadığı ümumi yaddaş; onu GC təmizləyir."],
+            ["GC (Garbage Collector)", "heç kimin istinad etmədiyi obyektləri tapıb yaddaşı boşaldan mexanizm."],
+          ]},
+          { t: "tip", text: "Şübhədəsənsə class yaz. struct yalnız kiçik (≈16 bayta qədər), dəyişməz və «dəyər» mənalı tiplər üçündür: nöqtə, rəng, pul məbləği." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Boxing, IDisposable və using",
+        blocks: [
+          { t: "code", lang: "csharp", code: `// Boxing: dəyər tipi object-ə çevriləndə heap-də qutuya qoyulur
+int n = 42;
+object qutu = n;          // boxing — yaddaş ayrılır
+int geri = (int)qutu;     // unboxing
+
+// ref / in / out: surətsiz ötürmə
+void Sifirla(ref Noqte p) => p.X = 0;       // orijinalı dəyişir
+double Uzunluq(in Noqte p) => Math.Sqrt(p.X * p.X + p.Y * p.Y);   // oxumaq üçün, surətsiz
+
+// Dəyişməz struct
+public readonly record struct Pul(decimal Mebleg, string Valyuta);
+
+// GC yalnız yaddaşı təmizləyir. Fayl, bağlantı, soket — əl ilə bağlanmalıdır.
+using (var fayl = new StreamWriter("qeyd.txt"))
+{
+    fayl.WriteLine("Salam");
+}   // burada Dispose() avtomatik çağırılır — xəta olsa belə
+
+// Qısa forma: blokun sonunda bağlanır
+using var oxuyan = new StreamReader("qeyd.txt");
+Console.WriteLine(oxuyan.ReadToEnd());
+
+// Öz resurs sinfin
+public sealed class Baglanti : IDisposable
+{
+    private readonly Socket _soket = new(SocketType.Stream, ProtocolType.Tcp);
+    private bool _baglanib;
+
+    public void Dispose()
+    {
+        if (_baglanib) return;
+        _soket.Dispose();
+        _baglanib = true;
+    }
+}` },
+          { t: "p", text: "GC idarə olunan (managed) yaddaşı özü boşaldır, amma nə vaxt edəcəyi bəlli deyil. Fayl tutacağı, baza bağlantısı kimi məhdud resursları gözlətmək olmaz — onları IDisposable və using ilə dərhal burax." },
+          { t: "mistake", lang: "csharp", wrong: `var baglanti = new SqlConnection(cs);
+baglanti.Open();
+var netice = Sorgu(baglanti);     // istisna atsa, bağlantı açıq qalır
+baglanti.Close();`, right: `using var baglanti = new SqlConnection(cs);
+baglanti.Open();
+var netice = Sorgu(baglanti);     // hər halda bağlanır`, why: "İstisna Close()-a çatmağa imkan vermir. Bağlantı hovuzu tükənir və tətbiq dayanır. IDisposable olan hər şeyi using ilə yarat." },
+          { t: "mistake", lang: "csharp", wrong: `var siyahi = new ArrayList();
+for (int i = 0; i < 1_000_000; i++)
+    siyahi.Add(i);                // hər ədəd boxing olunur`, right: `var siyahi = new List<int>(1_000_000);
+for (int i = 0; i < 1_000_000; i++)
+    siyahi.Add(i);`, why: "ArrayList object saxlayır — milyon ədəd milyon ayrı qutu deməkdir. Generic List<int> dəyərləri birbaşa saxlayır; tutumu əvvəlcədən vermək isə yenidən ayırmanı azaldır." },
+          { t: "mistake", lang: "csharp", wrong: `string netice = "";
+foreach (var s in setirler)
+    netice += s + "\\n";           // hər addımda yeni sətir`, right: `var sb = new StringBuilder();
+foreach (var s in setirler)
+    sb.AppendLine(s);
+string netice = sb.ToString();`, why: "string dəyişməzdir: += hər dəfə bütün mətni yeni yaddaşa köçürür. Uzun dövrdə bu, kvadratik vaxt və GC yükü deməkdir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "GC nəsilləri, Span, performans və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Nəsillər (generations): yeni obyekt Gen 0-da yaranır. Yığımdan sağ çıxan Gen 1-ə, sonra Gen 2-yə keçir. Fərziyyə: obyektlərin çoxu gənc ölür — ona görə Gen 0 yığımı çox ucuzdur, Gen 2 isə bahadır.",
+            "Böyük obyekt yığını (LOH): 85 000 baytdan böyük obyektlər ayrı yerdə saxlanır, yalnız Gen 2 ilə yığılır və adətən sıxlaşdırılmır — parçalanma (fragmentation) yaranır. Böyük massivləri ArrayPool<T>.Shared-dən icarəyə götür.",
+            "GC «işarələ və sıxlaşdır» işləyir: köklərdən (stack, static sahələr, CPU registrləri) çatıla bilən obyektləri işarələyir, qalanını silir, sağ qalanları yan-yana düzür.",
+            "Server GC (hər nüvəyə bir heap, yüksək ötürücülük) və Workstation GC (az gecikmə). Konteynerdə yaddaş limitini nəzərə al: DOTNET_GCHeapHardLimit, DOTNET_gcServer.",
+            "«stack-də struct, heap-də class» sadələşdirmədir. Sinfin sahəsi olan struct heap-dədir; closure-a düşən lokal dəyişən də. Əsas fərq saxlanma yeri yox, surət semantikasıdır.",
+            "Span<T> / ReadOnlySpan<T> — yaddaş parçasına surətsiz «pəncərə» (ref struct, yalnız stack-də). Sətir kəsmək üçün Substring əvəzinə AsSpan() — ayırma yoxdur. Asinxron kodda Memory<T> işlət.",
+            "stackalloc kiçik müvəqqəti bufer üçün (≈1 KB-a qədər): Span<byte> buf = stackalloc byte[256]; Ölçünü heç vaxt istifadəçi girişindən götürmə — stack daşması prosesi dərhal öldürür.",
+            "Yaddaş sızması idarə olunan dildə də var: static kolleksiya, ləğv olunmamış event abunəsi, limitsiz keş, dayanmayan Timer. Alətlər: dotnet-counters, dotnet-gcdump, dotnet-trace.",
+            "Finalizator (~Sinif) nadir hallarda lazımdır: obyekti bir nəsil artıq yaşadır və ayrı axında işləyir. İdarə olunmayan resurs üçün SafeHandle işlət.",
+            "Ölçmədən optimallaşdırma: BenchmarkDotNet + [MemoryDiagnoser]. Ayırmalar (allocations) çox vaxt CPU-dan daha əsas problemdir.",
+            "Təhlükəsizlik — yaddaşda sirlər: string dəyişməzdir və GC onu nə vaxt siləcəyi bəlli deyil — parol yaddaş dump-ında, swap faylında və ya crash hesabatında qala bilər. Sirri byte[]/Span-da saxla və işdən sonra CryptographicOperations.ZeroMemory ilə sıfırla. SecureString artıq tövsiyə olunmur.",
+            "Təhlükəsizlik — limitsiz ayırma (DoS): istifadəçinin göndərdiyi ölçüyə görə new byte[n] və ya limitsiz MemoryStream/ReadToEnd serveri OutOfMemory ilə yıxır. Sorğu gövdəsini, fayl ölçüsünü və kolleksiya tutumunu məhdudlaşdır, axınla (stream) oxu.",
+            "Təhlükəsizlik — icarə buferləri: ArrayPool-dan alınan massiv əvvəlki istifadəçinin məlumatını saxlaya bilər və qaytarılandan sonra başqası onu görəcək. Yalnız doldurduğun hissəni oxu; həssas məlumat üçün Return(buf, clearArray: true).",
+            "Təhlükəsizlik — unsafe kod: unsafe, Marshal, Unsafe.As və P/Invoke sərhəd yoxlamasını söndürür — C-dəki kimi bufer daşması və məlumat sızması mümkün olur. Span ilə əvəz et; zəruridirsə uzunluqları özün yoxla.",
+            "Təhlükəsizlik — müqayisə vaxtı: token və ya həş müqayisəsində == ilk fərqdə dayanır və vaxt fərqi ilə sirr simvol-simvol tapıla bilər. CryptographicOperations.FixedTimeEquals işlət.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Ayırmasız emal və sirrin təmizlənməsi", code: `// Substring-siz, ayırmasız ayrışdırma
+static int CemiTap(ReadOnlySpan<char> metn)       // "12,7,30"
+{
+    int cem = 0;
+    foreach (Range hisse in metn.Split(','))
+        cem += int.Parse(metn[hisse]);
+    return cem;
+}
+
+// Böyük buferi icarəyə götür, limit qoy, sonda təmizlə
+const int MaksOlcu = 1024 * 1024;                  // 1 MB
+
+static async Task<byte[]> HesiHesabla(Stream giris, CancellationToken ct)
+{
+    byte[] bufer = ArrayPool<byte>.Shared.Rent(81920);
+    try
+    {
+        using var hes = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        long cemi = 0;
+        int oxunan;
+        while ((oxunan = await giris.ReadAsync(bufer, ct)) > 0)
+        {
+            cemi += oxunan;
+            if (cemi > MaksOlcu) throw new InvalidOperationException("Fayl çox böyükdür");
+            hes.AppendData(bufer, 0, oxunan);      // yalnız doldurulan hissə
+        }
+        return hes.GetHashAndReset();
+    }
+    finally
+    {
+        ArrayPool<byte>.Shared.Return(bufer, clearArray: true);
+    }
+}
+
+// Sirri sıfırla və sabit vaxtda müqayisə et
+byte[] acar = AcariAl();
+try
+{
+    bool duzdur = CryptographicOperations.FixedTimeEquals(gelenImza, HesablaImza(acar, mesaj));
+}
+finally
+{
+    CryptographicOperations.ZeroMemory(acar);
+}` },
+          { t: "qa", items: [
+            ["struct ilə class fərqi?", "struct dəyər tipidir — mənimsətmədə surəti çıxır, irsiyyət yoxdur, null ola bilmir. class istinad tipidir — ünvan köçürülür, heap-də yaşayır və GC idarə edir."],
+            ["Boxing nədir, niyə bahadır?", "Dəyər tipinin object və ya interfeysə çevrilərkən heap-də qutuya qoyulmasıdır: yaddaş ayrılır, surət çıxır, GC yükü artır."],
+            ["GC nəsilləri nə üçündür?", "Obyektlərin çoxu qısaömürlüdür; Gen 0-ı tez-tez və ucuz yığmaq bütün heap-i gəzməkdən sərfəlidir."],
+            ["IDisposable ilə finalizator fərqi?", "Dispose dərhal və açıq çağırılır (using). Finalizatoru GC qeyri-müəyyən vaxtda çağırır — yalnız ehtiyat mexanizmdir."],
+            ["Span<T> nə üstünlük verir?", "Massiv, sətir və ya stack yaddaşının hissəsi ilə surət çıxarmadan və ayırmasız işləməyə imkan verir; sərhəd yoxlaması qalır."],
+            ["İdarə olunan dildə yaddaş sızması necə olur?", "Lazımsız obyektə istinad qalanda: static kolleksiya, event abunəsi, limitsiz keş. GC çatıla bilən obyekti silmir."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "struct dəyişəni başqasına mənimsədəndə nə olur?", options: ["Ünvan köçür", "Tam surət çıxır", "Xəta verir"], answer: 1, why: "struct dəyər tipidir — surəti çıxır." },
+          { t: "quiz", q: "Faylı vaxtında bağlamağın düzgün yolu?", options: ["GC-yə etibar etmək", "using", "null mənimsətmək"], answer: 1, why: "using blokun sonunda Dispose() çağırır." },
+          { t: "quiz", q: "Yeni yaranan obyekt hansı nəsildədir?", options: ["Gen 0", "Gen 1", "Gen 2"], answer: 0, why: "Obyektlər Gen 0-da doğulur." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "1) `readonly record struct Pul(decimal Mebleg, string Valyuta)` yarat və iki eyni dəyərli Pul-un == ilə bərabər olduğunu göstər. 2) struct və class surət fərqini nümayiş etdir: `Noqte` struct-ını və `Qutu` class-ını başqa dəyişənə mənimsət, birini dəyiş, hər ikisini çap et. 3) `IDisposable` olan `Sayac` sinfi yaz: yaradılanda «açıldı», Dispose-da «bağlandı» yazsın (iki dəfə Dispose təhlükəsiz olsun) və onu `using` ilə işlət. 4) 10 000 sətri birləşdirən metodu `StringBuilder` ilə yaz.",
+      starter: `using System.Text;\n\n// 1) Pul\n\n// 2) surət fərqi\n\n// 3) using ilə Sayac\n\n// 4) StringBuilder\n\npublic struct Noqte { public int X; public int Y; }\npublic class Qutu { public int Deyer; }\n`,
+      expect: "readonly record struct Pul var və == true verir; struct mənimsətməsindən sonra orijinal dəyişmir, class-da dəyişir və bu çap olunur; Sayac : IDisposable, Dispose təkrar çağırışa davamlıdır (bool bayraq); using var / using bloku işlədilib (əl ilə Dispose yox); sətirlər StringBuilder.Append/AppendLine ilə birləşdirilir (dövrdə += yox).",
+    },
+  },
+  {
+    slug: "solid",
+    title: "Senior: SOLID və dizayn pattern-ləri",
+    intro: "SOLID — kodu dəyişməyə asan, sınağa uyğun saxlayan beş prinsipdir. Dizayn pattern-ləri isə tez-tez rast gələn məsələlərin sınanmış həll qəlibləridir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Beş prinsip qısaca",
+        blocks: [
+          { t: "analogy", text: "Yaxşı mətbəxdə hər alətin bir işi var: bıçaq kəsir, qazan bişirir. «Hər şeyi edən» bir alət xarab olanda bütün mətbəx dayanır. Elektrik rozetkası isə abstraksiyadır: çaydanı da, tozsoranı da qoşursan — divarı sökmədən." },
+          { t: "list", items: [
+            "S — Single Responsibility (tək məsuliyyət): sinfin dəyişmək üçün yalnız bir səbəbi olsun.",
+            "O — Open/Closed (açıq/qapalı): yeni davranışı mövcud kodu dəyişmədən, yeni sinif əlavə edərək qoş.",
+            "L — Liskov Substitution (əvəzetmə): törəmə sinif baza sinfin yerinə qoyulanda proqram sınmamalıdır.",
+            "I — Interface Segregation (interfeys ayrılması): böyük bir interfeys əvəzinə kiçik, məqsədli interfeyslər.",
+            "D — Dependency Inversion (asılılığın çevrilməsi): konkret sinfə yox, abstraksiyaya (interface) söykən.",
+          ]},
+          { t: "code", lang: "csharp", code: `// S pozulur: bir sinif hesablayır, bazaya yazır, email göndərir
+public class SifarisIslemcisi
+{
+    public void Isle(Sifaris s)
+    {
+        decimal cem = s.Mehsullar.Sum(m => m.Qiymet);      // hesablama
+        File.AppendAllText("sifarisler.txt", $"{s.Id};{cem}\\n");   // saxlama
+        Console.WriteLine($"Email: {s.Email}");            // bildiriş
+    }
+}
+
+// S düzəldi: hər sinif bir iş görür
+public class QiymetHesablayici
+{
+    public decimal Hesabla(Sifaris s) => s.Mehsullar.Sum(m => m.Qiymet);
+}
+
+public interface ISifarisAnbari { void Saxla(Sifaris s, decimal cem); }
+public interface IBildirisci { void Gonder(string unvan, string metn); }` },
+          { t: "terms", items: [
+            ["SOLID", "beş obyekt-yönümlü dizayn prinsipinin baş hərfləri."],
+            ["abstraksiya", "«nə edilir» təsviri — interface və ya abstrakt sinif."],
+            ["asılılıq (dependency)", "sinfin işləməsi üçün lazım olan başqa sinif və ya xidmət."],
+            ["dizayn pattern-i", "təkrarlanan dizayn məsələsinin adlandırılmış, sınanmış həlli."],
+            ["refaktorinq", "davranışı dəyişmədən kodun quruluşunu yaxşılaşdırmaq."],
+          ]},
+          { t: "tip", text: "Prinsiplər məqsəd deyil, alətdir. Sinif kiçik və aydındırsa, onu «SOLID naminə» beş fayla bölmə." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Prinsiplər kodda və əsas pattern-lər",
+        blocks: [
+          { t: "code", lang: "csharp", caption: "O və D: Strategy pattern + Dependency Injection", code: `// O pozulur: hər yeni endirim üçün bu metodu dəyişmək lazımdır
+decimal Endirim(string nov, decimal mebleg) => nov switch
+{
+    "telebe" => mebleg * 0.8m,
+    "bayram" => mebleg - 10,
+    _ => mebleg,
+};
+
+// Strategy: hər qayda ayrı sinif — yenisini əlavə etmək mövcudu dəyişmir
+public interface IEndirim
+{
+    string Ad { get; }
+    decimal Tetbiq(decimal mebleg);
+}
+
+public class TelebeEndirimi : IEndirim
+{
+    public string Ad => "telebe";
+    public decimal Tetbiq(decimal mebleg) => mebleg * 0.8m;
+}
+
+public class BayramEndirimi : IEndirim
+{
+    public string Ad => "bayram";
+    public decimal Tetbiq(decimal mebleg) => Math.Max(0, mebleg - 10);
+}
+
+// D: xidmət konkret sinifləri tanımır, onları konstruktordan alır
+public class SifarisXidmeti(
+    IEnumerable<IEndirim> endirimler,
+    ISifarisAnbari anbar,
+    IBildirisci bildirisci)
+{
+    public void Tamamla(Sifaris s, string endirimNovu)
+    {
+        decimal cem = s.Mehsullar.Sum(m => m.Qiymet);
+        var endirim = endirimler.FirstOrDefault(e => e.Ad == endirimNovu);
+        if (endirim is not null) cem = endirim.Tetbiq(cem);
+
+        anbar.Saxla(s, cem);
+        bildirisci.Gonder(s.Email, $"Sifarişiniz qəbul olundu: {cem} AZN");
+    }
+}
+
+// Qeydiyyat (ASP.NET Core)
+builder.Services.AddScoped<IEndirim, TelebeEndirimi>();
+builder.Services.AddScoped<IEndirim, BayramEndirimi>();
+builder.Services.AddScoped<ISifarisAnbari, SqlSifarisAnbari>();
+builder.Services.AddScoped<IBildirisci, EmailBildirisci>();
+builder.Services.AddScoped<SifarisXidmeti>();` },
+          { t: "code", lang: "csharp", caption: "Decorator, Factory və Repository", code: `// Decorator: mövcud sinfə toxunmadan davranış əlavə edir (loglama, keş, təkrar cəhd)
+public class LoglayanAnbar(ISifarisAnbari daxili, ILogger<LoglayanAnbar> log) : ISifarisAnbari
+{
+    public void Saxla(Sifaris s, decimal cem)
+    {
+        log.LogInformation("Sifariş {Id} saxlanılır", s.Id);
+        daxili.Saxla(s, cem);
+    }
+}
+
+// Factory: hansı sinfin yaradılacağı qərarını bir yerə yığır
+public static class BildirisciFabriki
+{
+    public static IBildirisci Yarat(string kanal) => kanal switch
+    {
+        "email" => new EmailBildirisci(),
+        "sms" => new SmsBildirisci(),
+        _ => throw new ArgumentException("Naməlum kanal"),
+    };
+}
+
+// Repository: məlumat mənbəyini interfeys arxasında gizlədir
+public interface ITelebeAnbari
+{
+    Task<Telebe?> TapAsync(int id, CancellationToken ct);
+    Task ElaveEtAsync(Telebe t, CancellationToken ct);
+}` },
+          { t: "mistake", lang: "csharp", wrong: `public class Duzbucaqli
+{
+    public virtual int En { get; set; }
+    public virtual int Hundurluk { get; set; }
+}
+
+public class Kvadrat : Duzbucaqli
+{
+    public override int En { set { base.En = value; base.Hundurluk = value; } }
+    public override int Hundurluk { set { base.En = value; base.Hundurluk = value; } }
+}
+// d.En = 5; d.Hundurluk = 4; sahə 20 gözlənilir, Kvadratda 16 çıxır`, right: `public interface IFiqur { int Sahe { get; } }
+
+public record Duzbucaqli(int En, int Hundurluk) : IFiqur
+{
+    public int Sahe => En * Hundurluk;
+}
+
+public record Kvadrat(int Teref) : IFiqur
+{
+    public int Sahe => Teref * Teref;
+}`, why: "L pozulur: Kvadrat baza sinfin vədini («en və hündürlük müstəqildir») sındırır. «Riyaziyyatda kvadrat düzbucaqlıdır» irsiyyət üçün əsas deyil — davranış uyğun gəlməlidir. Ortaq interfeys işlət." },
+          { t: "mistake", lang: "csharp", wrong: `public interface IIsci
+{
+    void Isle();
+    void NaharEt();
+    void MaasAl();
+}
+
+public class Robot : IIsci
+{
+    public void Isle() { }
+    public void NaharEt() => throw new NotSupportedException();   // məcburi boş metod
+    public void MaasAl() => throw new NotSupportedException();
+}`, right: `public interface IIsleyen { void Isle(); }
+public interface IQidalanan { void NaharEt(); }
+
+public class Robot : IIsleyen
+{
+    public void Isle() { }
+}`, why: "I pozulur: sinif ehtiyacı olmayan metodları reallaşdırmağa məcbur edilir. NotSupportedException atan metod — interfeysin çox böyük olduğunun əlamətidir." },
+          { t: "mistake", lang: "csharp", wrong: `public class HesabatXidmeti
+{
+    private readonly SqlBaza _baza = new SqlBaza("Server=...");   // konkret sinif, içəridə yaradılır
+}`, right: `public class HesabatXidmeti(IBaza baza)
+{
+    private readonly IBaza _baza = baza;
+}`, why: "D pozulur: sinif asılılığını özü yaradırsa, onu test-də saxta ilə əvəz etmək və ya bazanı dəyişmək olmur. Asılılığı konstruktordan interfeys kimi al." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Tarazlıq, anti-pattern-lər və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "SRP «bir metod» demək deyil. Ölçü: bu sinfi kim dəyişdirməyi tələb edə bilər? Mühasibat da, marketinq də eyni sinfi dəyişdirirsə — iki məsuliyyət var.",
+            "Həddən artıq abstraksiya da xətadır: tək reallaşması olan interfeys, heç vaxt dəyişməyəcək şey üçün fabrik. YAGNI — «lazım olmayacaq». Abstraksiyanı ikinci-üçüncü oxşar hal görünəndə çıxar.",
+            "İrsiyyətdən çox kompozisiya (composition over inheritance): davranışı irsiyyətlə yox, obyekti içəri yerləşdirməklə birləşdir. Dərin irsiyyət ağacı kövrəkdir.",
+            "Singleton pattern-ini əl ilə (static Instance) yazma — gizli qlobal vəziyyətdir və testi çətinləşdirir. DI konteynerində AddSingleton işlət; singleton axın-təhlükəsiz (thread-safe) olmalıdır.",
+            "Ömür tələsi (captive dependency): Singleton xidmət Scoped xidməti (DbContext) tutursa, o da faktiki singleton olur — köhnə məlumat və axın xətaları. Konteynerdə ValidateScopes aktiv olsun.",
+            "Service Locator (kodun içində provider.GetService<T>()) anti-pattern-dir: asılılıqlar gizlənir. Konstruktor inyeksiyası işlət.",
+            "Konstruktorda 7–8 asılılıq — sinfin çox iş gördüyünün əlamətidir. Böl və ya Mediator/əmr (command) handler-lərinə keç.",
+            "Tez-tez işlənən digər pattern-lər: Observer (event, IObservable), Adapter (kənar API-ni öz interfeysinə uyğunlaşdırmaq), Builder (mürəkkəb obyekti addım-addım qurmaq), Options (IOptions<T>), Unit of Work (DbContext özü).",
+            "EF Core DbContext artıq Repository + Unit of Work-dür. Üstünə generic IRepository<T> çəkmək çox vaxt faydasız təbəqədir; mənalı, məqsədli metodlu anbar isə faydalıdır.",
+            "Təhlükəsizlik — icazə yoxlaması bir yerdə: yoxlama hər controller-ə səpələnibsə, biri mütləq unudulur (broken access control — OWASP-ın 1 nömrəli riski). Onu xidmət/siyasət (policy) səviyyəsinə və ya Decorator-a çıxar ki, yan keçmək mümkün olmasın.",
+            "Təhlükəsizlik — standart olaraq qapalı (secure by default): fabrik və strategiya seçimində naməlum dəyər üçün «icazə ver» yox, istisna at. default qolunda ən zəif yoxlamanı seçmək klassik boşluqdur.",
+            "Təhlükəsizlik — tipi istifadəçi seçməsin: fabrikdə Type.GetType(istifadəçiSətri) + Activator.CreateInstance istənilən sinfi yaratmağa imkan verir (RCE). Yalnız ağ siyahı: Dictionary<string, Func<IBildirisci>>.",
+            "Təhlükəsizlik — Liskov və etimad: törəmə sinif baza sinfin yoxlamasını zəiflətməməlidir (override edib validasiyanı və ya icazə yoxlamasını atlamaq). Təhlükəsizlik baxımından vacib sinifləri sealed et, kritik metodları virtual etmə.",
+            "Təhlükəsizlik — inkapsulyasiya: invariantları (məs. Balans ≥ 0) public setter ilə açma. Dəyişiklik yalnız yoxlama aparan metoddan keçsin; kolleksiyanı IReadOnlyList kimi qaytar ki, kənardan dəyişdirilməsin.",
+            "Təhlükəsizlik — Decorator ilə kəsişən məsələlər: audit loqu, sürət limiti, giriş validasiyası dekoratorda olsa, hər xidmətdə eyni və unudulmaz şəkildə tətbiq olunur. Loqa parol, token, kart nömrəsi yazma.",
+          ]},
+          { t: "code", lang: "csharp", caption: "İcazə yoxlaması Decorator-da, invariant sinfin içində", code: `public interface ISenedXidmeti
+{
+    Task<SenedDto> AlAsync(int senedId, CancellationToken ct);
+    Task SilAsync(int senedId, CancellationToken ct);
+}
+
+// Yoxlama bir yerdədir — heç bir çağırış ondan yan keçə bilmir
+public sealed class IcazeliSenedXidmeti(
+    ISenedXidmeti daxili,
+    ICariIstifadeci istifadeci,
+    ISenedAnbari anbar,
+    ILogger<IcazeliSenedXidmeti> log) : ISenedXidmeti
+{
+    public async Task<SenedDto> AlAsync(int senedId, CancellationToken ct)
+    {
+        await Yoxla(senedId, ct);
+        return await daxili.AlAsync(senedId, ct);
+    }
+
+    public async Task SilAsync(int senedId, CancellationToken ct)
+    {
+        await Yoxla(senedId, ct);
+        log.LogInformation("Sənəd {SenedId} silinir, istifadəçi {Id}", senedId, istifadeci.Id);   // audit
+        await daxili.SilAsync(senedId, ct);
+    }
+
+    private async Task Yoxla(int senedId, CancellationToken ct)
+    {
+        int? sahibId = await anbar.SahibIdAsync(senedId, ct);
+        if (sahibId is null || sahibId != istifadeci.Id)
+            throw new SenedTapilmadiException();        // 403 yox, 404 — sənədin varlığını da sızdırma
+    }
+}
+
+// İnvariant kənardan pozula bilmir
+public sealed class Hesab
+{
+    private readonly List<Emeliyyat> _emeliyyatlar = [];
+    public decimal Balans { get; private set; }
+    public IReadOnlyList<Emeliyyat> Emeliyyatlar => _emeliyyatlar;
+
+    public void Cix(decimal mebleg)
+    {
+        if (mebleg <= 0) throw new ArgumentOutOfRangeException(nameof(mebleg));
+        if (mebleg > Balans) throw new InvalidOperationException("Balans çatmır");
+        Balans -= mebleg;
+        _emeliyyatlar.Add(new Emeliyyat(-mebleg, DateTime.UtcNow));
+    }
+}` },
+          { t: "qa", items: [
+            ["SOLID nə deməkdir?", "Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion."],
+            ["Dependency Inversion ilə Dependency Injection fərqi?", "Inversion — prinsipdir: abstraksiyaya söykən. Injection — texnikadır: asılılığı kənardan (konstruktorla) ver. İkincisi birincini həyata keçirməyin yoludur."],
+            ["Open/Closed-u praktikada necə təmin edirsən?", "Dəyişən hissəni interfeys arxasına çıxarıb yeni davranışı yeni siniflə əlavə edirəm (Strategy, Decorator), mövcud switch-i böyütmürəm."],
+            ["Liskov pozuntusuna nümunə?", "Kvadrat : Düzbucaqlı; və ya baza metodunu override edib NotSupportedException atmaq."],
+            ["Singleton-un problemi nədir?", "Gizli qlobal vəziyyət, testdə əvəz edilə bilməməsi və axın təhlükəsizliyi. DI konteynerində ömür kimi idarə etmək daha yaxşıdır."],
+            ["Strategy ilə Decorator fərqi?", "Strategy alqoritmi əvəz edir (birini seçirsən). Decorator eyni interfeysli obyekti büküb əlavə davranış qatır (üst-üstə yığmaq olar)."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "«Sinfin dəyişmək üçün bir səbəbi olsun» hansı prinsipdir?", options: ["Single Responsibility", "Open/Closed", "Liskov"], answer: 0, why: "S — tək məsuliyyət." },
+          { t: "quiz", q: "Asılılığı necə almaq daha yaxşıdır?", options: ["Sinfin içində new ilə", "Konstruktordan interface kimi", "static sahədən"], answer: 1, why: "Konstruktor inyeksiyası asılılığı əvəz edilə bilən edir." },
+          { t: "quiz", q: "Mövcud sinfə toxunmadan loglama əlavə edən pattern?", options: ["Factory", "Decorator", "Singleton"], answer: 1, why: "Decorator obyekti büküb davranış əlavə edir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Aşağıdakı `HesabatYaradici` sinfi hər şeyi özü edir: məlumatı hazırlayır, formata salır (switch ilə «csv»/«json») və fayla yazır. Onu SOLID-ə uyğun yenidən yaz. 1) `IHesabatFormati` interfeysi (`Ad`, `Formatla(IEnumerable<Satis>)`) və iki reallaşma: Csv, Json. 2) `IHesabatCixisi` interfeysi (`Yaz(string metn)`) və konsola yazan reallaşma. 3) `HesabatXidmeti` asılılıqları konstruktordan alsın, formatı ada görə seçsin, naməlum formatda istisna atsın. 4) Yeni format (məs. Markdown) əlavə etmək üçün mövcud sinifləri dəyişmək lazım olmasın — bunu üçüncü formatı əlavə edərək göstər.",
+      starter: `public record Satis(string Mehsul, decimal Mebleg);\n\npublic class HesabatYaradici\n{\n    public void Yarat(string format)\n    {\n        var satislar = new List<Satis> { new("Kitab", 12m), new("Qələm", 2m) };\n        string metn = format switch\n        {\n            "csv" => string.Join("\\n", satislar.Select(s => $"{s.Mehsul};{s.Mebleg}")),\n            "json" => System.Text.Json.JsonSerializer.Serialize(satislar),\n            _ => "",\n        };\n        File.WriteAllText("hesabat.txt", metn);\n    }\n}\n`,
+      expect: "IHesabatFormati və ən azı üç reallaşma (Csv, Json, Markdown) ayrı siniflərdədir; IHesabatCixisi və konsol reallaşması var; HesabatXidmeti konstruktordan IEnumerable<IHesabatFormati> və IHesabatCixisi alır (içəridə new ilə konkret sinif yaratmır); format ada görə seçilir və tapılmasa istisna atılır (boş sətir qaytarmır); xidmətdə format üzrə switch yoxdur — yeni format mövcud kodu dəyişmir; məlumat xidmətə parametr kimi verilir.",
+    },
+  },
 ];

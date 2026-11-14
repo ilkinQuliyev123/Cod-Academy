@@ -1667,4 +1667,1955 @@ app.MapPost("/api/sifarisler", async Task<Results<Created<SifarisDto>, Validatio
       expect: "Ad [Required, StringLength(60, MinimumLength = 2)]; Email [Required, EmailAddress]; Telefon [RegularExpression(^\\+994\\d{9}$)] nullable; Yas int? + [Required, Range(18, 99)] (və ya eyni effekt); QonaqSayi [Range(0, 5)]; GelecekTarixAttribute IsValid-də tarix > UtcNow yoxlayır; DTO IValidatableObject reallaşdırır və Bitme <= Baslama olanda ValidationResult qaytarır; action [HttpPost(\"qeydiyyat\")], ModelState əl ilə yoxlanmır ([ApiController] edir), 201 qaytarır; Rol/Tesdiqlenib sahəsi yoxdur və şərhdə over-posting izah olunub; regex sadədir (iç-içə kvantor yox) və ya timeout var.",
     },
   },
+  {
+    slug: "mvc",
+    title: "MVC və Razor Views",
+    intro: "MVC (Model–View–Controller) — serverdə HTML səhifə quran tətbiqlərin qəlibidir. Model məlumatdır, View onu HTML-ə çevirən şablondur (Razor), Controller isə ikisini birləşdirir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Üç hissə: Model, View, Controller",
+        blocks: [
+          { t: "analogy", text: "Restoran: mətbəx — Model (ərzaq və reseptlər), boşqabdakı təqdimat — View (necə görünür), ofisiant — Controller (sifarişi alır, mətbəxdən yeməyi götürür, masaya çatdırır). Aşpaz masaya çıxmır, ofisiant yemək bişirmir — hərə öz işini görür." },
+          { t: "code", lang: "csharp", caption: "Controllers/KurslarController.cs", code: `public class KurslarController : Controller
+{
+    private static readonly List<Kurs> _kurslar =
+    [
+        new(1, "HTML", 20),
+        new(2, "C#", 80),
+    ];
+
+    // GET /Kurslar
+    public IActionResult Index() => View(_kurslar);          // Views/Kurslar/Index.cshtml
+
+    // GET /Kurslar/Etrafli/2
+    public IActionResult Etrafli(int id)
+    {
+        var kurs = _kurslar.FirstOrDefault(k => k.Id == id);
+        return kurs is null ? NotFound() : View(kurs);
+    }
+}
+
+public record Kurs(int Id, string Ad, int Saat);` },
+          { t: "code", lang: "html", caption: "Views/Kurslar/Index.cshtml", code: `@model List<Kurs>
+@{
+    ViewData["Title"] = "Kurslar";
+}
+
+<h1>Kurslar (@Model.Count)</h1>
+
+<ul>
+    @foreach (var kurs in Model)
+    {
+        <li>
+            <a asp-action="Etrafli" asp-route-id="@kurs.Id">@kurs.Ad</a>
+            — @kurs.Saat saat
+        </li>
+    }
+</ul>
+
+@if (Model.Count == 0)
+{
+    <p>Hələ kurs yoxdur.</p>
+}` },
+          { t: "code", lang: "csharp", caption: "Program.cs", code: `builder.Services.AddControllersWithViews();
+// ...
+app.UseStaticFiles();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");` },
+          { t: "terms", items: [
+            ["Model", "məlumat və onun qaydaları."],
+            ["View", "HTML şablonu (.cshtml faylı)."],
+            ["Razor", "HTML içində C# yazmaq sintaksisi: @ işarəsi ilə başlayır."],
+            ["@model", "View-un hansı tipli məlumat gözlədiyini bildirir."],
+            ["Tag Helper", "HTML teqinə server davranışı verən atribut: asp-action, asp-for."],
+          ]},
+          { t: "tip", text: "View faylı konvensiya ilə tapılır: KurslarController.Index() → Views/Kurslar/Index.cshtml. Adlar uyğun gəlməsə «view tapılmadı» xətası alarsan." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Layout, formalar, ViewModel və partial",
+        blocks: [
+          { t: "code", lang: "html", caption: "Views/Shared/_Layout.cshtml — ortaq çərçivə", code: `<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewData["Title"] — Akademiya</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <a asp-controller="Home" asp-action="Index">Ana səhifə</a>
+        <a asp-controller="Kurslar" asp-action="Index">Kurslar</a>
+    </header>
+
+    <main>
+        @RenderBody()                                  @* səhifənin məzmunu bura düşür *@
+    </main>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>` },
+          { t: "code", lang: "csharp", caption: "ViewModel və forma emalı (PRG qəlibi)", code: `public class KursYaratViewModel
+{
+    [Required(ErrorMessage = "Ad məcburidir"), StringLength(60)]
+    public string Ad { get; set; } = "";
+
+    [Range(1, 500, ErrorMessage = "Saat 1–500 aralığında olmalıdır")]
+    public int Saat { get; set; }
+}
+
+public class KurslarController(IKursXidmeti xidmet) : Controller
+{
+    [HttpGet]
+    public IActionResult Yarat() => View(new KursYaratViewModel());
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]                         // CSRF qoruması
+    public async Task<IActionResult> Yarat(KursYaratViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+            return View(model);                        // xətalarla formanı yenidən göstər
+
+        await xidmet.YaratAsync(model.Ad, model.Saat, ct);
+
+        TempData["Mesaj"] = "Kurs əlavə olundu";
+        return RedirectToAction(nameof(Index));        // Post → Redirect → Get
+    }
+}` },
+          { t: "code", lang: "html", caption: "Views/Kurslar/Yarat.cshtml", code: `@model KursYaratViewModel
+
+<h1>Yeni kurs</h1>
+
+<form asp-action="Yarat" method="post">
+    <div asp-validation-summary="ModelOnly"></div>
+
+    <label asp-for="Ad"></label>
+    <input asp-for="Ad" />
+    <span asp-validation-for="Ad"></span>
+
+    <label asp-for="Saat"></label>
+    <input asp-for="Saat" />
+    <span asp-validation-for="Saat"></span>
+
+    <button type="submit">Saxla</button>
+</form>
+
+@* form teqi asp-action ilə antiforgery tokenini özü əlavə edir *@
+
+<partial name="_KursKarti" model="..." />           @* təkrar işlənən hissə *@` },
+          { t: "list", items: [
+            "ViewModel — konkret səhifənin ehtiyacına görə qurulmuş sinif. Baza varlığını birbaşa View-a vermə.",
+            "PRG (Post–Redirect–Get): uğurlu POST-dan sonra yönləndir — səhifəni yeniləyəndə forma təkrar göndərilməsin.",
+            "TempData — bir növbəti sorğuya qədər yaşayan mesaj (yönləndirmədən sonra «uğurla saxlandı»).",
+            "_ViewImports.cshtml — ortaq @using və Tag Helper qeydiyyatı; _ViewStart.cshtml — default Layout.",
+          ]},
+          { t: "mistake", lang: "html", wrong: `<div>@Html.Raw(Model.Serh)</div>          @* istifadəçi mətni xam HTML kimi *@`, right: `<div>@Model.Serh</div>                    @* Razor avtomatik kodlaşdırır *@`, why: "@ ifadəsi HTML-i avtomatik kodlaşdırır: <script> mətn kimi görünür. Html.Raw bunu söndürür — istifadəçi mətnində XSS deməkdir. Raw yalnız özün yaratdığın, etibarlı HTML üçündür." },
+          { t: "mistake", lang: "csharp", wrong: `[HttpPost]
+public IActionResult Yarat(KursYaratViewModel model)
+{
+    _xidmet.Yarat(model);
+    return View("Index", _xidmet.Hamisi());     // POST-un cavabında səhifə
+}`, right: `[HttpPost]
+[ValidateAntiForgeryToken]
+public IActionResult Yarat(KursYaratViewModel model)
+{
+    if (!ModelState.IsValid) return View(model);
+    _xidmet.Yarat(model);
+    return RedirectToAction(nameof(Index));
+}`, why: "POST-a birbaşa səhifə qaytarsan, F5 formanı təkrar göndərir — iki eyni kurs yaranır. Həmçinin ModelState yoxlanmayıb və CSRF tokeni tələb olunmur." },
+          { t: "mistake", lang: "html", wrong: `@{
+    var kurslar = Db.Kurslar.Where(k => k.Aktiv).ToList();   @* View-da baza sorğusu *@
+}`, right: `@model KursSiyahisiViewModel
+@foreach (var kurs in Model.Kurslar) { ... }`, why: "View yalnız göstərir. Məlumatın alınması və hesablama controller/xidmətdədir — əks halda test olunmur və N+1 sorğular gizlənir." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Razor-un daxili işi, alternativlər və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Razor faylı kompilyasiya vaxtı C# sinfinə çevrilir (RazorPage<TModel>): HTML hissələri WriteLiteral, @ifadələr isə kodlaşdırılaraq Write çağırışına çevrilir. Görünüşlər build zamanı kompilyasiya olunur — icra vaxtı sürətlidir.",
+            "Razor Pages: səhifə əsaslı model (Pages/Kurslar/Index.cshtml + PageModel). Forma yönümlü saytlar üçün MVC-dən sadədir. Blazor: komponent əsaslı, interaktiv UI (server və ya WebAssembly). Yeni layihədə seçim: API + SPA, Razor Pages və ya Blazor.",
+            "View Component — öz məntiqi olan təkrar işlənən blok (səbət, menyu): partial-dan fərqli olaraq DI və asinxron məlumat yükləməsi var.",
+            "Tag Helper vs HTML Helper: Tag Helper (asp-for) HTML kimi oxunur və alətlərlə yaxşı işləyir; köhnə @Html.TextBoxFor üslubu hələ dəstəklənir.",
+            "Keş: <cache> Tag Helper fraqmenti, OutputCache bütün səhifəni keşləyir. İstifadəçiyə xas məzmunu ümumi keşə salma — biri başqasının səhifəsini görər.",
+            "Müştəri tərəfi validasiya (jquery-validation-unobtrusive) DataAnnotations-dan data-val-* atributları yaradır — yalnız rahatlıq üçündür, server yoxlaması qalır.",
+            "Təhlükəsizlik — XSS: Razor @ ilə çıxışı HTML kontekstində kodlaşdırır. Təhlükə yerləri: Html.Raw, <script> içinə dəyər yazmaq (JavaScript konteksti — @Json.Serialize və ya data-* atributu işlət), href/src-də istifadəçi URL-i («javascript:» sxemi — yalnız http/https-ə icazə ver), istifadəçi HTML-i (HtmlSanitizer ilə ağ siyahı).",
+            "Təhlükəsizlik — CSRF: cookie ilə giriş edən istifadəçi başqa saytdakı gizli forma ilə sənin saytına POST göndərə bilər. Bütün dəyişiklik edən action-larda antiforgery token: qlobal AutoValidateAntiforgeryTokenAttribute filtri + form Tag Helper tokeni özü qoyur. Cookie-lərdə SameSite=Lax/Strict.",
+            "Təhlükəsizlik — dəyişiklik yalnız POST ilə: «/Kurslar/Sil/5» GET linki CSRF-ə (<img src>) və brauzerin öncədən yükləməsinə açıqdır. Silmə/dəyişmə — POST forma + token.",
+            "Təhlükəsizlik — over-posting: forma modeli kimi entity işlətmə. ViewModel-də yalnız formada olan sahələr olsun; gizli (hidden) sahəyə etibar etmə — istifadəçi onu dəyişə bilər (qiymət, istifadəçi id-si, rol).",
+            "Təhlükəsizlik — açıq yönləndirmə: returnUrl-i birbaşa Redirect-ə vermə. LocalRedirect və ya Url.IsLocalUrl yoxlaması.",
+            "Təhlükəsizlik — cookie tənzimləmələri: auth və sessiya cookie-ləri HttpOnly (JS oxuya bilməsin), Secure (yalnız HTTPS), SameSite. TempData/Session-da həssas məlumat saxlama.",
+            "Təhlükəsizlik — CSP: Content-Security-Policy başlığı XSS-in zərərini azaldır. Inline skript əvəzinə fayl və ya nonce; 'unsafe-inline' işlətmə.",
+            "Təhlükəsizlik — clickjacking: X-Frame-Options: DENY / CSP frame-ancestors 'none' — səhifən başqa saytda görünməz iframe-də açılıb istifadəçiyə düymə basdırılmasın (antiforgery bunu default olaraq SAMEORIGIN edir).",
+            "Təhlükəsizlik — icazə View-da yox: «admin düyməsini gizlətmək» qoruma deyil. Action-da [Authorize(Roles = ...)] olmalıdır; View yalnız görünüşü uyğunlaşdırır.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Qlobal CSRF qoruması, təhlükəsiz cookie və silmə", code: `// Program.cs
+builder.Services.AddControllersWithViews(o =>
+{
+    o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());   // bütün POST/PUT/DELETE-lərdə token tələb olunur
+});
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(o =>
+    {
+        o.Cookie.HttpOnly = true;
+        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        o.Cookie.SameSite = SameSiteMode.Lax;
+        o.LoginPath = "/Hesab/Giris";
+        o.ExpireTimeSpan = TimeSpan.FromHours(8);
+        o.SlidingExpiration = true;
+    });
+
+// Controller
+[Authorize]
+public class YazilarController(IYaziXidmeti xidmet, ICariIstifadeci istifadeci) : Controller
+{
+    [HttpPost]                                   // GET yox
+    public async Task<IActionResult> Sil(int id, CancellationToken ct)
+    {
+        bool silindi = await xidmet.SilAsync(id, istifadeci.Id, ct);   // sahiblik xidmətdə yoxlanır
+        if (!silindi) return NotFound();
+
+        TempData["Mesaj"] = "Yazı silindi";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [AllowAnonymous]
+    public IActionResult Giris(string? returnUrl) =>
+        View(new GirisViewModel { ReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : "/" });
+}` },
+          { t: "code", lang: "html", caption: "View-da təhlükəsiz çıxış", code: `@model YaziViewModel
+
+<h1>@Model.Basliq</h1>                          @* avtomatik kodlaşdırılır *@
+<p>@Model.Metn</p>
+
+@* İstifadəçi linki: yalnız http/https *@
+@if (Uri.TryCreate(Model.SaytUnvani, UriKind.Absolute, out var u)
+     && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp))
+{
+    <a href="@u.AbsoluteUri" rel="noopener noreferrer nofollow" target="_blank">Müəllifin saytı</a>
+}
+
+@* JS-ə məlumat: data atributu ilə, skriptin içinə sətir yapışdırmadan *@
+<div id="yazi" data-id="@Model.Id" data-basliq="@Model.Basliq"></div>
+
+@* Silmə: POST forma, token avtomatik əlavə olunur *@
+<form asp-action="Sil" asp-route-id="@Model.Id" method="post">
+    <button type="submit">Sil</button>
+</form>` },
+          { t: "qa", items: [
+            ["MVC-də hissələrin rolu?", "Model — məlumat və qaydalar; View — təqdimat (HTML); Controller — sorğunu qəbul edir, modeli hazırlayır, View seçir."],
+            ["ViewModel nədir, niyə lazımdır?", "Konkret görünüş üçün qurulmuş sinif. Entity-ni View-dan ayırır, over-posting-in qarşısını alır, səhifəyə lazım olan birləşmiş məlumatı daşıyır."],
+            ["ViewData, ViewBag, TempData fərqi?", "ViewData/ViewBag — cari sorğuda controller-dən View-a kiçik məlumat (lüğət / dinamik). TempData — növbəti sorğuya qədər yaşayır (yönləndirmə üçün)."],
+            ["Razor XSS-dən necə qoruyur?", "@ ifadələrini HTML-kodlaşdırır. Html.Raw və JavaScript/URL kontekstləri bu qorumadan kənardır."],
+            ["CSRF nədir, ASP.NET Core-da necə qorunur?", "Başqa saytın istifadəçinin cookie-si ilə sənin saytına sorğu göndərməsi. Antiforgery token (forma + cookie cütü) və SameSite cookie ilə."],
+            ["PRG qəlibi nədir?", "Post–Redirect–Get: uğurlu POST-dan sonra yönləndirmə — təkrar göndərmənin qarşısını alır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "HTML şablonu MVC-nin hansı hissəsidir?", options: ["Model", "View", "Controller"], answer: 1, why: "View təqdimata cavabdehdir." },
+          { t: "quiz", q: "Razor-da C# ifadəsi hansı işarə ilə başlayır?", options: ["#", "@", "$"], answer: 1, why: "@Model.Ad kimi." },
+          { t: "quiz", q: "Uğurlu forma göndərişindən sonra nə etməli?", options: ["View qaytarmaq", "RedirectToAction", "Heç nə"], answer: 1, why: "PRG — təkrar göndərmənin qarşısını alır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Əlaqə forması olan MVC səhifəsi yaz. 1) `ElaqeViewModel`: Ad (məcburi, ≤ 60), Email (məcburi, email), Mesaj (məcburi, 10–1000 simvol). 2) `ElaqeController`: GET Index formanı göstərir; POST Index validasiya edir — səhvdə formanı xətalarla qaytarır, uğurda TempData mesajı yazıb `Tesekkur` action-una yönləndirir (PRG). POST-da antiforgery yoxlaması olsun. 3) `Index.cshtml`: Tag Helper-lərlə forma (asp-for, asp-validation-for). 4) `Tesekkur.cshtml`: TempData mesajını və istifadəçinin adını göstərir — Html.Raw İŞLƏTMƏ. 5) Şərhdə yaz: mesajı niyə @Html.Raw ilə göstərmək olmaz.",
+      starter: `public class ElaqeViewModel\n{\n    // sahələr\n}\n\npublic class ElaqeController : Controller\n{\n    // GET Index, POST Index, GET Tesekkur\n}\n\n// Views/Elaqe/Index.cshtml\n// @model ElaqeViewModel\n// <form asp-action="Index" method="post"> ... </form>\n`,
+      expect: "ViewModel-də [Required], [StringLength]/[EmailAddress] atributları, Mesaj üçün MinimumLength = 10 və 1000 limit; [HttpGet] Index View(new ElaqeViewModel()); [HttpPost] + [ValidateAntiForgeryToken] Index: if (!ModelState.IsValid) return View(model); uğurda TempData və RedirectToAction(nameof(Tesekkur)); forma asp-action, asp-for, asp-validation-for işlədir; Tesekkur view-da @TempData[...] adi @ ilə (Html.Raw yox); şərhdə XSS izah olunub; POST-dan birbaşa View(\"Tesekkur\") qaytarılmır.",
+    },
+  },
+  {
+    slug: "ef-core",
+    title: "Entity Framework Core",
+    intro: "Entity Framework Core (EF Core) — ORM-dir: cədvəllərlə C# sinifləri kimi işləməyə imkan verir. SQL yazmaq əvəzinə LINQ yazırsan, EF onu SQL-ə çevirir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Sinif = cədvəl, obyekt = sətir",
+        blocks: [
+          { t: "analogy", text: "EF Core — tərcüməçidir. Sən C# dilində danışırsan («qiyməti 100-dən baha məhsulları ver»), o bunu bazanın dilinə (SQL) çevirir, cavabı da geri C# obyektlərinə tərcümə edir. Sən bazanın dilini bilməsən də danışa bilirsən — amma yaxşı nəticə üçün tərcüməçinin nə dediyini anlamaq faydalıdır." },
+          { t: "code", lang: "csharp", code: `// Varlıq (entity) — cədvəlin sətri
+public class Mehsul
+{
+    public int Id { get; set; }                 // konvensiya: Id → əsas açar
+    public string Ad { get; set; } = "";
+    public decimal Qiymet { get; set; }
+    public int Stok { get; set; }
+}
+
+// DbContext — baza ilə əlaqə
+public class MagazaDb(DbContextOptions<MagazaDb> options) : DbContext(options)
+{
+    public DbSet<Mehsul> Mehsullar => Set<Mehsul>();      // cədvəl
+}
+
+// Program.cs
+builder.Services.AddDbContext<MagazaDb>(o =>
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Esas")));
+
+// İstifadə
+app.MapGet("/mehsullar", async (MagazaDb db) =>
+    await db.Mehsullar.Where(m => m.Stok > 0).OrderBy(m => m.Ad).ToListAsync());
+
+app.MapPost("/mehsullar", async (Mehsul m, MagazaDb db) =>
+{
+    db.Mehsullar.Add(m);                 // yaddaşda işarələ
+    await db.SaveChangesAsync();         // INSERT bazaya gedir
+    return Results.Created($"/mehsullar/{m.Id}", m);
+});` },
+          { t: "terms", items: [
+            ["ORM", "Object-Relational Mapper — obyektləri cədvəllərə uyğunlaşdıran alət."],
+            ["entity (varlıq)", "cədvələ uyğun gələn sinif."],
+            ["DbContext", "baza sessiyası: sorğular göndərir, dəyişiklikləri izləyir."],
+            ["DbSet<T>", "bir cədvəli təmsil edən kolleksiya."],
+            ["SaveChangesAsync", "yığılmış dəyişiklikləri bazaya yazır (bir tranzaksiyada)."],
+          ]},
+          { t: "tip", text: "Add, Remove və xüsusiyyəti dəyişmək bazaya heç nə göndərmir — yalnız yaddaşda qeyd olunur. Hər şey SaveChangesAsync çağırılanda yazılır." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "CRUD, əlaqələr və Include",
+        blocks: [
+          { t: "code", lang: "csharp", code: `public class Kateqoriya
+{
+    public int Id { get; set; }
+    public string Ad { get; set; } = "";
+    public List<Mehsul> Mehsullar { get; set; } = [];          // bir → çox
+}
+
+public class Mehsul
+{
+    public int Id { get; set; }
+    public string Ad { get; set; } = "";
+    public decimal Qiymet { get; set; }
+    public int KateqoriyaId { get; set; }                      // xarici açar
+    public Kateqoriya Kateqoriya { get; set; } = null!;        // naviqasiya
+}
+
+// Tənzimləmə (Fluent API)
+protected override void OnModelCreating(ModelBuilder mb)
+{
+    mb.Entity<Mehsul>(e =>
+    {
+        e.Property(m => m.Ad).HasMaxLength(100).IsRequired();
+        e.Property(m => m.Qiymet).HasPrecision(12, 2);
+        e.HasIndex(m => m.Ad);
+        e.HasOne(m => m.Kateqoriya)
+         .WithMany(k => k.Mehsullar)
+         .HasForeignKey(m => m.KateqoriyaId)
+         .OnDelete(DeleteBehavior.Restrict);
+    });
+}
+
+// Oxu: əlaqəli məlumatla
+var mehsullar = await db.Mehsullar
+    .Include(m => m.Kateqoriya)                // JOIN
+    .Where(m => m.Qiymet > 100)
+    .ToListAsync(ct);
+
+// Daha yaxşı: yalnız lazım olan sütunlar (proyeksiya)
+var siyahi = await db.Mehsullar
+    .Where(m => m.Qiymet > 100)
+    .Select(m => new MehsulDto(m.Id, m.Ad, m.Qiymet, m.Kateqoriya.Ad))
+    .ToListAsync(ct);
+
+// Biri
+var mehsul = await db.Mehsullar.FindAsync([id], ct);                  // PK ilə
+var ilk = await db.Mehsullar.FirstOrDefaultAsync(m => m.Ad == ad, ct);
+
+// Yenilə
+mehsul!.Qiymet = 149.90m;                      // EF dəyişikliyi özü görür
+await db.SaveChangesAsync(ct);
+
+// Sil
+db.Mehsullar.Remove(mehsul);
+await db.SaveChangesAsync(ct);
+
+// Kütləvi əməliyyat — obyektləri yükləmədən, birbaşa SQL
+await db.Mehsullar.Where(m => m.Stok == 0).ExecuteDeleteAsync(ct);
+await db.Mehsullar.Where(m => m.KateqoriyaId == 3)
+    .ExecuteUpdateAsync(s => s.SetProperty(m => m.Qiymet, m => m.Qiymet * 1.1m), ct);` },
+          { t: "mistake", lang: "csharp", wrong: `var sifarisler = await db.Sifarisler.ToListAsync();
+foreach (var s in sifarisler)
+{
+    var musteri = await db.Musteriler.FindAsync(s.MusteriId);   // hər sifariş üçün ayrı sorğu
+    Console.WriteLine(musteri!.Ad);
+}`, right: `var sifarisler = await db.Sifarisler
+    .Select(s => new { s.Id, MusteriAdi = s.Musteri.Ad })
+    .ToListAsync();`, why: "N+1 problemi: 1 sorğu siyahı üçün + N sorğu hər sətir üçün. 1000 sifariş = 1001 sorğu. Include və ya proyeksiya ilə bir sorğuda al." },
+          { t: "mistake", lang: "csharp", wrong: `var bahali = db.Mehsullar.ToList().Where(m => m.Qiymet > 1000);   // bütün cədvəl yaddaşa`, right: `var bahali = await db.Mehsullar.Where(m => m.Qiymet > 1000).ToListAsync();`, why: "ToList()-dən sonrakı Where yaddaşda işləyir — əvvəlcə milyon sətir yüklənir. Filtri ToListAsync-dən ƏVVƏL yaz ki, SQL-in WHERE-nə çevrilsin." },
+          { t: "mistake", lang: "csharp", wrong: `var mehsullar = await db.Mehsullar.ToListAsync();      // yalnız göstərmək üçün`, right: `var mehsullar = await db.Mehsullar.AsNoTracking().ToListAsync();`, why: "Default olaraq EF hər yüklənən obyekti izləyir (change tracking) — yaddaş və vaxt aparır. Yalnız oxunan sorğularda AsNoTracking işlət (proyeksiya onsuz da izlənmir)." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Dəyişiklik izləmə, performans, paralellik və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Change tracker hər varlığın vəziyyətini saxlayır: Added, Modified, Deleted, Unchanged, Detached. SaveChanges anlıq görüntü (snapshot) ilə müqayisə edib yalnız dəyişən sütunlar üçün UPDATE yaradır və hamısını bir tranzaksiyada icra edir.",
+            "DbContext qısaömürlüdür (bir sorğu = bir iş vahidi) və axın-təhlükəsiz DEYİL: eyni konteksdə paralel sorğu (Task.WhenAll) istisna atır. Paralel iş üçün IDbContextFactory ilə ayrı kontekstlər.",
+            "Yükləmə strategiyaları: eager (Include), açıq (Entry().Collection().LoadAsync()), lazy (proksilərlə — gizli N+1 yaradır, API-lərdə işlətmə). Ən yaxşısı çox vaxt Select ilə DTO-ya proyeksiyadır.",
+            "Kartezian partlayışı: bir neçə kolleksiya Include edəndə JOIN sətirləri vurulur. AsSplitQuery() onları ayrı sorğulara bölür (uyğunluq üçün tranzaksiya və ya sıralama tələb oluna bilər).",
+            "Yaranan SQL-i həmişə gör: LogTo / EnableSensitiveDataLogging (yalnız lokalda), ToQueryString(). EF tərcümə edə bilmədiyi ifadədə istisna atır — client evaluation-a səssizcə keçmir.",
+            "Performans alətləri: AsNoTracking, proyeksiya, ExecuteUpdate/ExecuteDelete (yükləmədən), kompilyasiya olunmuş sorğular (EF.CompileAsyncQuery), DbContext pooling (AddDbContextPool), açarla səhifələmə (keyset), toplu yazı (batching avtomatikdir).",
+            "Optimist paralellik (optimistic concurrency): [Timestamp] / rowversion və ya IsConcurrencyToken. İki nəfər eyni sətri dəyişəndə ikincisi DbUpdateConcurrencyException alır — «son yazan qalib gəlir» problemi həll olunur.",
+            "Tranzaksiya: bir SaveChanges onsuz da atomdur. Bir neçə SaveChanges və ya xarici əməliyyat üçün BeginTransactionAsync. Bağlantı xətalarına qarşı EnableRetryOnFailure — bu halda əl tranzaksiyalarını execution strategy içində işlət.",
+            "Qlobal sorğu filtri (HasQueryFilter): yumşaq silmə (IsDeleted) və çoxkirayəçilik (TenantId) üçün — hər sorğuya avtomatik əlavə olunur. IgnoreQueryFilters yalnız şüurlu hallarda.",
+            "Dəyər obyektləri və JSON: owned types / complex types, JSON sütunları (ToJson), dəyər çeviriciləri (enum → sətir).",
+            "Təhlükəsizlik — SQL injection: LINQ dəyərləri parametr kimi göndərir — təhlükəsizdir. Təhlükə xam SQL-dədir: FromSqlRaw(\"... WHERE Ad = '\" + ad + \"'\") və ya ExecuteSqlRaw-da sətir birləşdirmə. FromSql / FromSqlInterpolated / ExecuteSqlInterpolated işlət — interpolasiyanı parametrə çevirir. Cədvəl/sütun adı parametr ola bilmir — onu yalnız ağ siyahıdan seç.",
+            "Təhlükəsizlik — over-posting: db.Update(müştəridənGələnEntity) bütün sütunları yazır — hücumçu Rol, Balans, SahibId göndərə bilər. Varlığı bazadan yüklə, yalnız icazəli sahələri DTO-dan köçür.",
+            "Təhlükəsizlik — icazə filtri sorğuda: db.Senedler.FindAsync(id) sahibliyi yoxlamır (IDOR). Where(s => s.Id == id && s.SahibId == cariId) yaz və ya çoxkirayəçili sistemdə qlobal sorğu filtri qur ki, unutmaq mümkün olmasın.",
+            "Təhlükəsizlik — məlumat sızması: entity-ni JSON kimi qaytarma — ParolHesi, daxili sahələr və naviqasiya ağacı çıxır. Select ilə DTO. EnableSensitiveDataLogging production-da parametr dəyərlərini (şəxsi məlumat, parol heşi) loga yazır — söndür.",
+            "Təhlükəsizlik — bağlantı sətri və baza hesabı: sətir sirr anbarında; tətbiq hesabının yalnız lazım olan hüquqları (SELECT/INSERT/UPDATE/DELETE) olsun — db_owner/sa yox. Miqrasiyanı ayrı, hüquqlu hesab icra etsin. Bağlantıda Encrypt=True, TrustServerCertificate=False.",
+            "Təhlükəsizlik — limitsiz sorğu (DoS): ToListAsync-dən əvvəl həmişə Take; səhifə ölçüsünü serverdə məhdudlaşdır; dinamik sıralama/filtr sahələrini ağ siyahıdan götür (gizli sütuna görə sıralama məlumat sızdırır); sorğuya əmr vaxt limiti (CommandTimeout).",
+            "Təhlükəsizlik — həssas sütunlar: parolu heç vaxt saxlama — yalnız yavaş heş (PasswordHasher / Argon2 / bcrypt). Şəxsi məlumat üçün sütun şifrələməsi (Always Encrypted və ya dəyər çeviricisi ilə tətbiq səviyyəsində), audit üçün SaveChanges interceptor-u (kim, nə vaxt).",
+          ]},
+          { t: "code", lang: "csharp", caption: "Çoxkirayəçili filtr, paralellik tokeni və təhlükəsiz yeniləmə", code: `public class Sened
+{
+    public int Id { get; set; }
+    public int SahibId { get; set; }
+    public string Basliq { get; set; } = "";
+    public string Metn { get; set; } = "";
+    public bool Silinib { get; set; }
+    [Timestamp] public byte[] Versiya { get; set; } = [];     // optimist paralellik
+}
+
+public class SenedDb(DbContextOptions<SenedDb> options, ICariIstifadeci istifadeci) : DbContext(options)
+{
+    public DbSet<Sened> Senedler => Set<Sened>();
+
+    protected override void OnModelCreating(ModelBuilder mb)
+    {
+        // Hər sorğuya avtomatik: yalnız özününkülər və silinməmişlər
+        mb.Entity<Sened>().HasQueryFilter(s => s.SahibId == istifadeci.Id && !s.Silinib);
+        mb.Entity<Sened>().Property(s => s.Basliq).HasMaxLength(200);
+    }
+}
+
+public record SenedYenileDto(
+    [Required, StringLength(200)] string Basliq,
+    [Required, StringLength(20_000)] string Metn,
+    [Required] byte[] Versiya);
+
+app.MapPut("/api/senedler/{id:int}", async Task<Results<NoContent, NotFound, Conflict<string>>> (
+    int id, SenedYenileDto giris, SenedDb db, CancellationToken ct) =>
+{
+    // Qlobal filtr sayəsində başqasının sənədi tapılmır → 404
+    var sened = await db.Senedler.FirstOrDefaultAsync(s => s.Id == id, ct);
+    if (sened is null) return TypedResults.NotFound();
+
+    // Yalnız icazəli sahələr köçürülür (SahibId, Silinib toxunulmazdır)
+    sened.Basliq = giris.Basliq.Trim();
+    sened.Metn = giris.Metn;
+    db.Entry(sened).Property(s => s.Versiya).OriginalValue = giris.Versiya;
+
+    try
+    {
+        await db.SaveChangesAsync(ct);
+        return TypedResults.NoContent();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        return TypedResults.Conflict("Sənəd başqa yerdə dəyişdirilib. Yeniləyib təkrar cəhd edin.");
+    }
+}).RequireAuthorization();
+
+// Xam SQL lazımdırsa — yalnız parametrləşdirilmiş
+var netice = await db.Senedler
+    .FromSql($"SELECT * FROM Senedler WHERE CONTAINS(Metn, {axtaris})")   // {axtaris} → @p0
+    .AsNoTracking()
+    .Take(50)
+    .ToListAsync(ct);` },
+          { t: "qa", items: [
+            ["EF Core nədir, üstünlüyü və çatışmazlığı?", "ORM: LINQ ilə tip-təhlükəsiz sorğu, dəyişiklik izləmə, miqrasiyalar. Çatışmazlığı — gizli qeyri-səmərəli SQL riski; mürəkkəb sorğularda xam SQL/Dapper daha uyğun ola bilər."],
+            ["Change tracking necə işləyir?", "Kontekst yüklənən varlıqların ilkin dəyərlərini saxlayır; SaveChanges-də cari dəyərlərlə müqayisə edib INSERT/UPDATE/DELETE yaradır."],
+            ["N+1 problemi nədir, həlli?", "Siyahı üçün 1 sorğu + hər element üçün əlavə sorğu. Həlli: Include, proyeksiya (Select), split query."],
+            ["AsNoTracking nə vaxt?", "Yalnız oxunan sorğularda — izləmə xərci olmur. Dəyişdirib saxlayacağın varlıq üçün yox."],
+            ["Include ilə Select fərqi?", "Include bütün əlaqəli varlığı yükləyir. Select yalnız lazım olan sütunları DTO-ya çıxarır — adətən daha sürətli və təhlükəsiz."],
+            ["Optimist paralellik necə qurulur?", "rowversion/concurrency token sütunu ilə: UPDATE-in WHERE-nə köhnə versiya əlavə olunur; 0 sətir dəyişsə DbUpdateConcurrencyException atılır."],
+            ["EF Core SQL injection-dan qoruyurmu?", "LINQ və FromSql/Interpolated — bəli (parametrləşdirir). FromSqlRaw/ExecuteSqlRaw-da sətir birləşdirmə — yox."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Dəyişikliklər bazaya nə vaxt yazılır?", options: ["Add çağırılanda", "SaveChangesAsync çağırılanda", "Proqram bağlananda"], answer: 1, why: "Ona qədər yalnız yaddaşda izlənir." },
+          { t: "quiz", q: "Əlaqəli məlumatı bir sorğuda yükləmək üçün?", options: ["Include", "Remove", "Attach"], answer: 0, why: "Include JOIN yaradır." },
+          { t: "quiz", q: "Yalnız oxumaq üçün sorğuda nə əlavə etmək faydalıdır?", options: ["AsNoTracking", "ToList().Where", "Update"], answer: 0, why: "İzləmə xərcini aradan qaldırır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Bloq üçün EF Core modeli və sorğular yaz. 1) `Muellif` (Id, Ad, Email) və `Yazi` (Id, Basliq, Metn, Yaradilib, MuellifId, Muellif) varlıqları; bir müəllifin çox yazısı var. 2) `BloqDb : DbContext` — DbSet-lər və Fluent API: Basliq məcburi və ≤ 150, Email unikal indeks, silinmə Restrict. 3) Sorğu: son 10 yazı — Id, Basliq, müəllifin adı (DTO proyeksiyası, izləməsiz, ən yenidən). 4) Sorğu: hər müəllifin yazı sayı. 5) Yazının başlığını yeniləyən metod: yalnız `muellifId` özününküdürsə (sahiblik sorğunun içində), tapılmasa false. 6) 1 ildən köhnə yazıları yükləmədən silən əmr. 7) Şərhdə: niyə `FromSqlRaw(\"... '\" + soz + \"'\")` təhlükəlidir və əvəzinə nə yazırsan.",
+      starter: `public class Muellif\n{\n    public int Id { get; set; }\n    // ...\n}\n\npublic class Yazi\n{\n    public int Id { get; set; }\n    // ...\n}\n\npublic class BloqDb(DbContextOptions<BloqDb> options) : DbContext(options)\n{\n    // DbSet-lər, OnModelCreating\n}\n\npublic record YaziDto(int Id, string Basliq, string MuellifAdi);\n`,
+      expect: "Muellif-də List<Yazi> naviqasiyası, Yazi-də MuellifId + Muellif; OnModelCreating: Property(Basliq).IsRequired().HasMaxLength(150), HasIndex(Email).IsUnique(), HasOne/WithMany/HasForeignKey + OnDelete(DeleteBehavior.Restrict); son 10: OrderByDescending(Yaradilib).Take(10).Select(new YaziDto(..., y.Muellif.Ad)).ToListAsync (AsNoTracking və ya proyeksiya; ToList().Where yox); say: GroupBy və ya Select(m => new { m.Ad, Say = m.Yazilar.Count }); yeniləmə: Where(y => y.Id == id && y.MuellifId == muellifId) ilə tapır (və ya ExecuteUpdateAsync) və bool qaytarır; silmə: Where(y => y.Yaradilib < UtcNow.AddYears(-1)).ExecuteDeleteAsync(); şərhdə injection və FromSql/FromSqlInterpolated; bütün çağırışlar async.",
+    },
+  },
+  {
+    slug: "migration",
+    title: "Migration-lar",
+    intro: "Migration (miqrasiya) — bazanın sxemindəki dəyişikliyin kodla yazılmış addımıdır. Modeli dəyişirsən, EF Core fərqi tapıb cədvəli necə dəyişmək lazım olduğunu yazır. Beləliklə sxem də kod kimi versiyalanır.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Modeldən bazaya",
+        blocks: [
+          { t: "analogy", text: "Migration — evin təmir jurnalıdır. Hər səhifədə bir iş yazılıb: «mətbəxə pəncərə əlavə olundu», «otağın divarı söküldü». Jurnalı əvvəldən axıra oxuyan usta boş sahədə eyni evi tikə bilər. Hər səhifədə işi geri qaytarmağın yolu da var." },
+          { t: "code", lang: "bash", code: `# Alət (bir dəfə)
+dotnet tool install --global dotnet-ef
+dotnet add package Microsoft.EntityFrameworkCore.Design
+
+# 1) İlk miqrasiya: modeldən cədvəllərin təsviri yaranır
+dotnet ef migrations add IlkSxem
+
+# 2) Bazaya tətbiq et
+dotnet ef database update
+
+# Model dəyişdi (məs. Mehsul-a Stok əlavə etdin) → yeni miqrasiya
+dotnet ef migrations add MehsulaStokElaveEt
+dotnet ef database update
+
+# Siyahı və vəziyyət
+dotnet ef migrations list` },
+          { t: "code", lang: "csharp", caption: "Migrations/20261114120000_MehsulaStokElaveEt.cs (avtomatik yaranır)", code: `public partial class MehsulaStokElaveEt : Migration
+{
+    protected override void Up(MigrationBuilder migrationBuilder)        // irəli
+    {
+        migrationBuilder.AddColumn<int>(
+            name: "Stok",
+            table: "Mehsullar",
+            type: "int",
+            nullable: false,
+            defaultValue: 0);
+    }
+
+    protected override void Down(MigrationBuilder migrationBuilder)      // geri
+    {
+        migrationBuilder.DropColumn(name: "Stok", table: "Mehsullar");
+    }
+}` },
+          { t: "terms", items: [
+            ["migration", "sxem dəyişikliyinin bir addımı: Up (tətbiq et) və Down (geri qaytar)."],
+            ["dotnet ef", "EF Core-un əmr sətri aləti."],
+            ["model snapshot", "modelin son vəziyyətinin surəti — növbəti miqrasiya fərqi bununla hesablayır."],
+            ["__EFMigrationsHistory", "bazada hansı miqrasiyaların tətbiq olunduğunu saxlayan cədvəl."],
+            ["database update", "tətbiq olunmamış miqrasiyaları sıra ilə icra edir."],
+          ]},
+          { t: "tip", text: "Miqrasiyaya mənalı ad ver: «Update1» yox, «SifariseCatdirilmaUnvaniElaveEt». Altı ay sonra tarixçəni oxuyan sən olacaqsan." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Geri qaytarma, məlumat miqrasiyası və SQL skripti",
+        blocks: [
+          { t: "code", lang: "bash", code: `# Son miqrasiyanı sil (hələ bazaya TƏTBİQ OLUNMAYIBSA)
+dotnet ef migrations remove
+
+# Bazanı əvvəlki miqrasiyaya qaytar (sonrakıların Down-u işləyir)
+dotnet ef database update IlkSxem
+
+# Production üçün SQL skripti (idempotent: təkrar işlətmək təhlükəsizdir)
+dotnet ef migrations script --idempotent -o miqrasiya.sql
+
+# İki miqrasiya arası skript
+dotnet ef migrations script IlkSxem MehsulaStokElaveEt
+
+# Müstəqil icra faylı (bundle) — serverdə SDK lazım deyil
+dotnet ef migrations bundle -o efbundle
+./efbundle --connection "..."` },
+          { t: "code", lang: "csharp", caption: "Əl ilə düzəldilmiş miqrasiya: sütunu bölmək + məlumatı köçürmək", code: `public partial class AdiSoyadiAyir : Migration
+{
+    protected override void Up(MigrationBuilder mb)
+    {
+        // 1) Yeni sütunlar (hələ boş ola bilər)
+        mb.AddColumn<string>("Ad", "Musteriler", maxLength: 50, nullable: true);
+        mb.AddColumn<string>("Soyad", "Musteriler", maxLength: 50, nullable: true);
+
+        // 2) Mövcud məlumatı köçür
+        mb.Sql("""
+            UPDATE Musteriler
+            SET Ad = LEFT(TamAd, CHARINDEX(' ', TamAd + ' ') - 1),
+                Soyad = LTRIM(SUBSTRING(TamAd, CHARINDEX(' ', TamAd + ' '), 100))
+            """);
+
+        // 3) İndi məcburi et və köhnəni sil
+        mb.AlterColumn<string>("Ad", "Musteriler", maxLength: 50, nullable: false, defaultValue: "");
+        mb.DropColumn("TamAd", "Musteriler");
+    }
+
+    protected override void Down(MigrationBuilder mb)
+    {
+        mb.AddColumn<string>("TamAd", "Musteriler", maxLength: 100, nullable: true);
+        mb.Sql("UPDATE Musteriler SET TamAd = CONCAT(Ad, ' ', Soyad)");
+        mb.DropColumn("Ad", "Musteriler");
+        mb.DropColumn("Soyad", "Musteriler");
+    }
+}
+
+// Başlanğıc məlumatı (seed)
+mb.Entity<Rol>().HasData(
+    new Rol { Id = 1, Ad = "Istifadeci" },
+    new Rol { Id = 2, Ad = "Admin" });` },
+          { t: "mistake", lang: "csharp", wrong: `// Xüsusiyyətin adını dəyişdin: TamAd → AdSoyad
+// EF bunu «sütunu sil, yenisini yarat» kimi yaza bilər:
+mb.DropColumn("TamAd", "Musteriler");
+mb.AddColumn<string>("AdSoyad", "Musteriler");     // bütün məlumat itdi`, right: `mb.RenameColumn(name: "TamAd", table: "Musteriler", newName: "AdSoyad");`, why: "EF adın dəyişdiyini həmişə anlamır. Yaranan miqrasiyanı HƏR DƏFƏ oxu: DropColumn / DropTable görürsənsə, məlumat itkisi ola bilər — RenameColumn ilə əvəz et." },
+          { t: "mistake", lang: "bash", wrong: `# Miqrasiya artıq komandaya/production-a gedib, sonra faylı düzəldirsən
+# və ya: dotnet ef migrations remove`, right: `# Tətbiq olunmuş miqrasiyaya toxunma — yenisini əlavə et
+dotnet ef migrations add DuzelisSutunUzunlugu`, why: "Tətbiq olunmuş miqrasiyanı dəyişsən, başqalarının bazası ilə sənin kodun ayrılır — snapshot və tarixçə uyğun gəlmir. Tarixçə yalnız irəli gedir." },
+          { t: "mistake", lang: "csharp", wrong: `// Program.cs — hər başlanğıcda
+app.Services.CreateScope().ServiceProvider
+   .GetRequiredService<MagazaDb>().Database.Migrate();`, right: `// Lokalda rahatdır. Production-da miqrasiyanı yayım addımı kimi icra et:
+// dotnet ef migrations bundle  →  ./efbundle   (CI/CD-də, tətbiqdən ƏVVƏL)`, why: "Bir neçə nüsxə eyni anda qalxanda miqrasiya yarışı yaranır; tətbiq hesabına sxem dəyişmə hüququ vermək lazım gəlir; uğursuz miqrasiya tətbiqi qalxmağa qoymur. Miqrasiya ayrı, nəzarətli addım olmalıdır." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Fasiləsiz yayım, komanda işi və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Miqrasiya üç fayldır: Up/Down kodu, .Designer (həmin andakı model), ModelSnapshot (son model). `migrations add` cari modeli snapshot ilə müqayisə edir — bazaya baxmır.",
+            "Komandada toqquşma: iki nəfər eyni vaxtda miqrasiya əlavə edəndə snapshot-da merge conflict olur. Həlli: öz miqrasiyanı sil, əsas budağı birləşdir, miqrasiyanı yenidən yarat. Miqrasiyaları kiçik və tez-tez birləşdir.",
+            "Fasiləsiz yayım (zero-downtime): yayım zamanı köhnə və yeni kod eyni bazaya baxır. Hər miqrasiya köhnə kodla da işləməlidir. Qəlib — «genişləndir və daralt» (expand/contract): 1) yeni sütun əlavə et (nullable); 2) kod hər ikisinə yazsın; 3) məlumatı köçür; 4) kod yalnız yenini oxusun; 5) köhnəni sil — ayrı yayımda.",
+            "Təhlükəli əməliyyatlar: sütun/cədvəl silmək, adını dəyişmək, NOT NULL əlavə etmək (default-suz), tipi daraltmaq. Böyük cədvəldə indeks yaratmaq və sütun dəyişmək cədvəli kilidləyə bilər — onlayn variantlarını işlət (SQL Server: ONLINE = ON; PostgreSQL: CREATE INDEX CONCURRENTLY — tranzaksiyadan kənar).",
+            "Böyük məlumat köçürməsini miqrasiyada bir UPDATE ilə etmə: uzun tranzaksiya, kilidlər, jurnalın şişməsi. Hissə-hissə (batch) fon işi ilə köçür.",
+            "Down metodlarını real olaraq sına — production-da geri qayıtmaq lazım olanda ilk dəfə işlətmə. Bəzi dəyişikliklər geri dönməzdir (silinmiş məlumat) — onda bərpa planı backup-dır.",
+            "CI yoxlaması: `dotnet ef migrations has-pending-model-changes` — model dəyişib, miqrasiya unudulubsa build uğursuz olsun. İdempotent skripti artefakt kimi saxla və nəzərdən keçir (code review).",
+            "Miqrasiya çox olanda (yüzlərlə) birləşdir (squash): yeni baza üçün tək başlanğıc miqrasiyası; mövcud bazalarda tarixçə cədvəlini uyğunlaşdır.",
+            "EnsureCreated() miqrasiya deyil: sxemi birbaşa yaradır və tarixçə yazmır — sonra Migrate işləməz. Yalnız testlər/prototip üçün.",
+            "Təhlükəsizlik — ayrı hesablar: tətbiq hesabı yalnız məlumatla işləsin (SELECT/INSERT/UPDATE/DELETE). Sxem dəyişmə (DDL) hüququ yalnız yayım zamanı işlənən miqrasiya hesabında olsun. Tətbiq ələ keçirilsə, hücumçu cədvəli silə və ya sxemi dəyişə bilməsin.",
+            "Təhlükəsizlik — sirlər miqrasiyada: HasData ilə admin parolu, API açarı, real istifadəçi məlumatı yazma — onlar mənbə kodunda və git tarixçəsində qalır. Seed yalnız açıq soraq məlumatı üçündür; ilk admin ayrıca, təhlükəsiz addımla yaradılır.",
+            "Təhlükəsizlik — mb.Sql: miqrasiya SQL-i yüksək hüquqla işləyir. İçində dinamik və ya kənardan gələn sətir birləşdirmə olmasın; skripti nəzərdən keçirmədən production-da işlətmə. Miqrasiya faylları da code review-dan keçməlidir.",
+            "Təhlükəsizlik — yayımdan əvvəl backup: hər production miqrasiyasından əvvəl nüsxə (və ya PITR-in aktiv olduğunun təsdiqi). Məlumat itirən miqrasiyanı EF xəbərdarlıqla qeyd edir — onu gözardı etmə.",
+            "Təhlükəsizlik — bağlantı sətri əmr sətrində: `dotnet ef database update --connection \"...parol...\"` shell tarixçəsində və CI loglarında qalır. Mühit dəyişəni / sirr anbarından oxu, CI-da maskala.",
+            "Təhlükəsizlik — həssas sütun əlavə edəndə: yeni şəxsi məlumat sütunu (FİN, telefon) üçün şifrələmə, giriş hüquqları, loglama və saxlama müddəti miqrasiya ilə birlikdə planlaşdırılsın; köhnə açıq mətn sütunu silinənə qədər iş bitməyib.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Genişləndir → köçür → daralt: Email sütununun fasiləsiz adını dəyişmək", code: `// YAYIM 1 — genişləndir: yeni sütun, köhnə kod sınmır
+public partial class EpoctUnvaniElaveEt : Migration
+{
+    protected override void Up(MigrationBuilder mb)
+    {
+        mb.AddColumn<string>("EpoctUnvani", "Istifadeciler", maxLength: 254, nullable: true);
+    }
+
+    protected override void Down(MigrationBuilder mb) =>
+        mb.DropColumn("EpoctUnvani", "Istifadeciler");
+}
+// Kod (yayım 1): hər iki sütuna yazır, köhnədən oxuyur.
+// Fon işi: köhnə sətirləri hissə-hissə köçürür (hər dəfə 5000 sətir).
+
+// YAYIM 2 — kod yalnız yeni sütunu oxuyur və yazır.
+
+// YAYIM 3 — daralt: heç kim köhnəni işlətmir
+public partial class KohneEmailSutununuSil : Migration
+{
+    protected override void Up(MigrationBuilder mb)
+    {
+        // Təhlükəsizlik kəməri: köçürülməmiş sətir qalıbsa dayan
+        mb.Sql("""
+            IF EXISTS (SELECT 1 FROM Istifadeciler WHERE EpoctUnvani IS NULL AND Email IS NOT NULL)
+                THROW 50000, 'Köçürülməmiş sətirlər var', 1;
+            """);
+
+        mb.AlterColumn<string>("EpoctUnvani", "Istifadeciler", maxLength: 254, nullable: false);
+        mb.CreateIndex("IX_Istifadeciler_EpoctUnvani", "Istifadeciler", "EpoctUnvani", unique: true);
+        mb.DropColumn("Email", "Istifadeciler");
+    }
+
+    protected override void Down(MigrationBuilder mb)
+    {
+        mb.AddColumn<string>("Email", "Istifadeciler", maxLength: 254, nullable: true);
+        mb.Sql("UPDATE Istifadeciler SET Email = EpoctUnvani");
+        mb.DropIndex("IX_Istifadeciler_EpoctUnvani", "Istifadeciler");
+    }
+}` },
+          { t: "qa", items: [
+            ["Migration nədir, nə üçündür?", "Sxem dəyişikliyinin versiyalanan, təkrarlana bilən təsviri. Bütün mühitlərdə bazanı eyni vəziyyətə gətirir."],
+            ["EF hansı miqrasiyaların tətbiq olunduğunu necə bilir?", "Bazadakı __EFMigrationsHistory cədvəlindən."],
+            ["Production-da miqrasiyanı necə tətbiq edirsən?", "Tətbiq başlanğıcında Migrate() ilə yox — CI/CD addımında idempotent SQL skripti və ya bundle ilə, ayrı hüquqlu hesabla, backup-dan sonra."],
+            ["Fasiləsiz yayımda sütunun adını necə dəyişirsən?", "Genişləndir/daralt: yeni sütun əlavə et, hər ikisinə yaz, məlumatı köçür, oxumanı keçir, köhnəni ayrıca yayımda sil."],
+            ["Tətbiq olunmuş miqrasiyanı dəyişmək olarmı?", "Yox. Düzəliş üçün yeni miqrasiya əlavə edilir."],
+            ["EnsureCreated ilə Migrate fərqi?", "EnsureCreated sxemi tarixçəsiz yaradır (miqrasiyalarla uyğun deyil). Migrate miqrasiyaları sıra ilə tətbiq edir və tarixçə aparır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Yeni miqrasiya yaradan əmr?", options: ["dotnet ef migrations add Ad", "dotnet ef database update", "dotnet build"], answer: 0, why: "add miqrasiya faylını yaradır." },
+          { t: "quiz", q: "Miqrasiyanı bazaya tətbiq edən əmr?", options: ["migrations list", "database update", "migrations remove"], answer: 1, why: "update gözləyən miqrasiyaları icra edir." },
+          { t: "quiz", q: "Down metodu nə edir?", options: ["Miqrasiyanı geri qaytarır", "Bazanı silir", "Testləri işlədir"], answer: 0, why: "Up-ın əksidir." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "`Mehsullar` cədvəli üçün miqrasiya ssenarisi yaz (əmrlər + miqrasiya sinfi). 1) Modelə `Kateqoriya` (string, ≤ 50, məcburi) əlavə etdin — mövcud sətirlər var. Miqrasiya yaradan və tətbiq edən əmrləri yaz. 2) Miqrasiya sinfini əl ilə yaz: sütunu əvvəl nullable əlavə et, mövcud sətirlərə 'Ümumi' yaz, sonra NOT NULL et; Down düzgün geri qaytarsın. 3) `Ad` sütununun adını `Basliq`-a dəyişən miqrasiyanı məlumat itirmədən yaz. 4) Production üçün idempotent SQL skripti yaradan əmri yaz. 5) Şərhdə: niyə production-da `Database.Migrate()`-i tətbiq başlanğıcında çağırmırsan (2 səbəb) və tətbiq hesabının hansı hüquqları olmalıdır.",
+      starter: `// 1) əmrlər\n// dotnet ef ...\n\npublic partial class MehsulaKateqoriyaElaveEt : Migration\n{\n    protected override void Up(MigrationBuilder mb)\n    {\n    }\n\n    protected override void Down(MigrationBuilder mb)\n    {\n    }\n}\n\n// 3) ad dəyişmə miqrasiyası\n\n// 4) skript əmri\n\n// 5) şərh\n`,
+      expect: "dotnet ef migrations add MehsulaKateqoriyaElaveEt və dotnet ef database update; Up: AddColumn nullable: true → mb.Sql(\"UPDATE Mehsullar SET Kateqoriya = 'Ümumi' WHERE Kateqoriya IS NULL\") → AlterColumn nullable: false (və ya defaultValue ilə bir addımda — qəbul olunur); Down: DropColumn; ad dəyişmə RenameColumn ilə (DropColumn + AddColumn yox), Down əks RenameColumn; dotnet ef migrations script --idempotent; şərhdə: çoxlu nüsxədə yarış / tətbiq hesabına DDL hüququ lazım gəlir / uğursuz miqrasiya tətbiqi yıxır; tətbiq hesabı yalnız SELECT, INSERT, UPDATE, DELETE.",
+    },
+  },
+  {
+    slug: "auth",
+    title: "Autentifikasiya: JWT və Identity",
+    intro: "Autentifikasiya — «sən kimsən?» sualının cavabıdır (giriş). Avtorizasiya — «sənə bu icazə verilibmi?». ASP.NET Core-da hər ikisi daxilidir: Identity istifadəçiləri və parolları idarə edir, JWT isə API üçün giriş tokenidir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Kimlik və icazə",
+        blocks: [
+          { t: "analogy", text: "Konsertə gedirsən. Kassada şəxsiyyətini göstərib bilet alırsan (giriş — autentifikasiya). Bilet üzərində «VIP zona» yazılıb. Sonra hər qapıda yalnız bileti göstərirsən — pasportu yox. Mühafizəçi biletin saxta olmadığını möhürdən (imza) bilir və zonana baxıb içəri buraxır (avtorizasiya). JWT — həmin biletdir." },
+          { t: "code", lang: "csharp", code: `// Program.cs
+builder.Services.AddAuthentication().AddJwtBearer();     // tokeni yoxla
+builder.Services.AddAuthorization();
+
+var app = builder.Build();
+
+app.UseAuthentication();      // sən kimsən?
+app.UseAuthorization();       // icazən varmı?
+
+// Hamıya açıq
+app.MapGet("/", () => "Salam!");
+
+// Yalnız giriş edənlər
+app.MapGet("/profil", (ClaimsPrincipal user) => $"Salam, {user.Identity?.Name}")
+   .RequireAuthorization();
+
+// Yalnız adminlər
+app.MapDelete("/istifadeciler/{id:int}", (int id) => Results.NoContent())
+   .RequireAuthorization(p => p.RequireRole("Admin"));
+
+// Controller-də
+[Authorize]
+public class SifarislerController : ControllerBase
+{
+    [HttpGet] public IActionResult Menimkiler() => Ok();
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet("hamisi")] public IActionResult Hamisi() => Ok();
+
+    [AllowAnonymous]
+    [HttpGet("qiymetler")] public IActionResult Qiymetler() => Ok();
+}` },
+          { t: "terms", items: [
+            ["autentifikasiya", "istifadəçinin kimliyinin təsdiqi (giriş)."],
+            ["avtorizasiya", "təsdiqlənmiş istifadəçinin nəyə icazəsi olduğunun yoxlanması."],
+            ["JWT (JSON Web Token)", "imzalanmış token: içində istifadəçi məlumatı (claim) var."],
+            ["claim", "istifadəçi haqqında bir bəyanat: id, ad, rol."],
+            ["[Authorize]", "endpoint-i yalnız giriş edənlərə açır."],
+          ]},
+          { t: "tip", text: "401 Unauthorized — «kim olduğunu bilmirəm» (token yoxdur və ya səhvdir). 403 Forbidden — «kim olduğunu bilirəm, amma icazən yoxdur»." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Identity ilə qeydiyyat, giriş və JWT yaratmaq",
+        blocks: [
+          { t: "code", lang: "csharp", caption: "Identity + JWT qurulması", code: `public class Istifadeci : IdentityUser<int>
+{
+    public string TamAd { get; set; } = "";
+}
+
+public class AppDb(DbContextOptions<AppDb> o) : IdentityDbContext<Istifadeci, IdentityRole<int>, int>(o);
+
+builder.Services.AddIdentityCore<Istifadeci>(o =>
+    {
+        o.Password.RequiredLength = 12;
+        o.User.RequireUniqueEmail = true;
+        o.Lockout.MaxFailedAccessAttempts = 5;                     // 5 səhv cəhd →
+        o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);   // 15 dəq kilid
+    })
+    .AddRoles<IdentityRole<int>>()
+    .AddEntityFrameworkStores<AppDb>();
+
+var jwt = builder.Configuration.GetSection("Jwt");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(o =>
+    {
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,           ValidIssuer = jwt["Issuer"],
+            ValidateAudience = true,         ValidAudience = jwt["Audience"],
+            ValidateLifetime = true,         ClockSkew = TimeSpan.FromSeconds(30),
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(jwt["Key"]!)),
+        };
+    });` },
+          { t: "code", lang: "csharp", caption: "Qeydiyyat və giriş", code: `public record QeydiyyatDto([Required, EmailAddress] string Email, [Required] string Parol, [Required] string TamAd);
+public record GirisDto([Required] string Email, [Required] string Parol);
+
+app.MapPost("/auth/qeydiyyat", async (QeydiyyatDto giris, UserManager<Istifadeci> um) =>
+{
+    var istifadeci = new Istifadeci { UserName = giris.Email, Email = giris.Email, TamAd = giris.TamAd };
+    var netice = await um.CreateAsync(istifadeci, giris.Parol);        // parolu heşləyib saxlayır
+
+    return netice.Succeeded
+        ? Results.Created()
+        : Results.ValidationProblem(netice.Errors.ToDictionary(e => e.Code, e => new[] { e.Description }));
+});
+
+app.MapPost("/auth/giris", async (GirisDto giris, UserManager<Istifadeci> um, IConfiguration konfiq) =>
+{
+    var istifadeci = await um.FindByEmailAsync(giris.Email);
+
+    if (istifadeci is null || await um.IsLockedOutAsync(istifadeci))
+        return Results.Unauthorized();
+
+    if (!await um.CheckPasswordAsync(istifadeci, giris.Parol))
+    {
+        await um.AccessFailedAsync(istifadeci);                        // səhv cəhdi say
+        return Results.Unauthorized();                                 // eyni cavab — hansının səhv olduğunu demə
+    }
+    await um.ResetAccessFailedCountAsync(istifadeci);
+
+    var claims = new List<Claim>
+    {
+        new(JwtRegisteredClaimNames.Sub, istifadeci.Id.ToString()),
+        new(ClaimTypes.NameIdentifier, istifadeci.Id.ToString()),
+        new(ClaimTypes.Name, istifadeci.TamAd),
+        new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+    };
+    claims.AddRange((await um.GetRolesAsync(istifadeci)).Select(r => new Claim(ClaimTypes.Role, r)));
+
+    var acar = new SymmetricSecurityKey(Convert.FromBase64String(konfiq["Jwt:Key"]!));
+    var token = new JwtSecurityToken(
+        issuer: konfiq["Jwt:Issuer"],
+        audience: konfiq["Jwt:Audience"],
+        claims: claims,
+        expires: DateTime.UtcNow.AddMinutes(15),                       // qısa ömür
+        signingCredentials: new SigningCredentials(acar, SecurityAlgorithms.HmacSha256));
+
+    return Results.Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token) });
+}).RequireRateLimiting("giris");
+
+// Müştəri sonrakı sorğularda göndərir:
+// Authorization: Bearer eyJhbGciOiJIUzI1NiIs...` },
+          { t: "p", text: "JWT üç hissədir: başlıq.yük.imza (nöqtə ilə ayrılır). Başlıq və yük (payload) sadəcə Base64-dür — hər kəs oxuya bilər. Yalnız imza tokenin dəyişdirilmədiyini sübut edir." },
+          { t: "mistake", lang: "csharp", wrong: `var istifadeci = new Istifadeci { Email = giris.Email, Parol = giris.Parol };   // açıq mətn
+db.Istifadeciler.Add(istifadeci);
+
+// və ya zəif heş:
+string hes = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(giris.Parol)));`, right: `await userManager.CreateAsync(istifadeci, giris.Parol);
+// Identity: PBKDF2 + hər istifadəçiyə duz (salt) + yüz minlərlə iterasiya`, why: "Baza sızsa açıq parollar dərhal, SHA-256/MD5 heşləri isə saatlar içində sındırılır (sürətli heşlər parol üçün deyil). Parol üçün yavaş, duzlu alqoritm lazımdır: PBKDF2, bcrypt, Argon2. Özün yazma — Identity-nin PasswordHasher-ini işlət." },
+          { t: "mistake", lang: "csharp", wrong: `new Claim("parol", giris.Parol),
+new Claim("kartNomresi", istifadeci.Kart),      // JWT-yə sirr yazmaq`, right: `new Claim(ClaimTypes.NameIdentifier, istifadeci.Id.ToString()),
+new Claim(ClaimTypes.Role, "Istifadeci"),`, why: "JWT şifrələnməyib — yalnız imzalanıb. Onu jwt.io-ya yapışdıran hər kəs içini oxuyur. Tokenə yalnız kimlik və icazə üçün lazım olan minimum yaz." },
+          { t: "mistake", lang: "csharp", wrong: `if (istifadeci is null) return Results.NotFound("Belə istifadəçi yoxdur");
+if (!parolDuzdur) return Results.BadRequest("Parol səhvdir");`, right: `if (istifadeci is null || !parolDuzdur) return Results.Unauthorized();   // "Email və ya parol səhvdir"`, why: "Fərqli cavablar hücumçuya hansı emaillərin qeydiyyatda olduğunu deyir (hesab sadalaması). Giriş xətasında həmişə eyni, ümumi cavab." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Token ömrü, siyasətlər və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "JWT vəziyyətsizdir (stateless): server onu saxlamır, yalnız imzanı yoxlayır — miqyaslanması asandır. Qiyməti: verilmiş tokeni vaxtından əvvəl ləğv etmək çətindir. Ona görə access token qısaömürlü (5–15 dəq), yenilənməsi isə refresh token ilə olur.",
+            "Refresh token: uzunömürlü, təsadüfi sətir (JWT yox), bazada HEŞİ saxlanır, hər istifadədə yenisi ilə əvəz olunur (rotation). Köhnə token təkrar işlədilsə — oğurluq əlamətidir: bütün token ailəsini ləğv et.",
+            "Tokeni brauzerdə harada saxlamalı? localStorage XSS ilə oğurlanır. Daha təhlükəsizi: refresh token HttpOnly + Secure + SameSite cookie-də, access token yaddaşda. Və ya BFF qəlibi: tokenlər serverdə, brauzerdə yalnız sessiya cookie-si.",
+            "Cookie və ya JWT? Öz saytın üçün (eyni domen) cookie autentifikasiyası sadə və təhlükəsizdir (CSRF qoruması ilə). JWT — mobil tətbiq, üçüncü tərəf API, mikroservislər arası üçün.",
+            "İmza alqoritmi: HS256 — bir paylaşılan sirr (həm imzalayır, həm yoxlayır). RS256/ES256 — gizli açarla imzala, açıq açarla yoxla: yoxlayan xidmətlər token yarada bilmir. Mikroservislərdə asimmetrik seç.",
+            "Özün auth serveri yazmaq əvəzinə hazır həllər: OpenID Connect provayderi (Entra ID, Auth0, Keycloak), .NET-də OpenIddict / Duende IdentityServer. API yalnız tokeni yoxlayır (Authority + Audience).",
+            "Siyasət əsaslı avtorizasiya: rollar kobuddur. Policy + requirement + handler ilə incə qaydalar («yalnız öz sənədini», «18 yaşdan yuxarı», «abunəliyi aktiv»). Resurs əsaslı yoxlama üçün IAuthorizationService.AuthorizeAsync(user, resurs, siyasət).",
+            "Token imzası yoxlanandan sonra claim-lər köhnələ bilər: rol alınıb, hesab bloklanıb — token isə hələ etibarlıdır. Kritik əməliyyatlarda bazadan təzə yoxla və ya security stamp / token versiyası işlət.",
+            "Təhlükəsizlik — imza açarı: ən azı 256 bit təsadüfi dəyər (RandomNumberGenerator), sirr anbarında. appsettings.json-da «supersecretkey123» — hər kəsin admin tokeni yarada bilməsi deməkdir. Açarı dövri dəyiş (rotation, kid başlığı).",
+            "Təhlükəsizlik — validasiyanı söndürmə: ValidateIssuer, ValidateAudience, ValidateLifetime, ValidateIssuerSigningKey hamısı true. Audience yoxlanmasa, başqa xidmət üçün verilmiş token səndə də keçər. RequireSignedTokens-i söndürmə; «alg: none» tokenləri qəbul olunmamalıdır — icazəli alqoritmləri açıq göstər (ValidAlgorithms).",
+            "Təhlükəsizlik — brute force və credential stuffing: giriş endpoint-inə sürət limiti (IP və hesab üzrə), Identity lockout, sızmış parolların yoxlanması, çoxfaktorlu autentifikasiya (TOTP / passkey). Parol siyasəti: uzunluq (≥ 12) mürəkkəblik qaydalarından vacibdir.",
+            "Təhlükəsizlik — vaxt hücumu: «istifadəçi yoxdur» halında parol heşi hesablanmır və cavab daha tez gəlir — bu fərq hesabın varlığını açır. Mövcud olmayan istifadəçi üçün də saxta heş yoxlaması apar.",
+            "Təhlükəsizlik — parol sıfırlama: token təsadüfi, bir dəfəlik, qısaömürlü (15–60 dəq) olsun (UserManager.GeneratePasswordResetTokenAsync). Cavab həmişə eyni: «email varsa, link göndərildi». Linki Host başlığından qurma. Sıfırlamadan sonra bütün sessiyaları/refresh tokenləri ləğv et.",
+            "Təhlükəsizlik — icazə serverdə: front-end-də düyməni gizlətmək və ya tokendəki rolu brauzerdə yoxlamaq qoruma deyil. Hər endpoint serverdə yoxlanır; «rol» və «istifadəçi id» heç vaxt sorğu gövdəsindən götürülmür.",
+            "Təhlükəsizlik — default qapalı: FallbackPolicy = RequireAuthenticatedUser. Yeni endpoint-də [Authorize] unutmaq ən çox rast gələn boşluqdur.",
+            "Təhlükəsizlik — loglar və URL: tokeni, parolu, sıfırlama linkini loga yazma; tokeni query string-də ötürmə (loglara, tarixçəyə, Referer-ə düşür). Auth hadisələrini (uğurlu/uğursuz giriş, parol dəyişmə, rol dəyişmə) audit jurnalına yaz.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Refresh token rotasiyası və təkrar istifadənin aşkarlanması", code: `public class YenilemeTokeni
+{
+    public int Id { get; set; }
+    public int IstifadeciId { get; set; }
+    public string TokenHesi { get; set; } = "";        // tokenin özü YOX
+    public Guid Aile { get; set; }                     // rotasiya zənciri
+    public DateTime Bitme { get; set; }
+    public DateTime? Istifade { get; set; }            // artıq işlədilibsə
+    public DateTime? Legv { get; set; }
+}
+
+static string Hesle(string token) =>
+    Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));   // yüksək entropiyalı təsadüfi dəyər üçün SHA-256 kifayətdir
+
+static string YeniToken() =>
+    Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));           // kriptoqrafik təsadüfi
+
+app.MapPost("/auth/yenile", async (HttpContext ctx, AppDb db, ITokenXidmeti tokenler, CancellationToken ct) =>
+{
+    if (!ctx.Request.Cookies.TryGetValue("yt", out string? gelen))
+        return Results.Unauthorized();
+
+    string hes = Hesle(gelen);
+    var movcud = await db.YenilemeTokenleri.FirstOrDefaultAsync(t => t.TokenHesi == hes, ct);
+
+    if (movcud is null || movcud.Legv is not null || movcud.Bitme < DateTime.UtcNow)
+        return Results.Unauthorized();
+
+    if (movcud.Istifade is not null)
+    {
+        // Köhnə token təkrar işlədildi → oğurluq şübhəsi: bütün ailəni ləğv et
+        await db.YenilemeTokenleri
+            .Where(t => t.Aile == movcud.Aile && t.Legv == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.Legv, DateTime.UtcNow), ct);
+        return Results.Unauthorized();
+    }
+
+    movcud.Istifade = DateTime.UtcNow;                 // bir dəfəlik
+
+    string yeni = YeniToken();
+    db.YenilemeTokenleri.Add(new YenilemeTokeni
+    {
+        IstifadeciId = movcud.IstifadeciId,
+        TokenHesi = Hesle(yeni),
+        Aile = movcud.Aile,
+        Bitme = DateTime.UtcNow.AddDays(14),
+    });
+    await db.SaveChangesAsync(ct);
+
+    ctx.Response.Cookies.Append("yt", yeni, new CookieOptions
+    {
+        HttpOnly = true,                               // JS oxuya bilmir → XSS ilə oğurlanmır
+        Secure = true,
+        SameSite = SameSiteMode.Strict,
+        Path = "/auth",                                // yalnız auth endpoint-lərinə göndərilir
+        Expires = DateTimeOffset.UtcNow.AddDays(14),
+    });
+
+    return Results.Ok(new { token = await tokenler.GirisTokeniYaratAsync(movcud.IstifadeciId, ct) });
+}).AllowAnonymous().RequireRateLimiting("giris");
+
+// Default qapalı + siyasət
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
+    .AddPolicy("Admin", p => p.RequireRole("Admin"))
+    .AddPolicy("TesdiqlenmisEmail", p => p.RequireClaim("email_verified", "true"));` },
+          { t: "qa", items: [
+            ["Autentifikasiya ilə avtorizasiya fərqi?", "Autentifikasiya kimliyi təsdiqləyir (401 uğursuzluqda). Avtorizasiya icazəni yoxlayır (403)."],
+            ["JWT-nin quruluşu və təhlükəsizliyi nədən asılıdır?", "header.payload.signature. Yük oxuna biləndir (şifrələnməyib); etibar imzadan gəlir — açar gizli, validasiya tam olmalıdır."],
+            ["Niyə access token qısaömürlü olur?", "JWT-ni ləğv etmək çətindir; oğurlanmış tokenin zərəri ömrü ilə məhdudlaşır. Davamlılıq refresh token ilə təmin olunur."],
+            ["Refresh token rotasiyası nədir?", "Hər yeniləmədə köhnə refresh token ləğv olunub yenisi verilir. Köhnənin təkrar istifadəsi oğurluğu göstərir və bütün zəncir ləğv edilir."],
+            ["Parollar necə saxlanmalıdır?", "Yavaş, duzlu alqoritmlə heşlənmiş (PBKDF2, bcrypt, Argon2). Heç vaxt açıq mətn, şifrələnmiş və ya sürətli heş (MD5, SHA-256)."],
+            ["Rol əsaslı və siyasət əsaslı avtorizasiya fərqi?", "Rol — sadə qrup yoxlaması. Siyasət — ixtiyari tələblər (claim, yaş, resurs sahibliyi) və handler-lərlə genişlənən qaydalar."],
+            ["Tokeni brauzerdə harada saxlayırsan?", "Refresh tokeni HttpOnly/Secure/SameSite cookie-də, access tokeni yaddaşda; və ya BFF ilə tokenləri ümumiyyətlə brauzerə vermirəm. localStorage XSS-ə açıqdır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "«Sən kimsən?» sualına cavab verən nədir?", options: ["Autentifikasiya", "Avtorizasiya", "Validasiya"], answer: 0, why: "Kimliyin təsdiqi — autentifikasiya." },
+          { t: "quiz", q: "Giriş edib, amma icazəsi yoxdur — hansı status?", options: ["401", "403", "404"], answer: 1, why: "403 Forbidden." },
+          { t: "quiz", q: "JWT-nin yük (payload) hissəsi şifrələnibmi?", options: ["Bəli", "Xeyr — yalnız imzalanıb", "Yalnız HTTPS-də"], answer: 1, why: "Hər kəs oxuya bilər; sirr yazma." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "JWT ilə qorunan kiçik API yaz. 1) JWT Bearer autentifikasiyasını qur: issuer, audience, ömür və imza açarı yoxlansın; açar konfiqurasiyadan (koddan yox) gəlsin. 2) POST /auth/giris — email və parolu qəbul edir (yoxlama üçün sadə `IIstifadeciXidmeti.YoxlaAsync` işlət), uğurda 15 dəqiqəlik token qaytarır (claim-lər: id, ad, rol); səhvdə istifadəçinin və ya parolun səhv olduğunu AYIRMADAN 401. 3) GET /profil — yalnız giriş edənlər; id və adı token claim-lərindən oxuyub qaytarır. 4) GET /admin/statistika — yalnız «Admin» rolu. 5) GET /saglamliq — hamıya açıq. 6) Bütün digər endpoint-lər default olaraq qapalı olsun (FallbackPolicy). 7) Şərhdə yaz: tokenə niyə parol və ya kart nömrəsi yazmaq olmaz.",
+      starter: `var builder = WebApplication.CreateBuilder(args);\n\n// autentifikasiya + avtorizasiya\n\nvar app = builder.Build();\n\napp.UseAuthentication();\napp.UseAuthorization();\n\n// endpoint-lər\n\napp.Run();\n\npublic record GirisDto(string Email, string Parol);\npublic record IstifadeciMelumati(int Id, string Ad, string Rol);\n\npublic interface IIstifadeciXidmeti\n{\n    Task<IstifadeciMelumati?> YoxlaAsync(string email, string parol, CancellationToken ct);\n}\n`,
+      expect: "AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer TokenValidationParameters ilə: ValidateIssuer, ValidateAudience, ValidateLifetime, ValidateIssuerSigningKey = true, açar builder.Configuration-dan (sabit sətir yox); giriş: YoxlaAsync null olanda Results.Unauthorized() (tək ümumi cavab), uğurda JwtSecurityToken expires: UtcNow.AddMinutes(15), claim-lər NameIdentifier/Name/Role, SigningCredentials HmacSha256; /profil RequireAuthorization və ClaimsPrincipal-dan FindFirstValue; /admin/statistika RequireRole(\"Admin\") / policy; /saglamliq AllowAnonymous; SetFallbackPolicy(RequireAuthenticatedUser) və giriş endpoint-i AllowAnonymous; şərhdə JWT-nin şifrələnmədiyi (Base64, hər kəs oxuyur) izah olunub.",
+    },
+  },
+  {
+    slug: "konfiq",
+    title: "Konfiqurasiya və mühitlər",
+    intro: "Konfiqurasiya — kodun xaricində saxlanan tənzimləmələrdir: bağlantı sətri, API ünvanı, limitlər. Mühit (environment) isə tətbiqin harada işlədiyini bildirir: lokalda (Development) və ya canlıda (Production).",
+    sections: [
+      {
+        level: "baslangic",
+        title: "appsettings.json və oxumaq",
+        blocks: [
+          { t: "analogy", text: "Paltaryuyan maşının proqramı (kod) dəyişmir — amma temperaturu, sürəti düymələrlə (konfiqurasiya) hər dəfə özün seçirsən. Evdə və camaşırxanada eyni maşın fərqli tənzimləmə ilə işləyir. Maşını söküb yenidən yığmağa ehtiyac yoxdur." },
+          { t: "code", lang: "json", caption: "appsettings.json", code: `{
+  "Logging": {
+    "LogLevel": { "Default": "Information" }
+  },
+  "Magaza": {
+    "Ad": "Kod Mağaza",
+    "SehifeOlcusu": 20,
+    "Catdirilma": {
+      "PulsuzHedd": 50,
+      "Qiymet": 5
+    }
+  },
+  "AllowedHosts": "kodmagaza.az"
+}` },
+          { t: "code", lang: "csharp", code: `var builder = WebApplication.CreateBuilder(args);
+
+// Tək dəyər oxumaq: iç-içə açarlar ":" ilə
+string? ad = builder.Configuration["Magaza:Ad"];
+int olcu = builder.Configuration.GetValue<int>("Magaza:SehifeOlcusu", 10);   // default 10
+
+// Mühit
+if (builder.Environment.IsDevelopment())
+{
+    Console.WriteLine("Lokal mühit");
+}
+
+var app = builder.Build();
+
+app.MapGet("/haqqinda", (IConfiguration konfiq) => new
+{
+    Ad = konfiq["Magaza:Ad"],
+    Muhit = app.Environment.EnvironmentName,
+});
+
+app.Run();` },
+          { t: "terms", items: [
+            ["konfiqurasiya", "kodun xaricində saxlanan tənzimləmələr."],
+            ["appsettings.json", "əsas tənzimləmə faylı."],
+            ["IConfiguration", "tənzimləmələri oxumaq üçün xidmət."],
+            ["mühit (environment)", "Development, Staging, Production — ASPNETCORE_ENVIRONMENT dəyişəni ilə təyin olunur."],
+            ["mühit dəyişəni", "əməliyyat sistemində tətbiqə verilən açar=dəyər."],
+          ]},
+          { t: "tip", text: "appsettings.Development.json yalnız lokalda yüklənir və appsettings.json-dakı eyni açarları əvəz edir. Lokal üçün fərqli dəyərləri ora yaz." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Options pattern, mənbələr və sirlər",
+        blocks: [
+          { t: "code", lang: "csharp", caption: "Güclü tipli tənzimləmələr", code: `public class MagazaTenzimleri
+{
+    public const string Bolme = "Magaza";
+
+    [Required] public string Ad { get; set; } = "";
+    [Range(1, 100)] public int SehifeOlcusu { get; set; } = 20;
+    public CatdirilmaTenzimleri Catdirilma { get; set; } = new();
+}
+
+public class CatdirilmaTenzimleri
+{
+    [Range(0, 10_000)] public decimal PulsuzHedd { get; set; }
+    [Range(0, 1_000)] public decimal Qiymet { get; set; }
+}
+
+// Qeydiyyat: bölməni sinfə bağla, yoxla, səhvdirsə tətbiq qalxmasın
+builder.Services.AddOptions<MagazaTenzimleri>()
+    .BindConfiguration(MagazaTenzimleri.Bolme)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// İstifadə
+public class SebetXidmeti(IOptions<MagazaTenzimleri> tenzim)
+{
+    private readonly MagazaTenzimleri _t = tenzim.Value;
+
+    public decimal Catdirilma(decimal cem) =>
+        cem >= _t.Catdirilma.PulsuzHedd ? 0 : _t.Catdirilma.Qiymet;
+}` },
+          { t: "code", lang: "bash", caption: "Mənbələr: sonrakı əvvəlkini əvəz edir", code: `# 1) appsettings.json
+# 2) appsettings.{Mühit}.json
+# 3) User Secrets (yalnız Development)
+# 4) Mühit dəyişənləri
+# 5) Əmr sətri arqumentləri
+
+# Lokal sirlər — layihə qovluğundan KƏNARDA saxlanır, git-ə düşmür
+dotnet user-secrets init
+dotnet user-secrets set "ConnectionStrings:Esas" "Server=localhost;Database=magaza;..."
+dotnet user-secrets set "Odenis:ApiAcari" "sk_test_..."
+
+# Production: mühit dəyişəni ( ":" əvəzinə "__" )
+export ConnectionStrings__Esas="Server=db.daxili;Database=magaza;..."
+export Magaza__SehifeOlcusu=50
+export ASPNETCORE_ENVIRONMENT=Production
+
+# Əmr sətri
+dotnet run --Magaza:SehifeOlcusu=5` },
+          { t: "list", items: [
+            "IOptions<T> — singleton, tətbiq boyu dəyişmir. Ən çox işlənən.",
+            "IOptionsSnapshot<T> — scoped, hər sorğuda yenidən oxunur (fayl dəyişibsə yeni dəyər).",
+            "IOptionsMonitor<T> — singleton, dəyişikliyə reaksiya verir (OnChange).",
+            "Bağlantı sətri: builder.Configuration.GetConnectionString(\"Esas\") — ConnectionStrings bölməsindən oxuyur.",
+          ]},
+          { t: "mistake", lang: "json", wrong: `{
+  "ConnectionStrings": {
+    "Esas": "Server=prod-db;User Id=sa;Password=Parol123!"
+  },
+  "Jwt": { "Key": "cox-gizli-acar-123" }
+}`, right: `{
+  "ConnectionStrings": { "Esas": "" },
+  "Jwt": { "Issuer": "kodmagaza.az", "Audience": "kodmagaza-api" }
+}`, why: "appsettings.json git-ə düşür — sirr tarixçədə əbədi qalır və repoya çıxışı olan hər kəs onu görür. Sirlər user-secrets (lokal), mühit dəyişəni və ya sirr anbarında (production) saxlanır. Repoya düşən sirr dərhal dəyişdirilməlidir." },
+          { t: "mistake", lang: "csharp", wrong: `public class OdenisXidmeti(IConfiguration konfiq)
+{
+    public void Ode()
+    {
+        string acar = konfiq["Odenis:ApiAcari"]!;        // sehrli sətir, hər yerdə
+        int cehd = int.Parse(konfiq["Odenis:Cehd"]!);    // yoxdursa — icra vaxtı xəta
+    }
+}`, right: `public class OdenisXidmeti(IOptions<OdenisTenzimleri> tenzim)
+{
+    private readonly OdenisTenzimleri _t = tenzim.Value;   // tipli, yoxlanmış
+}`, why: "IConfiguration-u hər yerə yeritmək açar adlarını koda səpələyir, tip təhlükəsizliyi və validasiya yoxdur. Options sinfi bir yerdə təyin olunur və başlanğıcda yoxlanır." },
+          { t: "mistake", lang: "csharp", wrong: `if (app.Environment.IsDevelopment() || true)        // «müvəqqəti» debug üçün
+    app.UseDeveloperExceptionPage();`, right: `if (app.Environment.IsDevelopment())
+    app.UseDeveloperExceptionPage();
+else
+    app.UseExceptionHandler();`, why: "Development davranışı production-a sızsa, stack trace və daxili məlumat hamıya görünür. Mühit yoxlamasını «müvəqqəti» dəyişmə — unudulur." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Sirr idarəsi, yenidən yükləmə və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Konfiqurasiya provayderlər yığınıdır: hər provayder açar–dəyər lüğəti verir, sonrakı əvvəlkinin üstünə yazılır. Massivlər indekslə birləşir (Hostlar:0, Hostlar:1) — qismən əvəzləmə gözlənilməz nəticə verə bilər.",
+            "12-faktor prinsipi: konfiqurasiya mühitdədir, kodda deyil. Eyni build (image) bütün mühitlərdə işləyir — yalnız mühit dəyişənləri fərqlənir. Mühitə görə ayrı build etmə.",
+            "ValidateOnStart ilə «tez uğursuz ol»: səhv konfiqurasiya yayım anında üzə çıxsın, gecə saat 3-də ilk sorğuda yox. Mürəkkəb qaydalar üçün IValidateOptions<T>.",
+            "reloadOnChange: JSON faylı dəyişəndə konfiqurasiya yenilənir — amma IOptions<T> köhnə dəyəri saxlayır. Dinamik tənzimləmə üçün IOptionsMonitor. Konteynerdə fayl izləməsi (inotify) etibarsız ola bilər.",
+            "Feature flag-lər: Microsoft.FeatureManagement — xüsusiyyəti yayımdan ayrı açıb-bağlamaq, tədricən yaymaq. Mərkəzi konfiqurasiya: Azure App Configuration, Consul, etcd.",
+            "Adlı options (named options): eyni tipin bir neçə nüsxəsi (iki ödəniş provayderi) — Configure<T>(\"ad\", ...) və IOptionsSnapshot<T>.Get(\"ad\").",
+            "Mühit adları sərbəstdir, amma kodu IsDevelopment / IsProduction-a bağlamaq əvəzinə davranışı konfiqurasiya ilə idarə et — «Staging-də nə olacaq?» sualı itmir.",
+            "Təhlükəsizlik — sirr anbarı: production sirləri Azure Key Vault / AWS Secrets Manager / HashiCorp Vault-da. Tətbiq onlara idarə olunan kimlik (managed identity) ilə çatır — «sirri oxumaq üçün başqa sirr» lazım olmur. Giriş jurnallanır, sirlər dövri dəyişdirilir (rotation).",
+            "Təhlükəsizlik — mühit dəyişənləri ideal deyil: proses siyahısında, crash dump-da, debug endpoint-lərində və alt proseslərdə görünə bilər. Konteyner orkestratorunda sirləri fayl kimi bağlamaq (mounted secret) və ya birbaşa anbardan oxumaq daha yaxşıdır.",
+            "Təhlükəsizlik — sirr sızmasının qarşısı: .gitignore-da appsettings.*.local.json, .env; repoda sirr skaneri (gitleaks, GitHub secret scanning) və pre-commit yoxlaması. Sızmış sirri tarixçədən silmək kifayət deyil — onu DƏYİŞ.",
+            "Təhlükəsizlik — loglarda konfiqurasiya: başlanğıcda bütün konfiqurasiyanı (GetDebugView) loga yazma — bağlantı sətirləri və açarlar çıxır. Options sinfini loglama; xəta mesajına bağlantı sətrini salma.",
+            "Təhlükəsizlik — AllowedHosts: \"*\" əvəzinə konkret domenlər. Host başlığı saxtalaşdırılaraq parol sıfırlama linkləri və keş zəhərlənə bilər.",
+            "Təhlükəsizlik — mühit default-u: ASPNETCORE_ENVIRONMENT təyin olunmayıbsa Production sayılır — bu, təhlükəsiz default-dur. Production serverində onu Development etmə: Developer Exception Page, user-secrets və scope yoxlamaları açılır.",
+            "Təhlükəsizlik — təhlükəsiz default-lar: options sinfində default dəyər ən sərt variant olsun (HTTPS məcburi, limitlər aşağı, debug bağlı). Konfiqurasiya itsə, tətbiq açıq yox, qapalı qalsın. «Auth-u söndür» tipli bayraq ümumiyyətlə olmasın.",
+            "Təhlükəsizlik — müştəriyə gedən konfiqurasiya: front-end-ə ötürülən hər tənzimləmə açıqdır. Bütün bölməni JSON kimi qaytarma — yalnız açıq olmalı sahələri ayrıca DTO ilə ver.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Sirr anbarı, sərt validasiya və açıq/gizli ayrımı", code: `var builder = WebApplication.CreateBuilder(args);
+
+// Production: sirləri Key Vault-dan oxu — parol yoxdur, idarə olunan kimlik işlənir
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddAzureKeyVault(
+        new Uri(builder.Configuration["KeyVault:Unvan"]!),
+        new DefaultAzureCredential());
+}
+
+public sealed class OdenisTenzimleri
+{
+    public const string Bolme = "Odenis";
+
+    [Required, Url] public string Unvan { get; set; } = "";
+    [Required, MinLength(32)] public string ApiAcari { get; set; } = "";      // sirr
+    [Range(1, 30)] public int VaxtLimitiSaniye { get; set; } = 5;             // təhlükəsiz default
+    public bool SinaqRejimi { get; set; }                                     // default false
+}
+
+// Mürəkkəb qayda: production-da sınaq rejimi və HTTP ünvan qadağandır
+public sealed class OdenisTenzimleriYoxlayici(IHostEnvironment muhit) : IValidateOptions<OdenisTenzimleri>
+{
+    public ValidateOptionsResult Validate(string? ad, OdenisTenzimleri t)
+    {
+        if (muhit.IsProduction() && t.SinaqRejimi)
+            return ValidateOptionsResult.Fail("Production-da sınaq rejimi açıq ola bilməz");
+
+        if (!t.Unvan.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            return ValidateOptionsResult.Fail("Ödəniş ünvanı HTTPS olmalıdır");
+
+        return ValidateOptionsResult.Success;
+    }
+}
+
+builder.Services.AddSingleton<IValidateOptions<OdenisTenzimleri>, OdenisTenzimleriYoxlayici>();
+builder.Services.AddOptions<OdenisTenzimleri>()
+    .BindConfiguration(OdenisTenzimleri.Bolme)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();                       // səhvdirsə tətbiq qalxmır
+
+var app = builder.Build();
+
+// Müştəriyə yalnız açıq sahələr — bütün bölmə YOX
+app.MapGet("/api/tenzimler", (IOptions<MagazaTenzimleri> m) => new
+{
+    m.Value.Ad,
+    m.Value.SehifeOlcusu,
+});
+
+app.Run();` },
+          { t: "qa", items: [
+            ["Konfiqurasiya mənbələrinin üstünlük sırası?", "appsettings.json → appsettings.{Mühit}.json → user secrets (Dev) → mühit dəyişənləri → əmr sətri. Sonrakı əvvəlkini əvəz edir."],
+            ["Options pattern nə verir?", "Güclü tip, bölmə üzrə qruplaşdırma, validasiya, testdə asan əvəzləmə və IConfiguration-dan asılılığın azalması."],
+            ["IOptions, IOptionsSnapshot, IOptionsMonitor fərqi?", "IOptions — singleton, dəyişmir. Snapshot — scoped, hər sorğuda yenilənir. Monitor — singleton, cari dəyəri verir və dəyişikliyi bildirir."],
+            ["Sirləri harada saxlayırsan?", "Lokalda user-secrets; production-da sirr anbarı (Key Vault və s.) və ya mühit dəyişənləri. Heç vaxt repoda."],
+            ["ValidateOnStart nəyə lazımdır?", "Səhv və ya əskik konfiqurasiyanı ilk istifadədə yox, tətbiq qalxanda aşkarlamaq üçün."],
+            ["Mühit dəyişənində iç-içə açar necə yazılır?", "İki alt xətt ilə: Magaza__SehifeOlcusu."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "\"Magaza\": { \"Ad\": ... } dəyərini necə oxuyursan?", options: ["konfiq[\"Magaza.Ad\"]", "konfiq[\"Magaza:Ad\"]", "konfiq[\"Magaza/Ad\"]"], answer: 1, why: "İç-içə açarlar iki nöqtə ilə ayrılır." },
+          { t: "quiz", q: "API açarını harada saxlamaq OLMAZ?", options: ["User secrets", "Sirr anbarı", "appsettings.json (repoda)"], answer: 2, why: "Repodakı fayl hamıya görünür." },
+          { t: "quiz", q: "Mühit təyin olunmayıbsa default hansıdır?", options: ["Development", "Production", "Staging"], answer: 1, why: "Təhlükəsiz default — Production." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Email göndərmə xidməti üçün konfiqurasiya qur. 1) appsettings.json-da `Email` bölməsi: Server, Port, GonderenUnvan, GundelikLimit — PAROL OLMASIN. 2) `EmailTenzimleri` sinfi: Server məcburi, Port 1–65535, GonderenUnvan email formatında, GundelikLimit 1–10000 (default 500), Parol məcburi. 3) Options-u bölməyə bağla, DataAnnotations ilə yoxla, başlanğıcda yoxlanılsın. 4) `EmailXidmeti` tənzimləmələri IOptions ilə alsın (IConfiguration yox). 5) Parolu lokalda user-secrets ilə, production-da mühit dəyişəni ilə təyin edən əmrləri şərhdə yaz. 6) GET /api/email/veziyyet — yalnız Server və GundelikLimit qaytarsın (parol və bütün obyekt yox).",
+      starter: `// appsettings.json\n// {\n//   "Email": { ... }\n// }\n\npublic class EmailTenzimleri\n{\n    public const string Bolme = "Email";\n    // sahələr\n}\n\nvar builder = WebApplication.CreateBuilder(args);\n\n// options qeydiyyatı\n\nvar app = builder.Build();\n\n// endpoint\n\napp.Run();\n\npublic class EmailXidmeti\n{\n}\n`,
+      expect: "JSON-da Email bölməsində Parol yoxdur; EmailTenzimleri-də [Required] Server, [Range(1, 65535)] Port, [Required, EmailAddress] GonderenUnvan, [Range(1, 10000)] GundelikLimit = 500, [Required] Parol; AddOptions<EmailTenzimleri>().BindConfiguration(\"Email\") (və ya Bind(GetSection)).ValidateDataAnnotations().ValidateOnStart(); EmailXidmeti konstruktorda IOptions<EmailTenzimleri> alır və .Value işlədir; şərhdə dotnet user-secrets set \"Email:Parol\" ... və Email__Parol mühit dəyişəni; endpoint anonim obyektdə yalnız Server və GundelikLimit qaytarır.",
+    },
+  },
+  {
+    slug: "xetalar",
+    title: "Xəta idarəsi və logging",
+    intro: "Xətalar olacaq: baza cavab verməyəcək, istifadəçi səhv məlumat göndərəcək. Xəta idarəsi müştəriyə aydın və təhlükəsiz cavab verir; logging isə nə baş verdiyini sənin üçün qeyd edir.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "ILogger ilə qeyd aparmaq",
+        blocks: [
+          { t: "analogy", text: "Log — təyyarənin «qara qutusu»dur. Uçuş zamanı hər şeyi yazır. Hər şey qaydasındadırsa, ona heç kim baxmır. Amma nəsə olanda, nə baş verdiyini yalnız o deyə bilir. Xəta idarəsi isə pilotun sərnişinlərə dediyidir: «texniki səbəbə görə gecikirik» — sakit, qısa, təfərrüatsız." },
+          { t: "code", lang: "csharp", code: `app.MapGet("/sifarisler/{id:int}", (int id, ILogger<Program> log) =>
+{
+    log.LogInformation("Sifariş {SifarisId} istənildi", id);
+
+    if (id <= 0)
+    {
+        log.LogWarning("Yanlış sifariş id-si: {SifarisId}", id);
+        return Results.BadRequest();
+    }
+
+    try
+    {
+        var sifaris = SifarisiTap(id);
+        return Results.Ok(sifaris);
+    }
+    catch (Exception ex)
+    {
+        log.LogError(ex, "Sifariş {SifarisId} yüklənərkən xəta", id);
+        return Results.Problem("Daxili xəta baş verdi");      // müştəriyə detal yox
+    }
+});
+
+// Sinifdə: konstruktordan
+public class SifarisXidmeti(ILogger<SifarisXidmeti> log)
+{
+    public void Tamamla(int id) => log.LogInformation("Sifariş {SifarisId} tamamlandı", id);
+}` },
+          { t: "terms", items: [
+            ["ILogger<T>", "log yazmaq üçün daxili xidmət; T — mənbə sinfi (kateqoriya)."],
+            ["log səviyyəsi", "mesajın əhəmiyyəti: Trace, Debug, Information, Warning, Error, Critical."],
+            ["strukturlaşdırılmış log", "mesaj şablonu + adlı dəyərlər: {SifarisId} ayrıca sahə kimi saxlanır."],
+            ["istisna (exception)", "icra zamanı baş verən xəta."],
+            ["ProblemDetails", "API xətaları üçün standart JSON formatı."],
+          ]},
+          { t: "tip", text: "Səviyyə seçimi: Information — normal hadisə («sifariş yaradıldı»). Warning — gözlənilməz, amma iş davam edir. Error — əməliyyat uğursuz oldu. Critical — tətbiq işləyə bilmir." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Qlobal xəta tutucu və ProblemDetails",
+        blocks: [
+          { t: "code", lang: "csharp", caption: "Öz istisnaların və mərkəzi tutucu", code: `// Biznes istisnaları
+public class TapilmadiException(string mesaj) : Exception(mesaj);
+public class QaydaPozuntusuException(string mesaj) : Exception(mesaj);
+
+// Bütün tutulmamış istisnalar bura düşür
+public sealed class QlobalXetaTutucu(ILogger<QlobalXetaTutucu> log) : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext ctx, Exception xeta, CancellationToken ct)
+    {
+        var (status, basliq) = xeta switch
+        {
+            TapilmadiException => (StatusCodes.Status404NotFound, "Tapılmadı"),
+            QaydaPozuntusuException => (StatusCodes.Status409Conflict, "Əməliyyat mümkün deyil"),
+            OperationCanceledException => (499, "Sorğu ləğv olundu"),
+            _ => (StatusCodes.Status500InternalServerError, "Daxili xəta"),
+        };
+
+        if (status >= 500)
+            log.LogError(xeta, "Tutulmamış xəta: {Yol}", ctx.Request.Path);
+        else
+            log.LogWarning("{XetaTipi}: {Mesaj}", xeta.GetType().Name, xeta.Message);
+
+        ctx.Response.StatusCode = status;
+        await ctx.Response.WriteAsJsonAsync(new ProblemDetails
+        {
+            Status = status,
+            Title = basliq,
+            // 5xx-də daxili mesajı GÖSTƏRMƏ; biznes xətasının mesajı istifadəçi üçün yazılıb
+            Detail = status < 500 ? xeta.Message : "Xəta qeydə alındı. Bir az sonra yenidən cəhd edin.",
+            Extensions = { ["traceId"] = ctx.TraceIdentifier },
+        }, ct);
+
+        return true;                           // xəta emal olundu
+    }
+}
+
+// Program.cs
+builder.Services.AddExceptionHandler<QlobalXetaTutucu>();
+builder.Services.AddProblemDetails();
+
+var app = builder.Build();
+app.UseExceptionHandler();                     // zəncirin ən əvvəlində
+app.UseStatusCodePages();                      // boş 404/405 cavablarına da ProblemDetails
+
+// İndi endpoint-lər təmizdir — try/catch yoxdur
+app.MapGet("/mehsullar/{id:int}", async (int id, IMehsulXidmeti x, CancellationToken ct) =>
+    await x.TapAsync(id, ct) ?? throw new TapilmadiException("Məhsul tapılmadı"));` },
+          { t: "code", lang: "json", caption: "appsettings.json — log səviyyələri", code: `{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Warning",
+      "MagazaApi.Services": "Debug"
+    }
+  }
+}` },
+          { t: "mistake", lang: "csharp", wrong: `log.LogInformation($"İstifadəçi {istifadeciId} sifariş {sifarisId} yaratdı");   // interpolasiya`, right: `log.LogInformation("İstifadəçi {IstifadeciId} sifariş {SifarisId} yaratdı", istifadeciId, sifarisId);`, why: "Interpolasiya sətri əvvəlcədən birləşdirir: dəyərlər ayrıca sahə kimi saxlanmır (axtarmaq olmur), səviyyə söndürülsə belə sətir qurulur, hər mesaj unikal olduğu üçün qruplaşdırma itir. Şablon + parametrlər işlət." },
+          { t: "mistake", lang: "csharp", wrong: `try { await xidmet.SaxlaAsync(); }
+catch (Exception) { }                          // xətanı udmaq
+
+try { ... }
+catch (Exception ex) { throw ex; }             // stack trace sıfırlanır`, right: `try { await xidmet.SaxlaAsync(); }
+catch (DbUpdateException ex)
+{
+    log.LogError(ex, "Saxlama uğursuz oldu");
+    throw;                                     // orijinal stack trace qalır
+}`, why: "Boş catch xətanı gizlədir — məlumat itir, səbəbi heç kim bilmir. «throw ex» stack trace-i sıfırlayır. Ya mənalı emal et, ya da logla və «throw» ilə yuxarı ötür. Yalnız emal edə bildiyin istisnanı tut." },
+          { t: "mistake", lang: "csharp", wrong: `catch (Exception ex)
+{
+    return Results.Problem(ex.ToString());     // stack trace, SQL, fayl yolları müştəriyə
+}`, right: `catch (Exception ex)
+{
+    log.LogError(ex, "Ödəniş xətası, sifariş {SifarisId}", id);
+    return Results.Problem("Ödəniş alınmadı. Yenidən cəhd edin.");
+}`, why: "Daxili xəta mətni hücumçuya xəritədir: cədvəl adları, kitabxana versiyaları, fayl yolları. Detal loqa, müştəriyə ümumi mesaj və izləmə id-si." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Müşahidə olunma, performans və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "İstisna bahalıdır (stack trace toplanır) — gözlənilən hallar üçün («tapılmadı», «validasiya səhvi») axın idarəsi kimi istisna atmaq isti yolda performansı vurur. Alternativ: Result<T> / OneOf tipi və ya TypedResults. İstisnanı həqiqətən gözlənilməz hal üçün saxla.",
+            "Müşahidə olunmanın üç sütunu: loglar (nə oldu), metriklər (nə qədər, nə tez — sayğaclar, histoqramlar), izlər (distributed tracing — sorğu xidmətlər arasında hansı yolu keçdi). .NET-də standart: OpenTelemetry (ILogger, Meter, ActivitySource) → Prometheus/Grafana, Jaeger, Application Insights.",
+            "Korrelyasiya: hər sorğunun TraceId-si bütün loglarda olmalıdır ki, bir sorğunun tam hekayəsini yığa biləsən. ASP.NET Core Activity-ni özü yaradır və W3C traceparent başlığını xidmətlər arası ötürür. Müştəriyə qaytarılan traceId dəstək üçün açardır.",
+            "Scope: using (log.BeginScope(new Dictionary<string, object> { [\"SifarisId\"] = id })) — blok daxilindəki bütün loglara sahə əlavə olunur.",
+            "Yüksək performanslı log: [LoggerMessage] mənbə generatoru — boxing və şablon təhlili yoxdur, səviyyə söndürülübsə xərc sıfıra yaxındır. İsti yolda bahalı arqumenti hesablamazdan əvvəl log.IsEnabled(LogLevel.Debug) yoxla.",
+            "Strukturlaşdırılmış çıxış: production-da JSON konsol (AddJsonConsole) və ya Serilog → mərkəzi sistem (Seq, Elasticsearch, Loki). Konteynerdə fayla yox, stdout-a yaz — toplamaq platformanın işidir.",
+            "Log həcmi puldur: Production-da Default = Information, səs-küylü kateqoriyalar Warning. Nümunə götürmə (sampling), sağlamlıq yoxlaması sorğularını süzmək. Hər sorğuda 20 sətir log — həm xərc, həm də vacib mesajın itməsidir.",
+            "Davamlılıq (resilience): keçici xətalar (şəbəkə, 503) üçün təkrar cəhd + eksponensial gecikmə + jitter, circuit breaker, vaxt limiti — Microsoft.Extensions.Resilience / Polly (AddStandardResilienceHandler). Təkrar yalnız idempotent əməliyyatlar üçün.",
+            "Sağlamlıq: /healthz/live (proses diridir) və /healthz/ready (asılılıqlar hazırdır) ayrı olsun. Xəta nisbəti və gecikmə (p95/p99) üzrə xəbərdarlıq (alert) qur — istifadəçi şikayətindən əvvəl sən bil.",
+            "Təhlükəsizlik — loglarda həssas məlumat: parol, token, API açarı, kart nömrəsi, FİN, tam sorğu gövdəsi, Authorization/Cookie başlıqları loga DÜŞMƏMƏLİDİR. Loglar çox adamın əlindədir və uzun saxlanır. Obyekti bütöv loglama ({@Istifadeci}) — yalnız lazım olan sahələri. .NET-də redaksiya: Microsoft.Extensions.Compliance.Redaction ilə məlumat təsnifatı.",
+            "Təhlükəsizlik — log injection: istifadəçi girişində sətir sonu (\\r\\n) varsa, saxta log sətri yaradıla bilər («admin uğurla giriş etdi»). Strukturlaşdırılmış (JSON) log bunu əsasən həll edir; mətn loglarında girişdən idarəedici simvolları təmizlə. Logları göstərən veb paneldə çıxışı kodlaşdır (XSS).",
+            "Təhlükəsizlik — xəta cavabları: production-da stack trace, istisna tipi, SQL, fayl yolu, server versiyası qaytarılmır. ProblemDetails-ə istisna detallarını yalnız Development-də əlavə et. 404 və 403 arasında fərq də məlumat sızdıra bilər (resursun varlığı).",
+            "Təhlükəsizlik — təhlükəsizlik hadisələrini logla: uğurlu/uğursuz giriş, parol dəyişmə, icazə rədd edilməsi (403), validasiya uğursuzluqlarının sıçrayışı, admin əməliyyatları, sürət limitinin aşılması. Bunlarsız hücumu nə aşkarlamaq, nə də araşdırmaq olur (OWASP: Security Logging and Monitoring Failures).",
+            "Təhlükəsizlik — logların qorunması: loglara giriş məhdud olsun, tətbiq öz loglarını silə/dəyişə bilməsin (yalnız əlavə), saxlama müddəti təyin olunsun (şəxsi məlumat qanunlarına uyğun), saatlar sinxron olsun (UTC).",
+            "Təhlükəsizlik — xəta ilə DoS: bahalı xəta yolu (böyük stack trace-in loglanması, hər xətada email) hücumçu tərəfindən kütləvi tətiklənə bilər. Xəta bildirişlərini qruplaşdır və sürətini məhdudlaşdır.",
+            "Təhlükəsizlik — açıq qalmış uğursuzluq (fail open): icazə və ya validasiya yoxlamasında istisna «catch → davam et» ilə udulmamalıdır. Yoxlama uğursuz olsa — rədd et (fail closed).",
+          ]},
+          { t: "code", lang: "csharp", caption: "Mənbə generatorlu log, scope və təhlükəsiz audit", code: `public static partial class Loglar
+{
+    [LoggerMessage(EventId = 1001, Level = LogLevel.Information,
+        Message = "Sifariş {SifarisId} yaradıldı, məbləğ {Mebleg}")]
+    public static partial void SifarisYaradildi(this ILogger log, int sifarisId, decimal mebleg);
+
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Warning,
+        Message = "Uğursuz giriş cəhdi: hesab {HesabHesi}, IP {Ip}")]
+    public static partial void UgursuzGiris(this ILogger log, string hesabHesi, string? ip);
+
+    [LoggerMessage(EventId = 2002, Level = LogLevel.Warning,
+        Message = "İcazə rədd edildi: istifadəçi {IstifadeciId}, resurs {Resurs}")]
+    public static partial void IcazeReddi(this ILogger log, int istifadeciId, string resurs);
+}
+
+public class GirisXidmeti(ILogger<GirisXidmeti> log, IHttpContextAccessor accessor)
+{
+    public void UgursuzCehd(string email)
+    {
+        // Email-in özünü yox, qısa heşini yaz: hadisələri əlaqələndirmək olur, şəxsi məlumat sızmır
+        string hes = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(email.Trim().ToLowerInvariant())))[..12];
+        log.UgursuzGiris(hes, accessor.HttpContext?.Connection.RemoteIpAddress?.ToString());
+        // Parol HEÇ VAXT loglanmır — səhv olsa belə (çox vaxt düzgün parolun bir hərf fərqidir)
+    }
+}
+
+// Sorğu boyu bütün loglara istifadəçi və sorğu id-si əlavə et
+app.Use(async (ctx, next) =>
+{
+    var log = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
+    using (log.BeginScope(new Dictionary<string, object?>
+    {
+        ["TraceId"] = ctx.TraceIdentifier,
+        ["IstifadeciId"] = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier),
+    }))
+    {
+        await next();
+    }
+});
+
+// Development-də detal, production-da yox
+builder.Services.AddProblemDetails(o => o.CustomizeProblemDetails = ctx =>
+{
+    ctx.ProblemDetails.Extensions["traceId"] = ctx.HttpContext.TraceIdentifier;
+
+    if (!ctx.HttpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment())
+        ctx.ProblemDetails.Detail = null;      // daxili mesajı sil
+});` },
+          { t: "qa", items: [
+            ["Xətaları harada emal etmək lazımdır?", "Mərkəzi yerdə: UseExceptionHandler + IExceptionHandler. Endpoint-lərdə yalnız mənalı bərpa edə bildiyin istisnanı tut."],
+            ["ProblemDetails nədir?", "RFC 9457 standartı ilə xəta cavabı: type, title, status, detail, instance + əlavə sahələr. Müştərilər üçün vahid format."],
+            ["Strukturlaşdırılmış log nədir, niyə interpolasiya işlətmirik?", "Mesaj şablonu və adlı parametrlər ayrıca saxlanır — axtarış, filtr, qruplaşdırma mümkün olur və söndürülmüş səviyyədə sətir qurulmur."],
+            ["throw ilə throw ex fərqi?", "throw orijinal stack trace-i saxlayır; throw ex onu cari sətirdən yenidən başladır."],
+            ["Log səviyyələri hansılardır?", "Trace, Debug, Information, Warning, Error, Critical (və None)."],
+            ["Loga nə yazmaq olmaz?", "Parol, token, açar, kart və şəxsi identifikasiya məlumatı, tam sorğu gövdəsi və auth başlıqları."],
+            ["Müştəriyə xəta haqqında nə qaytarırsan?", "Düzgün status kodu, ümumi mesaj və traceId. Stack trace və daxili detal yalnız loglarda."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Əməliyyat uğursuz oldu — hansı səviyyə?", options: ["Information", "Error", "Trace"], answer: 1, why: "Uğursuz əməliyyat — Error." },
+          { t: "quiz", q: "Düzgün log yazılışı hansıdır?", options: ["log.LogInformation($\"Id {id}\")", "log.LogInformation(\"Id {Id}\", id)", "Console.WriteLine(id)"], answer: 1, why: "Şablon + parametr — strukturlaşdırılmış log." },
+          { t: "quiz", q: "Production-da müştəriyə stack trace göstərmək olarmı?", options: ["Bəli", "Xeyr", "Yalnız adminə"], answer: 1, why: "Daxili məlumat sızdırır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "API üçün xəta idarəsi və log qur. 1) İki istisna sinfi: `TapilmadiException`, `StokCatmirException`. 2) `IExceptionHandler` reallaşdıran `XetaTutucu`: Tapilmadi → 404, StokCatmir → 409, qalanları → 500. 5xx-də LogError (istisna ilə), 4xx-də LogWarning. Cavab ProblemDetails olsun, traceId əlavə et; 500-də daxili mesajı QAYTARMA. 3) Program.cs-də qeydiyyat və UseExceptionHandler (düzgün yerdə). 4) POST /sifarisler endpoint-i: try/catch OLMADAN xidməti çağırsın; xidmət stok çatmayanda StokCatmirException atsın və uğurlu sifarişi strukturlaşdırılmış log ilə qeyd etsin (interpolasiya yox). 5) Şərhdə: loga yazılmamalı olan 3 məlumat növü.",
+      starter: `public class TapilmadiException(string mesaj) : Exception(mesaj);\npublic class StokCatmirException(string mesaj) : Exception(mesaj);\n\npublic sealed class XetaTutucu(ILogger<XetaTutucu> log) : IExceptionHandler\n{\n    public async ValueTask<bool> TryHandleAsync(HttpContext ctx, Exception xeta, CancellationToken ct)\n    {\n        // status, log, ProblemDetails\n        return true;\n    }\n}\n\nvar builder = WebApplication.CreateBuilder(args);\n\n// qeydiyyat\n\nvar app = builder.Build();\n\n// pipeline + endpoint\n\napp.Run();\n\npublic record SifarisYaratDto(int MehsulId, int Say);\n`,
+      expect: "XetaTutucu switch ilə tipə görə status seçir (404/409/500); status >= 500 olanda log.LogError(xeta, ...), əks halda LogWarning; ProblemDetails Status, Title, Extensions[\"traceId\"] = ctx.TraceIdentifier; 500-də Detail xeta.Message/ToString() deyil (ümumi mətn və ya null); builder.Services.AddExceptionHandler<XetaTutucu>() + AddProblemDetails(); app.UseExceptionHandler() endpoint-lərdən əvvəl; endpoint-də try/catch yoxdur; xidmətdə throw new StokCatmirException(...) və log.LogInformation(\"... {SifarisId} ...\", id) şablonla ($ interpolasiya yox); şərhdə parol, token/açar, kart/şəxsi məlumat kimi 3 növ.",
+    },
+  },
+  {
+    slug: "senior",
+    title: "Senior: Clean Architecture",
+    intro: "Clean Architecture — kodu qatlara bölür və asılılıqları içəriyə, biznes qaydalarına doğru yönəldir. Məqsəd: biznes məntiqi bazadan, freymvorkdan və UI-dan asılı olmasın — onları dəyişmək asan, məntiqi test etmək sadə olsun.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Qatlar və asılılıq qaydası",
+        blocks: [
+          { t: "analogy", text: "Soğanı düşün. Ən içdə — nüvə: biznesin qaydaları (sifariş necə hesablanır). Onun ətrafında — istifadə halları (sifariş yarat). Ən çöldə — texnika: baza, veb, email. Qayda sadədir: çöl qat içi tanıyır, iç qat çölü tanımır. Çöl qabığı dəyişsən (SQL Server → PostgreSQL), nüvə toxunulmaz qalır." },
+          { t: "code", lang: "text", code: `Magaza.sln
+├── src/
+│   ├── Magaza.Domain/            # NÜVƏ: varlıqlar, dəyər obyektləri, qaydalar
+│   │                             #   heç bir layihədən asılı deyil
+│   ├── Magaza.Application/       # İSTİFADƏ HALLARI: əmrlər, sorğular, interfeyslər
+│   │                             #   → Domain
+│   ├── Magaza.Infrastructure/    # TEXNİKA: EF Core, email, fayl, xarici API
+│   │                             #   → Application, Domain
+│   └── Magaza.Api/               # GİRİŞ: endpoint-lər, DI, middleware
+│                                 #   → Application, Infrastructure (yalnız qeydiyyat üçün)
+└── tests/
+    ├── Magaza.Domain.Tests/
+    ├── Magaza.Application.Tests/
+    └── Magaza.Api.Tests/` },
+          { t: "terms", items: [
+            ["Domain", "biznesin özü: varlıqlar və onların qaydaları. Freymvorkdan xəbərsizdir."],
+            ["Application", "istifadə halları (use case): «sifariş yarat», «stoku azalt». Lazım olan interfeysləri burada təyin edir."],
+            ["Infrastructure", "interfeyslərin real reallaşması: baza, email, fayl sistemi."],
+            ["asılılıq qaydası", "asılılıqlar yalnız içəriyə yönəlir: Api → Application → Domain."],
+            ["istifadə halı (use case)", "sistemin etdiyi bir iş, başdan sona."],
+          ]},
+          { t: "tip", text: "Domain layihəsinin .csproj faylına bax: orada EF Core, ASP.NET və ya başqa layihəyə istinad varsa — qayda pozulub." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Bir istifadə halı, başdan sona",
+        blocks: [
+          { t: "code", lang: "csharp", caption: "Domain — qaydalar varlığın içindədir", code: `// Magaza.Domain
+public sealed class Sifaris
+{
+    private readonly List<SifarisSetri> _setirler = [];
+
+    public int Id { get; private set; }
+    public int MusteriId { get; private set; }
+    public SifarisStatusu Status { get; private set; } = SifarisStatusu.Yeni;
+    public IReadOnlyList<SifarisSetri> Setirler => _setirler;
+    public decimal Cem => _setirler.Sum(s => s.Qiymet * s.Say);
+
+    private Sifaris() { }                                   // EF üçün
+
+    public static Sifaris Yarat(int musteriId) => new() { MusteriId = musteriId };
+
+    public void MehsulElaveEt(Mehsul mehsul, int say)
+    {
+        if (Status != SifarisStatusu.Yeni)
+            throw new DomenXetasi("Təsdiqlənmiş sifarişə məhsul əlavə olunmur");
+        if (say is < 1 or > 1000)
+            throw new DomenXetasi("Say 1–1000 aralığında olmalıdır");
+
+        mehsul.StokdanCix(say);                             // stok qaydası Mehsul-un içindədir
+        _setirler.Add(new SifarisSetri(mehsul.Id, mehsul.Qiymet, say));   // qiymət məhsuldan
+    }
+
+    public void Tesdiqle()
+    {
+        if (_setirler.Count == 0) throw new DomenXetasi("Boş sifariş təsdiqlənmir");
+        Status = SifarisStatusu.Tesdiqlenib;
+    }
+}` },
+          { t: "code", lang: "csharp", caption: "Application — istifadə halı və interfeyslər", code: `// Magaza.Application
+public interface ISifarisAnbari
+{
+    Task ElaveEtAsync(Sifaris sifaris, CancellationToken ct);
+}
+
+public interface IMehsulAnbari
+{
+    Task<List<Mehsul>> TapAsync(IReadOnlyCollection<int> idler, CancellationToken ct);
+}
+
+public interface IIsVahidi { Task SaxlaAsync(CancellationToken ct); }      // Unit of Work
+public interface ICariIstifadeci { int Id { get; } }
+
+public record SifarisYaratEmri(IReadOnlyList<SetirDto> Setirler);
+public record SetirDto(int MehsulId, int Say);
+
+public sealed class SifarisYaratHandler(
+    ISifarisAnbari sifarisler,
+    IMehsulAnbari mehsullar,
+    IIsVahidi isVahidi,
+    ICariIstifadeci istifadeci)
+{
+    public async Task<int> IcraEtAsync(SifarisYaratEmri emr, CancellationToken ct)
+    {
+        var idler = emr.Setirler.Select(s => s.MehsulId).Distinct().ToList();
+        var tapilan = (await mehsullar.TapAsync(idler, ct)).ToDictionary(m => m.Id);
+
+        var sifaris = Sifaris.Yarat(istifadeci.Id);          // müştəri tokendən, əmrdən yox
+
+        foreach (var setir in emr.Setirler)
+        {
+            if (!tapilan.TryGetValue(setir.MehsulId, out var mehsul))
+                throw new TapilmadiXetasi("Məhsul tapılmadı");
+            sifaris.MehsulElaveEt(mehsul, setir.Say);        // qaydalar domendədir
+        }
+
+        sifaris.Tesdiqle();
+        await sifarisler.ElaveEtAsync(sifaris, ct);
+        await isVahidi.SaxlaAsync(ct);                       // hamısı bir tranzaksiyada
+        return sifaris.Id;
+    }
+}` },
+          { t: "code", lang: "csharp", caption: "Infrastructure və Api — texnika kənardadır", code: `// Magaza.Infrastructure
+internal sealed class SifarisAnbari(MagazaDb db) : ISifarisAnbari
+{
+    public async Task ElaveEtAsync(Sifaris sifaris, CancellationToken ct) =>
+        await db.Sifarisler.AddAsync(sifaris, ct);
+}
+
+public static class InfrastrukturQeydiyyati
+{
+    public static IServiceCollection AddInfrastruktur(this IServiceCollection s, IConfiguration k)
+    {
+        s.AddDbContext<MagazaDb>(o => o.UseSqlServer(k.GetConnectionString("Esas")));
+        s.AddScoped<ISifarisAnbari, SifarisAnbari>();
+        s.AddScoped<IMehsulAnbari, MehsulAnbari>();
+        s.AddScoped<IIsVahidi>(sp => sp.GetRequiredService<MagazaDb>());
+        return s;
+    }
+}
+
+// Magaza.Api — nazik: HTTP ↔ istifadə halı
+app.MapPost("/api/sifarisler", async (SifarisYaratEmri emr, SifarisYaratHandler handler, CancellationToken ct) =>
+{
+    int id = await handler.IcraEtAsync(emr, ct);
+    return Results.Created($"/api/sifarisler/{id}", new { id });
+}).RequireAuthorization();` },
+          { t: "mistake", lang: "csharp", wrong: `// Magaza.Domain
+public class Sifaris
+{
+    [Key] public int Id { get; set; }
+    [JsonPropertyName("total")] public decimal Cem { get; set; }       // freymvork atributları
+    public async Task SaxlaAsync(MagazaDb db) => await db.SaveChangesAsync();   // domen bazanı tanıyır
+}`, right: `// Magaza.Domain — təmiz C#
+public sealed class Sifaris
+{
+    public int Id { get; private set; }
+    public decimal Cem => _setirler.Sum(s => s.Qiymet * s.Say);
+}
+// Xəritələmə Infrastructure-da: IEntityTypeConfiguration<Sifaris>`, why: "Domen EF Core-u, JSON-u və ya HTTP-ni tanıyırsa, onları dəyişmək domeni dəyişmək deməkdir və domeni bazasız test etmək olmur. Tənzimləməni kənar qatlara çıxar." },
+          { t: "mistake", lang: "csharp", wrong: `public class Sifaris
+{
+    public decimal Cem { get; set; }
+    public string Status { get; set; } = "";
+    public List<SifarisSetri> Setirler { get; set; } = [];
+}
+// Qaydalar xidmətlərə səpələnib: if (sifaris.Status == "Yeni") sifaris.Cem += ...`, right: `public sealed class Sifaris
+{
+    public SifarisStatusu Status { get; private set; }
+    public void MehsulElaveEt(Mehsul m, int say) { /* yoxlama + dəyişiklik */ }
+}`, why: "«Qansız model» (anemic model): varlıq sadəcə məlumat çantasıdır, qaydalar isə hər yerdə təkrarlanır və bir yerdə unudulur. Vəziyyəti private set ilə bağla, dəyişikliyi yalnız qaydanı yoxlayan metodlarla et." },
+          { t: "mistake", lang: "csharp", wrong: `// Kiçik CRUD üçün: IRepository<T>, IService<T>, Handler, Validator, Mapper, 4 layihə, 14 fayl
+public interface IGenericRepository<T> { Task<T?> GetAsync(int id); /* ... */ }`, right: `// Sadə oxuma: birbaşa sorğu
+app.MapGet("/api/kateqoriyalar", (MagazaDb db, CancellationToken ct) =>
+    db.Kateqoriyalar.AsNoTracking().Select(k => new KateqoriyaDto(k.Id, k.Ad)).ToListAsync(ct));`, why: "Arxitektura mürəkkəbliyə görə seçilir. Sadə CRUD-a tam mərasim tətbiq etmək işi ləngidir və heç nə qazandırmır. Mürəkkəb qaydalı hissədə zəngin domen, sadə hissədə sadə kod — ikisi bir layihədə yaşaya bilər." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Qəliblər, kompromislər və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Clean, Onion, Hexagonal (Ports & Adapters) eyni ideyanın variantlarıdır: nüvədə biznes, kənarda texnika, asılılıq içəriyə. «Port» — Application-dakı interfeys, «adapter» — Infrastructure-dakı reallaşma.",
+            "CQRS: yazma (command) və oxuma (query) yolları ayrılır. Yazma zəngin domendən keçir; oxuma birbaşa DTO-ya proyeksiya edir (domeni yükləmədən) — həm sadə, həm sürətli. Ayrı bazalar və event sourcing isə nadir hallarda lazım olan növbəti addımdır.",
+            "MediatR / mediator qəlibi: endpoint əmri göndərir, handler tapılır; kəsişən məsələlər (validasiya, log, tranzaksiya, icazə) pipeline behavior-da. Qiyməti: dolayılıq — «bunu kim emal edir?» sualı. Kiçik layihədə handler-i birbaşa yerit.",
+            "Vertical Slice Architecture — alternativ: qatlara görə yox, xüsusiyyətə görə böl (Features/Sifarisler/Yarat: endpoint + handler + validator + DTO bir qovluqda). Dəyişiklik bir yerdə qalır. Clean ilə birləşdirmək olar: daxildə dilimlər, ortaq domen.",
+            "Repository mübahisəsi: EF Core DbContext artıq Repository + Unit of Work-dür. Generic IRepository<T> çox vaxt faydasız örtükdür və EF-in gücünü gizlədir. Aqreqat üçün məqsədli anbar (ISifarisAnbari) domeni EF-dən ayırır və testi asanlaşdırır; oxuma sorğularında birbaşa DbContext/Dapper məqbuldur.",
+            "DDD taktiki qəlibləri: aqreqat (bir tranzaksiya sərhədi, yalnız kökdən dəyişilir), dəyər obyekti (Pul, Email — dəyişməz, özünü yoxlayır), domen hadisəsi (SifarisTesdiqlendi — yan təsirləri ayırır), spesifikasiya.",
+            "Domen hadisələri və outbox: «sifariş saxlanıldı» və «email/mesaj göndərildi» bir atom əməliyyat deyil. Hadisəni eyni tranzaksiyada outbox cədvəlinə yaz, fon işi onu göndərsin — itki və ya ikiqat göndərmə olmasın (idempotent istehlakçı).",
+            "Modullu monolit: bir yayım vahidi, daxildə aydın sərhədli modullar (hər birinin öz sxemi, açıq müqaviləsi). Mikroservislərin əksər faydasını onların əməliyyat yükü olmadan verir — və lazım olanda modulu ayırmaq asandır.",
+            "Arxitektura testləri: NetArchTest / ArchUnitNET ilə qaydanı avtomatik yoxla («Domain heç nəyə istinad etmir», «Infrastructure sinifləri internal-dır»). Qayda yalnız sənəddədirsə, bir gün pozulacaq.",
+            "Test strategiyası: Domain — sürətli vahid testləri (asılılıqsız); Application — saxta anbarlarla handler testləri; Api — WebApplicationFactory + real baza (Testcontainers) ilə inteqrasiya testləri. Mock-ların çoxluğu dizayn problemi siqnalıdır.",
+            "Xəritələmə: entity ↔ DTO üçün əl ilə xəritələmə və ya mənbə generatoru (Mapperly). Reflection əsaslı avtomatik mapper gizli xətalar və over-posting riski yaradır.",
+            "Təhlükəsizlik — icazə Application qatında: icazə yoxlaması yalnız controller atributundadırsa, eyni istifadə halı başqa girişdən (fon işi, mesaj istehlakçısı, gRPC, yeni endpoint) çağırılanda keçilir. Yoxlamanı handler-də və ya pipeline behavior-da et — hər giriş nöqtəsi üçün eyni.",
+            "Təhlükəsizlik — domen invariantları son müdafiədir: validasiya atributu keçilsə belə (başqa giriş, daxili çağırış), varlıq yanlış vəziyyətə düşməməlidir: mənfi balans, başqasının sifarişi, yanlış status keçidi. private set + qoruyucu metodlar.",
+            "Təhlükəsizlik — etibar sərhədləri: müştəridən gələn hər şey etibarsızdır — əmrdə MusteriId, Qiymet, Endirim, Rol sahəsi olmasın. İstifadəçi ICariIstifadeci-dən, qiymət domendən gəlir. Xarici xidmətin cavabı da etibarsız girişdir — yoxla.",
+            "Təhlükəsizlik — çoxkirayəçilik: tenant filtri hər sorğuda əl ilə yazılmamalıdır — unudulacaq. Infrastructure-da qlobal sorğu filtri və ya sətir səviyyəli təhlükəsizlik (RLS); tenant id-si tokendən.",
+            "Təhlükəsizlik — Infrastructure sinifləri internal: Api qatı DbContext və ya konkret anbarı birbaşa işlədib Application-dakı yoxlamalardan yan keçə bilməsin. Yalnız interfeyslər və qeydiyyat metodu public.",
+            "Təhlükəsizlik — domen hadisələrində və outbox-da həssas məlumat: hadisəyə parol, token, kart nömrəsi yazma — onlar bazada, növbədə və loglarda saxlanır və başqa xidmətlərə gedir. Yalnız identifikator ötür.",
+            "Təhlükəsizlik — audit: «kim, nə vaxt, nəyi dəyişdi» kəsişən məsələdir — SaveChanges interceptor-u və ya pipeline behavior ilə mərkəzləşdir ki, heç bir istifadə halı ondan kənar qalmasın.",
+          ]},
+          { t: "code", lang: "csharp", caption: "İcazə və validasiya pipeline-da; dəyər obyekti; arxitektura testi", code: `// Application: hər əmr öz icazə tələbini bəyan edir
+public interface IIcazeliEmr { string Siyaset { get; } }
+
+public record SifarisLegvEmri(int SifarisId) : IRequest<Unit>, IIcazeliEmr
+{
+    public string Siyaset => "SifarisSahibi";
+}
+
+// Bütün əmrlər bu davranışdan keçir — hansı girişdən gəlməsindən asılı olmayaraq
+public sealed class IcazeDavranisi<TEmr, TCavab>(IIcazeXidmeti icaze, ICariIstifadeci istifadeci)
+    : IPipelineBehavior<TEmr, TCavab> where TEmr : notnull
+{
+    public async Task<TCavab> Handle(TEmr emr, RequestHandlerDelegate<TCavab> next, CancellationToken ct)
+    {
+        if (emr is IIcazeliEmr icazeli && !await icaze.IcazeVarAsync(istifadeci.Id, icazeli.Siyaset, emr, ct))
+            throw new IcazeXetasi();                       // fail closed
+        return await next(ct);
+    }
+}
+
+// Domain: özünü yoxlayan, dəyişməz dəyər obyekti
+public readonly record struct Pul
+{
+    public decimal Mebleg { get; }
+    public string Valyuta { get; }
+
+    public Pul(decimal mebleg, string valyuta)
+    {
+        if (mebleg < 0) throw new DomenXetasi("Məbləğ mənfi ola bilməz");
+        if (valyuta is not ("AZN" or "USD" or "EUR")) throw new DomenXetasi("Naməlum valyuta");
+        Mebleg = decimal.Round(mebleg, 2);
+        Valyuta = valyuta;
+    }
+
+    public static Pul operator +(Pul a, Pul b) =>
+        a.Valyuta == b.Valyuta
+            ? new Pul(a.Mebleg + b.Mebleg, a.Valyuta)
+            : throw new DomenXetasi("Fərqli valyutalar toplanmır");
+}
+
+// Domain: status keçidi yalnız icazəli yolla
+public void LegvEt(int istifadeciId)
+{
+    if (MusteriId != istifadeciId) throw new DomenXetasi("Sifariş sizə aid deyil");     // son müdafiə
+    if (Status is SifarisStatusu.Gonderilib or SifarisStatusu.Catdirilib)
+        throw new DomenXetasi("Göndərilmiş sifariş ləğv olunmur");
+    Status = SifarisStatusu.LegvEdilib;
+}
+
+// Arxitektura testi: qayda CI-da yoxlanır
+[Fact]
+public void Domain_hec_bir_qata_istinad_etmemelidir()
+{
+    var netice = Types.InAssembly(typeof(Sifaris).Assembly)
+        .ShouldNot()
+        .HaveDependencyOnAny("Magaza.Application", "Magaza.Infrastructure", "Microsoft.EntityFrameworkCore", "Microsoft.AspNetCore")
+        .GetResult();
+
+    Assert.True(netice.IsSuccessful);
+}` },
+          { t: "qa", items: [
+            ["Clean Architecture-ın əsas qaydası?", "Asılılıq qaydası: mənbə kodu asılılıqları yalnız içəriyə — biznes qaydalarına doğru yönəlir. İç qat çöl qat haqqında heç nə bilmir."],
+            ["Qatlar və məsuliyyətləri?", "Domain — varlıqlar və qaydalar; Application — istifadə halları və portlar; Infrastructure — baza və xarici xidmət adapterləri; Presentation/Api — HTTP girişi."],
+            ["Application bazanı necə işlədir, əgər Infrastructure-dan asılı deyilsə?", "Dependency Inversion: Application interfeysi təyin edir, Infrastructure onu reallaşdırır, DI onları başlanğıcda birləşdirir."],
+            ["CQRS nədir, nə vaxt lazımdır?", "Yazma və oxuma modellərinin ayrılması. Oxuma tələbləri yazmadan çox fərqlənəndə faydalıdır; sadə CRUD-da artıqdır."],
+            ["Anemic və rich domain model fərqi?", "Anemic — yalnız xüsusiyyətlər, məntiq xidmətlərdə. Rich — vəziyyət bağlıdır, dəyişiklik qaydanı qoruyan metodlarla."],
+            ["Nə vaxt Clean Architecture işlətməzsən?", "Kiçik CRUD, prototip, qısaömürlü xidmət. Mürəkkəblik domenin mürəkkəbliyinə uyğun olmalıdır."],
+            ["İcazə yoxlaması hansı qatda olmalıdır?", "Application-da (handler/pipeline) — bütün giriş nöqtələri üçün eyni olsun; kritik invariantlar əlavə olaraq domendə."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Hansı qat heç nədən asılı deyil?", options: ["Api", "Infrastructure", "Domain"], answer: 2, why: "Domain nüvədir." },
+          { t: "quiz", q: "EF Core DbContext hansı qatdadır?", options: ["Domain", "Infrastructure", "Application"], answer: 1, why: "Baza texnikadır — kənar qat." },
+          { t: "quiz", q: "Asılılıqlar hansı istiqamətə yönəlir?", options: ["Çölə", "İçəriyə", "Hər iki tərəfə"], answer: 1, why: "Asılılıq qaydası: yalnız içəriyə." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Kitabxana sistemi üçün «kitab götürmək» istifadə halını Clean Architecture ilə yaz (bir faylda, şərhlə qatları ayır). 1) Domain: `Kitab` (Id, Ad, MovcudSay; `Gotur()` — say 0-dırsa DomenXetasi atır, əks halda azaldır; vəziyyət private set) və `Uzv` (Id, AktivGoturmeSayi; `GoturmeElaveEt()` — 5-dən çox kitab götürə bilməz). 2) Application: `IKitabAnbari`, `IUzvAnbari`, `IIsVahidi`, `ICariIstifadeci` interfeysləri; `KitabGoturEmri(int KitabId)` — üzv id-si əmrdə OLMASIN; `KitabGoturHandler` — üzvü cari istifadəçidən tapır, domen metodlarını çağırır, bir dəfə saxlayır. 3) Infrastructure: bir anbarın EF Core reallaşması (internal) və DI qeydiyyat metodu. 4) Api: nazik POST endpoint-i (auth tələb olunur). 5) Şərhdə: niyə `UzvId` əmrdə yox, `ICariIstifadeci`-dən götürülür.",
+      starter: `// ===== Domain =====\npublic class DomenXetasi(string mesaj) : Exception(mesaj);\n\npublic sealed class Kitab\n{\n}\n\npublic sealed class Uzv\n{\n}\n\n// ===== Application =====\npublic record KitabGoturEmri(int KitabId);\n\npublic sealed class KitabGoturHandler\n{\n}\n\n// ===== Infrastructure =====\n\n// ===== Api =====\n`,
+      expect: "Kitab və Uzv-də xüsusiyyətlər private set, dəyişiklik yalnız Gotur()/GoturmeElaveEt() ilə və qayda pozulanda DomenXetasi; Domain-də EF/ASP.NET atributu və ya DbContext yoxdur; Application-da interfeyslər təyin olunub, handler onları konstruktordan alır, üzvü istifadeci.Id ilə tapır, kitab/üzv null olanda xəta, domen metodlarını çağırır və IIsVahidi.SaxlaAsync bir dəfə; əmrdə UzvId yoxdur; Infrastructure-da internal sealed anbar DbContext ilə və AddInfrastruktur genişlənmə metodu; endpoint yalnız handler-i çağırır və RequireAuthorization; şərhdə: müştəri başqasının id-sini göndərə bilər (IDOR/etibar sərhədi).",
+    },
+  },
+  {
+    slug: "performans",
+    title: "Senior: performans və keşləmə",
+    intro: "Sürətli API az resursla çox sorğuya cavab verir. Bunun yolları: lazımsız işi görməmək, nəticəni yadda saxlamaq (keş), axınları bloklamamaq və ölçmədən heç nəyi optimallaşdırmamaq.",
+    sections: [
+      {
+        level: "baslangic",
+        title: "Keş nədir",
+        blocks: [
+          { t: "analogy", text: "Çayçı hər müştəri üçün suyu yenidən qaynatmır — dəmlənmiş çay hazır durur və dərhal süzülür. Amma çay çox qalsa köhnəlir, ona görə arada təzələnir. Keş də belədir: bahalı nəticəni bir dəfə hazırla, bir müddət hazırını ver, sonra yenilə." },
+          { t: "code", lang: "csharp", code: `builder.Services.AddMemoryCache();
+
+app.MapGet("/api/kateqoriyalar", async (IMemoryCache kes, MagazaDb db, CancellationToken ct) =>
+{
+    // Keşdə varsa — onu qaytar; yoxdursa — hesabla, 5 dəqiqə saxla
+    var kateqoriyalar = await kes.GetOrCreateAsync("kateqoriyalar", async giris =>
+    {
+        giris.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+        return await db.Kateqoriyalar
+            .AsNoTracking()
+            .Select(k => new KateqoriyaDto(k.Id, k.Ad))
+            .ToListAsync(ct);
+    });
+
+    return Results.Ok(kateqoriyalar);
+});
+
+// Məlumat dəyişəndə keşi təmizlə
+app.MapPost("/api/kateqoriyalar", async (KateqoriyaYaratDto giris, IMemoryCache kes, MagazaDb db) =>
+{
+    db.Kateqoriyalar.Add(new Kateqoriya { Ad = giris.Ad });
+    await db.SaveChangesAsync();
+    kes.Remove("kateqoriyalar");
+    return Results.Created();
+});` },
+          { t: "terms", items: [
+            ["keş (cache)", "bahalı nəticənin müvəqqəti saxlanması."],
+            ["TTL / ömür", "keşdəki məlumatın nə qədər etibarlı sayıldığı vaxt."],
+            ["cache hit / miss", "keşdə tapıldı / tapılmadı (hesablamaq lazımdır)."],
+            ["invalidasiya", "köhnəlmiş keşin silinməsi və ya yenilənməsi."],
+            ["IMemoryCache", "tətbiqin öz yaddaşındakı keş."],
+          ]},
+          { t: "tip", text: "Keşə uyğun məlumat: tez-tez oxunur, nadir dəyişir, bir az köhnəlməsi problem deyil (kateqoriyalar, valyuta məzənnəsi). Uyğun olmayan: balans, stok, səbət — dəqiqlik vacib olan hər şey." },
+        ],
+      },
+      {
+        level: "orta",
+        title: "Output cache, paylanmış keş, sıxılma və səhifələmə",
+        blocks: [
+          { t: "code", lang: "csharp", code: `// 1) Output cache: bütün HTTP cavabı serverdə keşlənir
+builder.Services.AddOutputCache(o =>
+{
+    o.AddPolicy("mehsullar", p => p
+        .Expire(TimeSpan.FromMinutes(2))
+        .SetVaryByQuery("sehife", "kateqoriya")        // parametrə görə ayrı nüsxə
+        .Tag("mehsullar"));
+});
+
+app.UseOutputCache();
+
+app.MapGet("/api/mehsullar", MehsullariAl).CacheOutput("mehsullar");
+
+app.MapPost("/api/mehsullar", async (MehsulYaratDto g, IOutputCacheStore kes, CancellationToken ct) =>
+{
+    // ... saxla
+    await kes.EvictByTagAsync("mehsullar", ct);        // etiketlə təmizlə
+    return Results.Created();
+});
+
+// 2) HybridCache: yaddaş (L1) + paylanmış (L2, Redis), "stampede" qoruması ilə
+builder.Services.AddStackExchangeRedisCache(o => o.Configuration = builder.Configuration.GetConnectionString("Redis"));
+builder.Services.AddHybridCache();
+
+app.MapGet("/api/mehsullar/{id:int}", async (int id, HybridCache kes, MagazaDb db, CancellationToken ct) =>
+{
+    var mehsul = await kes.GetOrCreateAsync(
+        $"mehsul:{id}",
+        async c => await db.Mehsullar.AsNoTracking()
+            .Where(m => m.Id == id)
+            .Select(m => new MehsulDto(m.Id, m.Ad, m.Qiymet))
+            .FirstOrDefaultAsync(c),
+        new HybridCacheEntryOptions { Expiration = TimeSpan.FromMinutes(10) },
+        tags: ["mehsullar"],
+        cancellationToken: ct);
+
+    return mehsul is null ? Results.NotFound() : Results.Ok(mehsul);
+});
+
+// 3) Cavab sıxılması
+builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
+app.UseResponseCompression();
+
+// 4) Səhifələmə + proyeksiya: yalnız lazım olanı gətir
+static async Task<IResult> MehsullariAl(MagazaDb db, int sehife = 1, int olcu = 20, CancellationToken ct = default)
+{
+    olcu = Math.Clamp(olcu, 1, 100);
+    var siyahi = await db.Mehsullar.AsNoTracking()
+        .OrderBy(m => m.Id)
+        .Skip((Math.Max(sehife, 1) - 1) * olcu)
+        .Take(olcu)
+        .Select(m => new MehsulDto(m.Id, m.Ad, m.Qiymet))
+        .ToListAsync(ct);
+    return Results.Ok(siyahi);
+}` },
+          { t: "list", items: [
+            "IMemoryCache — bir serverdə, ən sürətli; bir neçə nüsxədə hər birinin öz keşi olur (uyğunsuzluq).",
+            "Paylanmış keş (Redis) — bütün nüsxələr üçün ortaq; şəbəkə gediş-gəlişi və serializasiya xərci var.",
+            "HybridCache — hər ikisini birləşdirir və eyni açar üçün paralel sorğuları bir hesablamada toplayır.",
+            "Output cache — bütün cavabı serverdə saxlayır. Response caching isə HTTP başlıqları (Cache-Control) ilə brauzer/CDN keşini idarə edir.",
+          ]},
+          { t: "mistake", lang: "csharp", wrong: `app.MapGet("/api/hesabat", (HesabatXidmeti x) =>
+{
+    var netice = x.HesablaAsync().Result;         // axını bloklayır
+    Thread.Sleep(100);
+    return netice;
+});`, right: `app.MapGet("/api/hesabat", async (HesabatXidmeti x, CancellationToken ct) =>
+    await x.HesablaAsync(ct));`, why: "Bloklayan çağırış axın hovuzunu tükəndirir: yük altında sorğular növbədə qalır, gecikmə partlayır. I/O-nu başdan sona async et və CancellationToken ötür." },
+          { t: "mistake", lang: "csharp", wrong: `// İstifadəçiyə xas cavab ümumi açarla keşlənir
+app.MapGet("/api/profil", ProfiliAl).CacheOutput();
+var sebet = await kes.GetOrCreateAsync("sebet", ...);        // hamı üçün eyni açar`, right: `app.MapGet("/api/profil", ProfiliAl);                         // keşləmə
+var sebet = await kes.GetOrCreateAsync($"sebet:{istifadeciId}", ...);`, why: "Ümumi açarla keşlənmiş şəxsi məlumat növbəti istifadəçiyə göstərilir — ciddi məlumat sızması. Şəxsi məlumatı ya keşləmə, ya da açara istifadəçi id-sini daxil et. (Output cache default olaraq Authorization başlıqlı sorğuları keşləmir — bunu söndürmə.)" },
+          { t: "mistake", lang: "csharp", wrong: `giris.SlidingExpiration = TimeSpan.FromMinutes(5);   // yalnız sürüşən ömür, ölçü limiti yox
+kes.Set(istifadeciAxtarisi, netice);                 // açar — istifadəçi girişi`, right: `builder.Services.AddMemoryCache(o => o.SizeLimit = 10_000);
+
+giris.SlidingExpiration = TimeSpan.FromMinutes(5);
+giris.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);   // mütləq üst hədd
+giris.Size = 1;`, why: "Sürüşən ömür tez-tez oxunan məlumatı əbədi saxlayır — heç vaxt yenilənmir. Limitsiz keş isə yaddaşı doldurur; açar istifadəçi girişindən qurulursa, hücumçu milyon fərqli açarla serveri yıxır. Mütləq ömür və ölçü limiti qoy." },
+        ],
+      },
+      {
+        level: "senior",
+        title: "Ölçmə, dərin optimizasiya və təhlükəsizlik",
+        blocks: [
+          { t: "list", items: [
+            "Əvvəl ölç: gecikməni orta ilə yox, p95/p99 ilə izlə. Alətlər: dotnet-counters (canlı sayğaclar), dotnet-trace, PerfView, BenchmarkDotNet (mikro ölçmə), k6/NBomber/bombardier (yük testi), OpenTelemetry + APM. Darboğaz adətən baza və xarici çağırışlardadır, C# kodunda yox.",
+            "Baza — ən böyük qazanc: N+1-i aradan qaldır, proyeksiya et, indeks əlavə et, AsNoTracking, səhifələmə (böyük cədvəldə keyset), ExecuteUpdate/Delete, kompilyasiya olunmuş sorğular, AddDbContextPool. EF-in yaratdığı SQL-i oxu.",
+            "Axın hovuzu aclığı: sync-over-async (.Result, .Wait()), Thread.Sleep, sinxron I/O. Əlamət: CPU aşağı, gecikmə yüksək, növbə uzunluğu artır (dotnet-counters: ThreadPool Queue Length). Həll — başdan sona async.",
+            "Ayırmaları azalt: isti yolda LINQ və closure əvəzinə dövr; Span<T>/Memory<T>; ArrayPool; string birləşdirmə əvəzinə StringBuilder/interpolasiya handler-ləri; böyük obyektləri (85 KB+) təkrar yaratma (LOH). Gen 2 yığımlarının tezliyini izlə. Server GC default-dur — konteynerdə yaddaş limitini düzgün ver.",
+            "JSON: System.Text.Json mənbə generatoru (JsonSerializerContext) — reflection yoxdur, başlanğıc sürətli, AOT-a uyğun. Böyük cavabları axınla ver (IAsyncEnumerable<T>) — bütün siyahını yaddaşa yığma.",
+            "HTTP müştərisi: IHttpClientFactory, bağlantı hovuzu, HTTP/2; paralel xarici çağırışlar üçün Task.WhenAll (məhdud paralelliklə); vaxt limiti və davamlılıq siyasəti. Bir yavaş asılılıq bütün xidməti dondurmamalıdır (circuit breaker, bulkhead).",
+            "Keş strategiyaları: cache-aside (ən çox işlənən: oxu → yoxdursa hesabla → yaz), write-through, refresh-ahead. Invalidasiya çətindir: TTL + hadisə əsaslı təmizləmə (tag) birlikdə. Bir neçə nüsxədə L1 keşini sinxronlaşdırmaq üçün Redis pub/sub (backplane).",
+            "Cache stampede: populyar açarın ömrü bitəndə yüzlərlə sorğu eyni anda bazaya gedir. Həll: hər açar üçün tək hesablama (HybridCache bunu edir), TTL-ə təsadüfi əlavə (jitter), köhnəni ver + arxada yenilə (stale-while-revalidate).",
+            "HTTP keşləməsi: Cache-Control (public/private, max-age, no-store), ETag + If-None-Match → 304 Not Modified (gövdə göndərilmir). Statik fayllar: asp-append-version / həşli adlar + uzun max-age + CDN.",
+            "Miqyaslama: tətbiq vəziyyətsiz (stateless) olmalıdır — sessiya və keş xaricdə (Redis), fayllar obyekt anbarında. Onda üfüqi miqyaslama sadəcə nüsxə sayını artırmaqdır. Ağır işləri növbəyə çıxar (fon işçisi, mesaj broker-i) — sorğu dərhal 202 qaytarsın.",
+            "Native AOT və ReadyToRun: başlanğıc vaxtı və yaddaşı azaldır (serverless, sürətli miqyaslama). Tiered PGO (default açıq) uzun işləyən xidmətlərdə isti kodu özü optimallaşdırır.",
+            "Təhlükəsizlik — keş və şəxsi məlumat: autentifikasiyalı cavabları ümumi (shared) keşə salma. Cache-Control: private, no-store həssas səhifələrdə (bank, profil). CDN/proksi keşində Vary başlığı (Authorization, Cookie) olmasa, bir istifadəçinin cavabı başqasına verilir. Keş açarına tenant və istifadəçi id-si daxil olsun.",
+            "Təhlükəsizlik — cache poisoning: keş açarına daxil olmayan, amma cavabı dəyişən giriş (X-Forwarded-Host, naməlum query parametri, başlıq) hücumçuya zəhərli cavabı hamı üçün keşlətməyə imkan verir. Cavaba təsir edən hər girişi açara daxil et və ya normallaşdır; etibarsız başlıqlara güvənmə.",
+            "Təhlükəsizlik — keş ilə DoS: keş açarı istifadəçi girişindən qurulursa (axtarış sözü, ixtiyari query), hücumçu unikal açarlarla yaddaşı doldurur və ya hər sorğunu miss edib bazanı vurur. Ölçü limiti (SizeLimit), açarın normallaşdırılması, icazəli parametrlərin ağ siyahısı, mövcud olmayan nəticənin də qısa müddət keşlənməsi (negative caching).",
+            "Təhlükəsizlik — sürət limiti və limitlər performansın hissəsidir: AddRateLimiter (istifadəçi/IP üzrə), sorğu gövdəsi limiti, səhifə ölçüsünün üst həddi, sorğu vaxt limiti (AddRequestTimeouts), paralel sorğu limiti (concurrency limiter). Bahalı endpoint-lərə (hesabat, ixrac, axtarış) ayrıca sərt limit.",
+            "Təhlükəsizlik — sıxılma və sirlər (BREACH): HTTPS üzərində sıxılmış cavabda həm sirr (CSRF tokeni), həm də hücumçunun idarə etdiyi giriş varsa, cavab ölçüsündən sirr çıxarıla bilər. Sirr daşıyan dinamik səhifələrdə sıxılmanı söndür və ya tokeni hər cavabda maskala.",
+            "Təhlükəsizlik — Redis: parol/ACL və TLS ilə, yalnız daxili şəbəkədə. Açıq Redis — məlumat oğurluğu və uzaqdan kod icrası deməkdir. Keşə deserializasiya etdiyin məlumat etibarsız sayılmalıdır (təhlükəsiz serializator, tip adını məlumatdan götürmə). Sessiya və tokenləri keşdə saxlayırsansa, şifrələ və TTL ver.",
+            "Təhlükəsizlik — vaxt fərqi: keş «hit»-i sürətli, «miss»-i yavaşdır — bu fərqdən resursun mövcudluğu və ya başqasının nəyə baxdığı çıxarıla bilər. İcazə yoxlamasını keşdən ƏVVƏL et: keşlənmiş cavabı icazəsiz istifadəçiyə vermə.",
+          ]},
+          { t: "code", lang: "csharp", caption: "Təhlükəsiz keş açarı, ETag, sürət və vaxt limiti", code: `builder.Services.AddMemoryCache(o => o.SizeLimit = 50_000);
+builder.Services.AddHybridCache(o =>
+{
+    o.MaximumPayloadBytes = 1024 * 1024;                 // 1 MB-dan böyük dəyər keşlənmir
+    o.MaximumKeyLength = 256;
+});
+
+builder.Services.AddRequestTimeouts(o =>
+    o.DefaultPolicy = new RequestTimeoutPolicy { Timeout = TimeSpan.FromSeconds(10) });
+
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("axtaris", ctx => RateLimitPartition.GetTokenBucketLimiter(
+        ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anonim",
+        _ => new TokenBucketRateLimiterOptions
+        {
+            TokenLimit = 20, TokensPerPeriod = 10,
+            ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+        }));
+});
+
+app.UseRateLimiter();
+app.UseRequestTimeouts();
+
+// Axtarış: açar normallaşdırılır, uzunluq məhduddur, icazə keşdən ƏVVƏL
+app.MapGet("/api/axtar", async (
+    string q, ICariIstifadeci istifadeci, HybridCache kes, IAxtarisXidmeti axtaris, CancellationToken ct) =>
+{
+    string soz = q.Trim().ToLowerInvariant();
+    if (soz.Length is < 2 or > 50)
+        return Results.BadRequest("Axtarış sözü 2–50 simvol olmalıdır");
+
+    // Açarda tenant var: bir müştərinin nəticəsi başqasına getmir
+    string acar = $"axtar:{istifadeci.TenantId}:{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(soz)))}";
+
+    var netice = await kes.GetOrCreateAsync(
+        acar,
+        async c => await axtaris.AxtarAsync(istifadeci.TenantId, soz, limit: 20, c),   // boş nəticə də keşlənir
+        new HybridCacheEntryOptions { Expiration = TimeSpan.FromSeconds(60) },
+        cancellationToken: ct);
+
+    return Results.Ok(netice);
+})
+.RequireAuthorization()
+.RequireRateLimiting("axtaris");
+
+// ETag: dəyişməyibsə 304, gövdə göndərilmir; şəxsi cavab ümumi keşə düşmür
+app.MapGet("/api/senedler/{id:int}", async (int id, HttpContext ctx, ISenedXidmeti x, CancellationToken ct) =>
+{
+    var sened = await x.TapAsync(id, ct);                 // sahiblik xidmətdə yoxlanır
+    if (sened is null) return Results.NotFound();
+
+    string etag = $"\\"{Convert.ToBase64String(sened.Versiya)}\\"";
+    ctx.Response.Headers.CacheControl = "private, no-cache";    // brauzer saxlaya bilər, amma hər dəfə yoxlasın
+    ctx.Response.Headers.ETag = etag;
+
+    return ctx.Request.Headers.IfNoneMatch == etag
+        ? Results.StatusCode(StatusCodes.Status304NotModified)
+        : Results.Ok(sened);
+}).RequireAuthorization();` },
+          { t: "qa", items: [
+            ["Performans probleminə necə yanaşırsan?", "Ölçürəm (metriklər, izlər, profil), darboğazı tapıram, bir dəyişiklik edirəm, yenidən ölçürəm. Təxminlə optimallaşdırmıram."],
+            ["IMemoryCache, IDistributedCache, HybridCache fərqi?", "Memory — proses daxili, ən sürətli, nüsxələr arası paylaşılmır. Distributed — ortaq (Redis), serializasiya və şəbəkə xərci. Hybrid — ikisini birləşdirir, stampede qoruması və etiketlə invalidasiya verir."],
+            ["Output caching ilə response caching fərqi?", "Output caching cavabı serverdə saxlayır və server idarə edir (invalidasiya mümkündür). Response caching HTTP başlıqları ilə müştəri/proksi keşini idarə edir."],
+            ["Cache stampede nədir?", "Açarın ömrü bitəndə çoxlu sorğunun eyni anda mənbəyə getməsi. Həlli: açar başına tək hesablama, jitter, stale-while-revalidate."],
+            ["Thread pool starvation nədir, əlaməti?", "Bloklayan çağırışlar axınları tutur, yeni sorğular növbədə qalır. CPU aşağı, gecikmə yüksək, növbə uzunluğu artır."],
+            ["Keşlənməməli məlumat?", "İstifadəçiyə xas və həssas məlumat (ümumi açarla), tez-tez dəyişən və dəqiqlik tələb edən dəyərlər (balans, stok)."],
+            ["ETag necə işləyir?", "Server cavaba versiya etiketi qoyur; müştəri növbəti dəfə If-None-Match ilə göndərir; dəyişməyibsə server gövdəsiz 304 qaytarır."],
+          ]},
+        ],
+      },
+      {
+        level: "baslangic",
+        title: "Özünü yoxla",
+        blocks: [
+          { t: "quiz", q: "Keşə ən uyğun məlumat hansıdır?", options: ["İstifadəçinin balansı", "Kateqoriyalar siyahısı", "Səbətin məzmunu"], answer: 1, why: "Tez-tez oxunur, nadir dəyişir." },
+          { t: "quiz", q: "Məlumat dəyişəndə keşlə nə etmək lazımdır?", options: ["Heç nə", "Təmizləmək / yeniləmək", "Serveri söndürmək"], answer: 1, why: "Əks halda köhnə məlumat göstərilir." },
+          { t: "quiz", q: "Bir neçə server nüsxəsi üçün ortaq keş?", options: ["IMemoryCache", "Redis (paylanmış keş)", "Statik dəyişən"], answer: 1, why: "Yaddaş keşi hər nüsxədə ayrıdır." },
+        ],
+      },
+    ],
+    exercise: {
+      task: "Yavaş məhsul API-sini sürətləndir. 1) GET /api/mehsullar?kateqoriya=&sehife=&olcu= — səhifələmə (olcu ≤ 100), AsNoTracking, DTO proyeksiyası, async + CancellationToken. 2) Bu endpoint-ə 60 saniyəlik output cache: kateqoriya, sehife, olcu-ya görə ayrı nüsxə, «mehsullar» etiketi ilə. 3) GET /api/mehsullar/{id} — HybridCache (və ya IMemoryCache) ilə 10 dəqiqə; açar `mehsul:{id}`. 4) PUT /api/mehsullar/{id} — yenilədikdən sonra həm tək məhsulun keşini, həm də siyahının output cache-ni təmizlə. 5) GET /api/sebet — KEŞLƏMƏ; şərhdə səbəbini yaz. 6) Yaddaş keşinə ölçü limiti qoy və şərhdə izah et: keş açarını istifadəçinin axtarış sözündən qursan, hansı hücum mümkündür?",
+      starter: `var builder = WebApplication.CreateBuilder(args);\n\n// keş xidmətləri\n\nvar app = builder.Build();\n\n// middleware\n\n// endpoint-lər\n\napp.Run();\n\npublic record MehsulDto(int Id, string Ad, decimal Qiymet);\npublic record MehsulYenileDto(string Ad, decimal Qiymet);\n`,
+      expect: "AddOutputCache siyasəti: Expire(60 s), SetVaryByQuery(\"kateqoriya\", \"sehife\", \"olcu\"), Tag(\"mehsullar\"); app.UseOutputCache(); siyahı endpoint-i CacheOutput ilə, Math.Clamp(olcu, 1, 100), AsNoTracking/Select DTO, ToListAsync(ct); tək məhsul GetOrCreateAsync($\"mehsul:{id}\") 10 dəqiqə ömürlə; PUT-da kes.RemoveAsync/Remove(açar) + IOutputCacheStore.EvictByTagAsync(\"mehsullar\"); /api/sebet keşlənmir və şərhdə şəxsi məlumatın başqa istifadəçiyə sızması izah olunub; AddMemoryCache(o => o.SizeLimit = ...) (və ya HybridCache limitləri); şərhdə unikal açarlarla yaddaşın doldurulması (DoS) və açarın normallaşdırılması/limit; .Result/.Wait() yoxdur.",
+    },
+  },
 ];

@@ -15,7 +15,9 @@ interface Body {
   messages?: Msg[];
 }
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+// Birinci model yüklənibsə (503) və ya tapılmasa (404), növbəti sınanır
+const MODELS = [...new Set([process.env.GEMINI_MODEL || "gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash"])];
+const TIMEOUT_MS = 20_000;
 const LIMIT = { body: 40_000, code: 8000, output: 3000, msg: 2000, msgs: 12, perMin: 15, ips: 5000 };
 const LANG_IDS = new Set(LANGUAGES.map((l) => l.id));
 
@@ -103,15 +105,23 @@ export async function POST(req: Request) {
           parts: [{ text: `${ctx}\n\nSual: ${history.at(-1)?.parts[0].text ?? ""}` }],
         }];
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt(b) }] },
-      contents,
-      generationConfig: { temperature: 0.4, maxOutputTokens: 1200 },
-    }),
-  }).catch(() => null);
+  const payload = JSON.stringify({
+    systemInstruction: { parts: [{ text: systemPrompt(b) }] },
+    contents,
+    generationConfig: { temperature: 0.4, maxOutputTokens: 4000 }, // düşünmə tokenləri də bu limitə daxildir
+  });
+
+  let res: Response | null = null;
+  for (const model of MODELS) {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: payload,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    }).catch(() => null);
+    // Yalnız müvəqqəti / model xətalarında növbətiyə keç; 429 və 4xx-də dayan
+    if (res && (res.ok || ![404, 500, 503].includes(res.status))) break;
+  }
 
   if (!res) return Response.json({ error: "AI serverinə qoşulmaq olmadı." }, { status: 502 });
   if (!res.ok) {
@@ -120,6 +130,6 @@ export async function POST(req: Request) {
     return Response.json({ error: msg }, { status });
   }
   const data = await res.json();
-  const text: string = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
+  const text: string = data?.candidates?.[0]?.content?.parts?.filter((p: { thought?: boolean }) => !p.thought).map((p: { text?: string }) => p.text ?? "").join("") ?? "";
   return Response.json({ text: text || "Cavab alınmadı, yenidən cəhd et." });
 }

@@ -59,3 +59,8 @@ body {
 /* CodeMirror — sayt fonuna uyğun */
 .cm-editor, .cm-editor .cm-gutters { background-color: #080b13 !important; }
 .cm-editor .cm-activeLine, .cm-editor .cm-activeLineGutter { background-color: #0f1625 !important; }
+
+/* Dərs səviyyə seçimi: seçilməyən səviyyənin bölmələri gizlənir */
+.level-root[data-show="baslangic"] section[data-level]:not([data-level="baslangic"]),
+.level-root[data-show="orta"] section[data-level]:not([data-level="orta"]),
+.level-root[data-show="senior"] section[data-level]:not([data-level="senior"]) { display: none; }

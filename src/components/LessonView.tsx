@@ -1,6 +1,7 @@
 import type { Block, Lesson, Level } from "@/data/types";
 import CodeBlock from "./CodeBlock";
 import Quiz from "./Quiz";
+import LevelSwitch from "./LevelSwitch";
 
 const LEVEL: Record<Level, { label: string; cls: string }> = {
   baslangic: { label: "Başlanğıc", cls: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30" },
@@ -84,9 +85,10 @@ function BlockView({ b }: { b: Block }) {
 
 export default function LessonView({ lesson }: { lesson: Lesson }) {
   return (
-    <div className="space-y-12">
+    <LevelSwitch>
+    <div className="flex flex-col gap-12">
       {lesson.sections.map((s, i) => (
-        <section key={i} className="space-y-5">
+        <section key={i} data-level={s.level} className="space-y-5">
           <div className="flex items-center gap-3">
             <span className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest ring-1 ${LEVEL[s.level].cls}`}>
               {LEVEL[s.level].label}
@@ -97,5 +99,6 @@ export default function LessonView({ lesson }: { lesson: Lesson }) {
         </section>
       ))}
     </div>
+    </LevelSwitch>
   );
 }

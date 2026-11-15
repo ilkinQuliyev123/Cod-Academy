@@ -33,7 +33,7 @@ export default function Roadmap({ track, stages, names }: {
         return (
           <li key={s.id} className="relative">
             <span className={`absolute -left-[33px] md:-left-[49px] top-1 grid h-4 w-4 place-items-center rounded-full ring-4 ring-ink ${ok ? "bg-accent" : "bg-line"}`} />
-            <article className={`rounded-2xl border bg-panel p-5 md:p-7 ${ok ? "border-accent/50" : "border-line"} ${locked ? "opacity-70" : ""}`}>
+            <article className={`rounded-2xl border bg-panel p-5 md:p-7 ${ok ? "border-accent/50" : "border-line"}`}>
               <header className="flex flex-wrap items-center gap-3">
                 <span lang="en" className={`rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-widest ring-1 ${BADGE[s.id]}`}>
                   {i + 1}. {s.id}
@@ -43,7 +43,7 @@ export default function Roadmap({ track, stages, names }: {
               </header>
               <p className="mt-2 text-slate-300">{s.goal}</p>
               {locked && (
-                <p className="mt-3 text-sm text-amber-300/90">🔒 Tövsiyə: əvvəlcə «{prev.title}» imtahanını keç.</p>
+                <p className="mt-3 text-sm text-amber-300/90">💡 Tövsiyə (məcburi deyil): əvvəlcə «{prev.title}» imtahanını keç.</p>
               )}
 
               <div className="mt-4 flex items-center gap-3">

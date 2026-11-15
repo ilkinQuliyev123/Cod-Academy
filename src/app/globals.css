@@ -61,6 +61,9 @@ body {
 .cm-editor .cm-activeLine, .cm-editor .cm-activeLineGutter { background-color: #0f1625 !important; }
 
 /* Dərs səviyyə seçimi: seçilməyən səviyyənin bölmələri gizlənir */
-.level-root[data-show="baslangic"] section[data-level]:not([data-level="baslangic"]),
-.level-root[data-show="orta"] section[data-level]:not([data-level="orta"]),
-.level-root[data-show="senior"] section[data-level]:not([data-level="senior"]) { display: none; }
+.level-root[data-show="baslangic"] section[data-level="orta"],
+.level-root[data-show="baslangic"] section[data-level="senior"],
+.level-root[data-show="orta"] section[data-level="baslangic"],
+.level-root[data-show="orta"] section[data-level="senior"],
+.level-root[data-show="senior"] section[data-level="baslangic"],
+.level-root[data-show="senior"] section[data-level="orta"] { display: none; }

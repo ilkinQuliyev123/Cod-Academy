@@ -37,10 +37,10 @@ export default async function TopicPage({ params }: PageProps<"/[track]/[lang]/[
       {lesson ? (
         <>
           <p className="mt-4 text-lg leading-relaxed text-slate-300">{lesson.intro}</p>
-          <div className="mt-10"><LessonView lesson={lesson} /></div>
+          <div className="mt-10"><LessonView lesson={lesson} id={`${lang.id}/${t.slug}`} /></div>
           {lesson.exercise && (
             <div className="mt-12 rounded-xl border border-accent/40 bg-accent/5 p-5">
-              <p className="font-mono text-[11px] uppercase tracking-widest text-accent">⌨ Tapşırıq</p>
+              <p className="font-mono text-[11px] uppercase tracking-widest text-accent">⌨ Tapşırıq · bütün səviyyələr üçün ümumi</p>
               <p className="mt-2 text-slate-200">{lesson.exercise.task}</p>
               <Link
                 href={`/mesq?dil=${lang.id}&movzu=${t.slug}`}

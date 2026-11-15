@@ -83,12 +83,12 @@ function BlockView({ b }: { b: Block }) {
   }
 }
 
-export default function LessonView({ lesson }: { lesson: Lesson }) {
+export default function LessonView({ lesson, id }: { lesson: Lesson; id: string }) {
   return (
-    <LevelSwitch>
+    <LevelSwitch id={id}>
     <div className="flex flex-col gap-12">
       {lesson.sections.map((s, i) => (
-        <section key={i} data-level={s.level} className="space-y-5">
+        <section key={i} data-level={s.title === "Özünü yoxla" ? "hamisi" : s.level} className="space-y-5">
           <div className="flex items-center gap-3">
             <span className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest ring-1 ${LEVEL[s.level].cls}`}>
               {LEVEL[s.level].label}

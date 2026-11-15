@@ -12,7 +12,7 @@ export default function Quiz({ q, options, answer, why }: { q: string; options: 
         {options.map((o, i) => {
           const state = !done ? "border-line hover:border-accent/60" : i === answer ? "border-emerald-500 bg-emerald-500/10" : i === pick ? "border-rose-500 bg-rose-500/10" : "border-line opacity-50";
           return (
-            <button key={i} disabled={done} onClick={() => setPick(i)} className={`rounded-md border px-3 py-2 text-left font-mono text-sm transition ${state}`}>
+            <button key={i} disabled={done} onClick={() => setPick(i)} className={`min-h-11 rounded-md border px-3 py-2 text-left font-mono text-sm transition ${state}`}>
               {o}
             </button>
           );

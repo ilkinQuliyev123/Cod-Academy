@@ -7,7 +7,7 @@ export default function DoneButton({ id }: { id: string }) {
   return (
     <button
       onClick={() => toggleDone(id)}
-      className={`rounded-lg px-4 py-2 text-sm font-bold transition ${done ? "bg-accent text-ink" : "border border-accent/50 text-accent hover:bg-accent/10"}`}
+      className={`min-h-11 rounded-lg px-4 py-2 text-sm font-bold transition ${done ? "bg-accent text-ink" : "border border-accent/50 text-accent hover:bg-accent/10"}`}
     >
       {done ? "✓ Dərs bitdi" : "Dərsi bitirdim"}
     </button>

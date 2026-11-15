@@ -40,7 +40,7 @@ export default function Mesq(props: PageProps<"/mesq">) {
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex h-14 items-center gap-3 border-b border-line px-4">
-        <Link href="/" className="grid h-7 w-7 place-items-center rounded-md bg-blue-team font-mono text-xs font-black text-ink">{"</>"}</Link>
+        <Link href="/" className="relative after:absolute after:-inset-y-3 after:inset-x-0 after:content-[''] grid h-7 w-7 place-items-center rounded-md bg-blue-team font-mono text-xs font-black text-ink">{"</>"}</Link>
         <span className="font-mono text-xs tracking-[0.3em] text-slate-300">MƏŞQ MEYDANÇASI</span>
         <div className="flex-1" />
         <Link href="/frontend" className="inline-flex min-h-11 items-center px-1 text-sm text-slate-400 hover:text-blue-team">Front End</Link>

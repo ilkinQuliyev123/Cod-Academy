@@ -91,9 +91,9 @@ export default function AgentPanel({ lang, topic, exam, getContext, checkSignal 
           onChange={(e) => setInput(e.target.value)}
           placeholder="Sualını yaz…"
           maxLength={2000}
-          className="min-w-0 flex-1 rounded-md border border-line bg-ink px-3 py-2 text-sm outline-none focus:border-accent/60"
+          className="min-h-11 min-w-0 flex-1 rounded-md border border-line bg-ink px-3 py-2 text-sm outline-none focus:border-accent/60"
         />
-        <button disabled={busy || !input.trim()} className="rounded-md bg-accent px-4 text-sm font-bold text-ink disabled:opacity-40">
+        <button disabled={busy || !input.trim()} className="min-h-11 rounded-md bg-accent px-4 text-sm font-bold text-ink disabled:opacity-40">
           Göndər
         </button>
       </form>

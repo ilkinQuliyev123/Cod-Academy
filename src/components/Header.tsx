@@ -22,13 +22,13 @@ export default function Header({ track }: { track: TrackId }) {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-ink/85 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:gap-4">
-        <Link href="/" className="flex items-center gap-2 shrink-0" title="Tərəf seçiminə qayıt">
+        <Link href="/" className="flex items-center gap-2 shrink-0 relative after:absolute after:-inset-y-3 after:inset-x-0 after:content-['']" title="Tərəf seçiminə qayıt">
           <span className="grid h-7 w-7 place-items-center rounded-md bg-accent font-mono text-xs font-black text-ink">{"</>"}</span>
           <span className="hidden sm:block font-mono text-xs tracking-[0.3em] text-slate-300">KOD AKADEMİYASI</span>
         </Link>
         <Link
           href={`/${track}`}
-          className="shrink-0 rounded border border-accent/40 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-accent"
+          className="shrink-0 relative after:absolute after:-inset-y-3 after:inset-x-0 after:content-[''] rounded border border-accent/40 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-accent"
         >
           {TRACKS[track].name}
         </Link>

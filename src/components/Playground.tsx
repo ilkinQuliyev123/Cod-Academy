@@ -62,11 +62,11 @@ export default function Playground({ langs, langId, topic, task, starter, tasks,
             🎓 İmtahan · {exam.title} · {lang.name}
           </span>
         ) : (<>
-        <select value={langId} onChange={(e) => go(e.target.value)} className="rounded-md border border-line bg-panel px-3 py-2 text-sm">
+        <select value={langId} onChange={(e) => go(e.target.value)} className="min-h-11 md:min-h-0 rounded-md border border-line bg-panel px-3 py-2 text-sm">
           <optgroup label="Front End">{langs.filter((l) => l.track === "frontend").map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>
           <optgroup label="Back End">{langs.filter((l) => l.track === "backend").map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>
         </select>
-        <select value={topic ?? ""} onChange={(e) => go(langId, e.target.value || undefined)} className="max-w-[16rem] rounded-md border border-line bg-panel px-3 py-2 text-sm">
+        <select value={topic ?? ""} onChange={(e) => go(langId, e.target.value || undefined)} className="min-h-11 md:min-h-0 max-w-[16rem] rounded-md border border-line bg-panel px-3 py-2 text-sm">
           <option value="">Sərbəst məşq</option>
           {tasks.map((t) => <option key={t.slug} value={t.slug}>Tapşırıq: {t.title}</option>)}
         </select>
@@ -74,11 +74,11 @@ export default function Playground({ langs, langId, topic, task, starter, tasks,
         <div className="flex-1" />
         <span className="font-mono text-xs text-slate-500">{status}</span>
         {lang.runnable !== "none" && (
-          <button onClick={onRun} disabled={running} className="rounded-md border border-accent/60 px-4 py-2 text-sm font-bold text-accent hover:bg-accent/10 disabled:opacity-50" title="Ctrl+Enter">
+          <button onClick={onRun} disabled={running} className="min-h-11 md:min-h-0 rounded-md border border-accent/60 px-4 py-2 text-sm font-bold text-accent hover:bg-accent/10 disabled:opacity-50" title="Ctrl+Enter">
             ▶ İşə sal
           </button>
         )}
-        <button onClick={() => setCheck((c) => c + 1)} className="rounded-md bg-accent px-4 py-2 text-sm font-bold text-ink hover:brightness-110">
+        <button onClick={() => setCheck((c) => c + 1)} className="min-h-11 md:min-h-0 rounded-md bg-accent px-4 py-2 text-sm font-bold text-ink hover:brightness-110">
           ✦ AI yoxla
         </button>
       </div>

@@ -62,6 +62,29 @@ bootstrap();` },
             ["bootstrap", "tətbiqi işə salan başlanğıc funksiya (main.ts)."],
           ]},
           { t: "tip", text: "Nest.js-i öyrənməzdən əvvəl TypeScript-in siniflərini, interfeyslərini və async/await-i bilmək lazımdır. Dekoratorlar əvvəl qəribə görünür — onları «etiket» kimi düşün." },
+          { t: "h", text: "Node.js-də modullar və mühit dəyişənləri" },
+          { t: "p", text: "Node.js-də kod fayllara bölünür və fayllar bir-birini import edir. Müasir TypeScript layihələrində import/export sintaksisi işlədilir; Nest.js kodu TypeScript-dən JavaScript-ə kompilyasiya olunur və sonra Node onu icra edir. Yəni sən TypeScript yazırsan, Node isə dist/ qovluğundakı JavaScript-i işlədir." },
+          { t: "code", lang: "typescript", caption: "Fayllar arası import və process.env", code: `// riyaziyyat.ts
+export function topla(a: number, b: number): number {
+  return a + b;
+}
+
+// main.ts
+import { topla } from './riyaziyyat';
+
+// Mühit dəyişənləri: tənzimləmə koddan kənarda saxlanır
+const port = Number(process.env.PORT ?? 3000);
+console.log('Port:', port, 'Nəticə:', topla(2, 3));
+
+// İşə salma: PORT=8080 node dist/main.js` },
+          { t: "p", text: "Sirlər (parol, API açarı) və mühitə görə dəyişən dəyərlər (port, baza ünvanı) koda yazılmır — mühit dəyişənlərindən oxunur. Nest-də bunun üçün @nestjs/config paketi var; onu sonrakı dərslərdə görəcəksən." },
+          { t: "terms", items: [
+            ["process.env", "Node prosesinin mühit dəyişənləri obyekti; dəyərlər həmişə sətirdir."],
+            ["TypeScript → JavaScript", "Node TypeScript-i birbaşa deyil, kompilyasiyadan sonra JS kimi icra edir."],
+            ["asılılıq (dependency)", "layihənin işləməsi üçün package.json-da yazılan kənar paket."],
+            ["HTTP metodu", "GET (oxu), POST (yarat), PUT/PATCH (yenilə), DELETE (sil)."],
+          ]},
+          { t: "tip", text: "Node ilə Nest arasındakı fərqi belə yadda saxla: Node işləmə mühitidir, Nest isə onun üstündə qurulmuş qaydalar toplusudur. Nest-i öyrənmək Node-u əvəz etmir — Node-un əsasları (async, modul, npm) hər zaman lazım olacaq." },
         ],
       },
       {
@@ -157,6 +180,61 @@ async hamisi() {
 async hamisi() {
   return await this.kitabService.yukleAsync();
 }`, why: "await olmasa nəticə gözlənilmir, xəta isə tutulmur — «unhandled promise rejection» prosesi yıxa bilər. Nest qaytarılan Promise-i özü gözləyir, ona görə onu ya return et, ya da await et." },
+          { t: "h", text: "Event loop-un sırası: sinxron, mikro-tapşırıq, makro-tapşırıq" },
+          { t: "p", text: "Node eyni anda bir JavaScript kodu icra edir. Əvvəl sinxron kod tam bitir, sonra mikro-tapşırıqlar növbəsi (Promise.then, await-dən sonrakı hissə) boşaldılır, ən sonda növbəti makro-tapşırıq (setTimeout, I/O callback) gəlir. Bu sıranı bilmək «niyə log bu ardıcıllıqla çıxdı?» suallarına cavab verir." },
+          { t: "code", lang: "typescript", caption: "Çıxış sırasını proqnozlaşdır", code: `console.log('1) sinxron başlanğıc');
+
+setTimeout(() => console.log('4) makro-tapşırıq (setTimeout)'), 0);
+
+Promise.resolve().then(() => console.log('3) mikro-tapşırıq (Promise)'));
+
+console.log('2) sinxron son');
+
+// Çıxış: 1, 2, 3, 4
+// setTimeout(…, 0) «dərhal» demək deyil: cari kod və bütün mikro-tapşırıqlar bitəndən sonra işləyir.` },
+          { t: "h", text: "Nest tətbiqinin tənzimləməsi: @nestjs/config" },
+          { t: "code", lang: "typescript", caption: "Mühit dəyişənlərini DI ilə oxumaq", code: `// app.module.ts
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+
+@Module({
+  imports: [ConfigModule.forRoot({ isGlobal: true })],     // .env faylını oxuyur
+})
+export class AppModule {}
+
+// istənilən servisdə
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+@Injectable()
+export class PoctService {
+  constructor(private readonly konfiq: ConfigService) {}
+
+  server(): string {
+    // getOrThrow: dəyər yoxdursa tətbiq başlamır (səssiz undefined yox)
+    return this.konfiq.getOrThrow<string>('SMTP_SERVER');
+  }
+}` },
+          { t: "list", items: [
+            "Controller yalnız HTTP-ni bilir, Service yalnız məntiqi, Module isə bunların birləşməsini. Bu bölgü testi və dəyişikliyi asanlaşdırır.",
+            "Nest standart olaraq JSON-u avtomatik oxuyur və yazır; qaytarılan obyekt JSON-a, string isə mətnə çevrilir.",
+            "Xəta atanda (throw new NotFoundException()) Nest düzgün status kodu və JSON cavabı özü formalaşdırır.",
+            "Hazır CRUD üçün nest g resource və ya əl ilə modul — hər ikisi eyni quruluşu verir.",
+          ]},
+          { t: "mistake", lang: "typescript", wrong: `@Controller('kitablar')
+export class KitabController {
+  private readonly kitabService = new KitabService();   // özün yaradırsan
+}`, right: `@Controller('kitablar')
+export class KitabController {
+  constructor(private readonly kitabService: KitabService) {}
+}`, why: "new ilə yaratdıqda Nest-in konteyneri bu nüsxəni tanımır: servisin öz asılılıqları (baza, konfiqurasiya) yeridilmir, testdə əvəz etmək çətinləşir və hər controller ayrı nüsxə yaradır. Nest-ə nüsxəni yaratmağı həvalə et." },
+          { t: "mistake", lang: "typescript", wrong: `@Get('fayl')
+oxu() {
+  return readFileSync('data.json', 'utf8');      // sinxron: event loop-u bloklayır
+}`, right: `@Get('fayl')
+async oxu() {
+  return readFile('data.json', 'utf8');          // node:fs/promises — bloklamır
+}`, why: "Sinxron fayl əməliyyatı bitənə qədər Node başqa sorğuya xidmət göstərə bilmir. Kiçik skriptdə problem deyil, amma server kodunda həmişə asinxron variant işlət." },
         ],
       },
       {
@@ -214,6 +292,84 @@ async function bootstrap() {
 }
 
 bootstrap();` },
+          { t: "h", text: "Sorğunun tam yolu: hər mərhələni gözlə görmək" },
+          { t: "p", text: "Aşağıdakı nümunə hər mərhələni log edir. Real layihədə problemin hansı mərhələdə baş verdiyini tapmaq üçün belə izləmə çox işə yarayır. Sıra: middleware → guard → interceptor (əvvəl) → pipe → handler → interceptor (sonra) → exception filter (yalnız xəta olanda)." },
+          { t: "code", lang: "typescript", caption: "Pipeline-ı mərhələ-mərhələ görmək", code: `import { CallHandler, CanActivate, ExecutionContext, Injectable, NestInterceptor, PipeTransform } from '@nestjs/common';
+import { Observable, tap } from 'rxjs';
+
+@Injectable()
+export class IzGuard implements CanActivate {
+  canActivate(_ctx: ExecutionContext): boolean {
+    console.log('2) guard');
+    return true;
+  }
+}
+
+@Injectable()
+export class IzInterceptor implements NestInterceptor {
+  intercept(_ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
+    console.log('3) interceptor: əvvəl');
+    return next.handle().pipe(tap(() => console.log('6) interceptor: sonra')));
+  }
+}
+
+@Injectable()
+export class IzPipe implements PipeTransform {
+  transform(deyer: unknown) {
+    console.log('4) pipe');
+    return deyer;
+  }
+}
+
+// main.ts: app.use((req, _res, next) => { console.log('1) middleware'); next(); });
+//
+// @UseGuards(IzGuard) @UseInterceptors(IzInterceptor)
+// @Get(':id') biri(@Param('id', IzPipe) id: string) { console.log('5) handler'); return { id }; }` },
+          { t: "h", text: "Dekoratorlar və reflect-metadata necə işləyir" },
+          { t: "p", text: "@Controller, @Get kimi dekoratorlar özləri heç nə icra etmir — yalnız sinfə və ya metoda metadata yazır (Reflect.defineMetadata). Nest başlanğıcda bu metadata-nı oxuyub marşrut cədvəlini qurur. Konstruktor tipləri isə TypeScript-in emitDecoratorMetadata seçimi ilə 'design:paramtypes' açarı altında yazılır. Bu seçim söndürülərsə, DI parametrlərin tipini bilmir." },
+          { t: "code", lang: "typescript", caption: "Nest-in oxuduğu metadata (yalnız anlamaq üçün)", code: `import 'reflect-metadata';
+
+@Controller('kitablar')
+class KitabController {
+  constructor(private readonly servis: KitabService) {}
+}
+
+// Konstruktor parametr tipləri (emitDecoratorMetadata sayəsində):
+console.log(Reflect.getMetadata('design:paramtypes', KitabController));
+// [ [class KitabService] ]
+
+// @Controller('kitablar') yolu metadata kimi saxlayır:
+console.log(Reflect.getMetadata('path', KitabController));
+// 'kitablar'` },
+          { t: "h", text: "Event loop gecikməsi və Fastify adapteri" },
+          { t: "code", lang: "typescript", caption: "Event loop lag ölçmək və Fastify ilə başlatmaq", code: `import { monitorEventLoopDelay } from 'node:perf_hooks';
+
+// Event loop gecikməsi: yüksəlirsə, kimsə tək axını bloklayır
+const histoqram = monitorEventLoopDelay({ resolution: 20 });
+histoqram.enable();
+
+setInterval(() => {
+  const p99ms = histoqram.percentile(99) / 1e6;        // nanosaniyədən ms-ə
+  if (p99ms > 100) console.warn('Event loop gecikməsi yüksəkdir:', p99ms.toFixed(1), 'ms');
+  histoqram.reset();
+}, 10_000).unref();
+
+// Fastify adapteri (npm i @nestjs/platform-fastify)
+import { NestFactory } from '@nestjs/core';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+
+async function bootstrap() {
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+  await app.listen(3000, '0.0.0.0');                   // konteynerdə 0.0.0.0 lazımdır
+}
+bootstrap();` },
+          { t: "list", items: [
+            "Konteynerdə dinləmə ünvanı: Express-də default bütün interfeyslər, Fastify-da isə default yalnız localhost-dur — konteynerdə 0.0.0.0 göstərməsən xaricdən çatmaq olmaz.",
+            "Sağlamlıq yoxlaması: @nestjs/terminus ilə /health endpoint-i (baza, yaddaş, disk). Orkestrator (Kubernetes) tətbiqin hazır olub-olmadığını buradan bilir.",
+            "Soyuq başlanğıc: modul qrafı nə qədər böyükdürsə, qalxma o qədər uzun çəkir. Serverless-də ağır asılılıqları lazy yüklə, qlobal bağlantıları yenidən istifadə et.",
+            "Müşahidə (observability): strukturlaşdırılmış JSON loglar (pino/nestjs-pino), hər sorğuya correlation id, metriklər (sorğu müddəti, event loop lag, yaddaş). Problemi görmədən həll edə bilməzsən.",
+            "Yaddaş: Node-un default heap limiti var; --max-old-space-size ilə artırmaq simptomu gizlədir. Sızıntını (böyüyən Map, silinməyən listener) tap və düzəlt.",
+          ]},
           { t: "qa", items: [
             ["Node.js niyə tək axınlı olduğu halda çox sorğuya cavab verə bilir?", "I/O əməliyyatları bloklamır: əməliyyat sisteminə/axın hovuzuna verilir, nəticə hazır olanda event loop callback-i icra edir. JavaScript axını gözləmir."],
             ["Event loop-u nə bloklayır?", "Uzun sinxron kod: ağır hesablama, böyük JSON.parse, sinxron fayl əməliyyatları (readFileSync), pis regex."],
@@ -221,6 +377,11 @@ bootstrap();` },
             ["Nest-in əsas tikinti blokları?", "Module, Controller, Provider; əlavə olaraq Pipe, Guard, Interceptor, Exception Filter, Middleware."],
             ["Sorğu Nest-də hansı ardıcıllıqla emal olunur?", "Middleware → Guard → Interceptor → Pipe → Handler → Interceptor → Exception Filter (xəta olsa)."],
             ["CPU ağırlıqlı işi Node-da necə həll edirsən?", "worker_threads, ayrıca proses və ya növbə (BullMQ) — əsas axını bloklamadan."],
+            ["emitDecoratorMetadata nə üçün lazımdır?", "Kompilyator konstruktor parametr tiplərini 'design:paramtypes' metadatasına yazır; Nest DI onu oxuyub nəyi yeridəcəyini bilir. Söndürülərsə DI tipləri tanıya bilmir."],
+            ["setTimeout(fn, 0) ilə Promise.then arasında kim əvvəl işləyir?", "Promise.then (mikro-tapşırıq). Mikro-tapşırıqlar növbəti makro-tapşırıqdan əvvəl bütövlükdə boşaldılır."],
+            ["Express yoxsa Fastify seçərdin?", "Ekosistem və mövcud middleware-lər vacibdirsə Express; xam sürət və sxem əsaslı serializasiya vacibdirsə Fastify. Platformaya xas obyektlərə (@Req/@Res) bağlanmasan, sonradan dəyişmək asandır."],
+            ["Node.js-də event loop lag nədir və necə izlənir?", "Event loop-un planlaşdırılmış işi nə qədər gec icra etməsidir. perf_hooks.monitorEventLoopDelay ilə ölçülür; yüksək olması tək axının bloklandığını göstərir."],
+            ["Nest-də tətbiq necə düzgün dayandırılır?", "enableShutdownHooks() çağırılır; SIGTERM gələndə OnModuleDestroy / BeforeApplicationShutdown / OnApplicationShutdown qarmaqları işləyir, bağlantılar bağlanır."],
           ]},
         ],
       },
@@ -295,6 +456,30 @@ nest g resource sifarisler` },
             [".spec.ts", "vahid test faylı (Jest)."],
           ]},
           { t: "tip", text: "Fayl adı qəlibi: ad.növ.ts — mehsullar.service.ts, create-mehsul.dto.ts, auth.guard.ts. Faylın nə olduğu adından bilinir." },
+          { t: "h", text: "nest new seçimləri və generasiya növləri" },
+          { t: "p", text: "nest new sənə bir neçə sual verir (paket meneceri) və ya bayraqlarla birbaşa verilə bilər. Ən çox işlədilənlər --strict (TypeScript sərt rejimi), --package-manager və --skip-git bayraqlarıdır. Yaradılandan sonra nest generate (qısa: nest g) ilə hər növ fayl yarada bilərsən." },
+          { t: "code", lang: "bash", code: `# Sərt TypeScript ilə, git depo yaratmadan
+nest new magaza-api --strict --package-manager npm --skip-git
+
+# Nə generasiya edə biləcəyini göstər
+nest generate --help
+
+# Ən çox işlədilənlər (qısa adları ilə)
+nest g module mehsullar        # mo   — modul
+nest g controller mehsullar    # co   — controller
+nest g service mehsullar       # s    — servis
+nest g class mehsullar/dto/create-mehsul.dto --no-spec   # cl — sadə sinif (DTO üçün)
+nest g guard auth/jwt          # gu   — guard
+nest g pipe common/pipes/slug  # pi   — pipe
+nest g interceptor common/loglama   # itc — interceptor
+nest g filter common/http-xeta      # f   — exception filter` },
+          { t: "list", items: [
+            "nest new — layihə skeleti, git və ilkin asılılıqlar.",
+            "nest g — mövcud layihənin içində yeni element; fayl düzgün qovluğa düşür və modula avtomatik qoşulur.",
+            "nest start — bir dəfə işə salır; --watch izləmə rejimidir.",
+            "nest build — dist/ qovluğuna qurur.",
+          ]},
+          { t: "tip", text: "Əmrdən əvvəl --dry-run əlavə et: CLI nə yaradacağını göstərir, amma heç nə yazmır. Yeni başlayanlar üçün yaxşı təhlükəsizlik toru." },
         ],
       },
       {
@@ -370,6 +555,48 @@ dist/
 .env
 .env.*
 !.env.example`, why: "node_modules və dist yenidən yaradıla bilir — repoya lazım deyil. .env isə sirlərdir: git tarixçəsində əbədi qalır. .env.example-də yalnız açar adlarını saxla." },
+          { t: "h", text: "nest-cli.json və konfiqurasiya" },
+          { t: "p", text: "nest-cli.json CLI-nin davranışını idarə edir: mənbə qovluğu, kompilyator seçimləri, plaginlər. Ən faydalı seçim deleteOutDir-dir: hər build-dən əvvəl dist/ təmizlənir ki, silinmiş fayllar köhnə kodu işlətməsin." },
+          { t: "code", lang: "json", caption: "nest-cli.json", code: `{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "plugins": ["@nestjs/swagger"]
+  }
+}` },
+          { t: "h", text: "Konfiqurasiyanı bir yerdə toplamaq" },
+          { t: "p", text: "process.env-i kodun müxtəlif yerlərində oxumaq çətin izlənir və səhvə açıqdır (dəyər sətirdir, yoxdursa undefined). Daha yaxşısı: başlanğıcda mühiti bir dəfə yoxlayıb tipli konfiqurasiya obyekti vermək." },
+          { t: "code", lang: "typescript", caption: "config/env.validation.ts — qalxarkən yoxla", code: `import { plainToInstance } from 'class-transformer';
+import { IsEnum, IsInt, IsString, Max, Min, validateSync } from 'class-validator';
+
+enum Muhit { Development = 'development', Production = 'production', Test = 'test' }
+
+class MuhitDeyisenleri {
+  @IsEnum(Muhit) NODE_ENV: Muhit;
+  @IsInt() @Min(1) @Max(65535) PORT: number;
+  @IsString() DATABASE_URL: string;
+}
+
+export function konfiquYoxla(xam: Record<string, unknown>) {
+  const konfiq = plainToInstance(MuhitDeyisenleri, xam, { enableImplicitConversion: true });
+  const xetalar = validateSync(konfiq, { skipMissingProperties: false });
+  if (xetalar.length > 0) {
+    throw new Error('Mühit dəyişənləri yanlışdır: ' + xetalar.toString());
+  }
+  return konfiq;
+}
+
+// app.module.ts
+// ConfigModule.forRoot({ isGlobal: true, validate: konfiquYoxla })` },
+          { t: "mistake", lang: "typescript", wrong: `// Kodun 20 yerində
+const url = process.env.DATABASE_URL;
+const port = process.env.PORT;           // sətir! və ya undefined`, right: `constructor(private readonly konfiq: ConfigService) {}
+
+const url = this.konfiq.getOrThrow<string>('DATABASE_URL');`, why: "process.env hər yerdə səpələnəndə nə tip yoxlanır, nə də dəyərin yoxluğu qalxışda tutulur — xəta yalnız həmin kod işləyəndə üzə çıxır. ConfigService + validate ilə tətbiq düzgün mühit olmadan ümumiyyətlə başlamır (fail fast)." },
+          { t: "mistake", lang: "bash", wrong: `npm install -g @nestjs/cli     # hər kəs fərqli CLI versiyası ilə`, right: `# package.json devDependencies-də @nestjs/cli saxla və npx / npm skriptləri ilə işlət
+npx nest g resource kuponlar`, why: "Qlobal CLI komanda üzvləri arasında fərqli versiyalar deməkdir: generasiya olunan fayllar fərqlənə bilər. Layihədəki lokal versiya hamı üçün eyni nəticə verir." },
         ],
       },
       {
@@ -419,12 +646,83 @@ CMD ["node", "dist/main"]
 # .git
 # .env
 # .env.*` },
+          { t: "h", text: "Monorepo, SWC və CI konveyeri" },
+          { t: "code", lang: "json", caption: "nest-cli.json — SWC və tip yoxlaması", code: `{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "builder": "swc",
+    "typeCheck": true,
+    "deleteOutDir": true
+  }
+}` },
+          { t: "p", text: "SWC tipləri yoxlamadan çox sürətli kompilyasiya edir; typeCheck: true isə build zamanı tip yoxlamasını ayrıca işlədir. Beləliklə həm sürət, həm təhlükəsizlik qalır. Testlərdə də SWC üçün jest transform tənzimləməsi lazım ola bilər." },
+          { t: "code", lang: "json", caption: "Monorepo: iki tətbiq və ortaq kitabxana", code: `{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/api/src",
+  "monorepo": true,
+  "root": "apps/api",
+  "projects": {
+    "api": {
+      "type": "application",
+      "root": "apps/api",
+      "entryFile": "main",
+      "sourceRoot": "apps/api/src",
+      "compilerOptions": { "tsConfigPath": "apps/api/tsconfig.app.json" }
+    },
+    "worker": {
+      "type": "application",
+      "root": "apps/worker",
+      "entryFile": "main",
+      "sourceRoot": "apps/worker/src",
+      "compilerOptions": { "tsConfigPath": "apps/worker/tsconfig.app.json" }
+    },
+    "common": {
+      "type": "library",
+      "root": "libs/common",
+      "entryFile": "index",
+      "sourceRoot": "libs/common/src",
+      "compilerOptions": { "tsConfigPath": "libs/common/tsconfig.lib.json" }
+    }
+  }
+}` },
+          { t: "code", lang: "yaml", caption: "CI: yoxla, test et, qur", code: `name: ci
+on: [push, pull_request]
+
+jobs:
+  yoxla:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit          # tip yoxlaması (SWC tipləri yoxlamır)
+      - run: npm test -- --ci
+      - run: npm run test:e2e
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high` },
+          { t: "list", items: [
+            "Build keşi: CI-da node_modules və build keşini saxla (setup-node cache). Docker-də COPY package*.json əvvəl, sonra mənbə — qat keşi işləsin.",
+            "Mühit ayrılığı: eyni image dev/staging/prod-da işləməlidir; fərq yalnız mühit dəyişənlərindədir (12-factor). Mühitə görə ayrıca build etmə.",
+            "Versiya sabitləmə: .nvmrc və package.json engines ilə Node versiyası; kilid faylı ilə paketlər. «Mənim kompüterimdə işləyirdi» problemini azaldır.",
+            "Migrasiyalar: baza sxemi dəyişikliyi tətbiq kodundan ayrı, CI/CD addımı kimi işləsin; qalxma zamanı avtomatik sxem sinxronizasiyasını (synchronize: true) production-da bağla.",
+            "Sağlamlıq və hazırlıq: Docker HEALTHCHECK və ya orkestrator probları /health endpoint-inə baxsın; yeni versiya hazır olmadan trafik yönləndirilməsin.",
+          ]},
           { t: "qa", items: [
             ["nest g resource nə yaradır?", "Modul, controller, servis, DTO-lar, entity və test faylları ilə tam CRUD skeleti; modulu AppModule-a da qoşur."],
             ["main.ts və app.module.ts-in rolu?", "main.ts tətbiqi yaradır və dinləməyə başlayır (bootstrap). app.module.ts kök moduldur — bütün digər modulları birləşdirir."],
             ["start:dev ilə start:prod fərqi?", "dev — izləmə rejimində TypeScript-dən işə salır. prod — əvvəlcədən qurulmuş dist/main.js-i Node ilə birbaşa icra edir."],
             ["Layihəni necə qruplaşdırırsan?", "Xüsusiyyətə (domenə) görə modullar: hər modulun controller, servis, DTO və entity-si bir qovluqda; ortaq kod common/-da."],
             ["npm install ilə npm ci fərqi?", "ci kilid faylını dəqiq quraşdırır və onu dəyişmir, node_modules-u sıfırdan qurur — CI və production üçün. install versiyaları yeniləyə bilər."],
+            ["SWC ilə tsc fərqi nədir?", "SWC Rust ilə yazılmış sürətli kompilyatordur, amma tip yoxlamır. tsc tip yoxlaması aparır. Real layihədə SWC ilə build + ayrıca tsc --noEmit (və ya typeCheck: true) birlikdə işlədilir."],
+            ["Monorepo rejimi nə verir?", "Bir repoda bir neçə tətbiq və ortaq kitabxana (libs/); nest-cli.json-da projects bölməsi. nest g app / nest g lib ilə yaradılır, ortaq kod təkrarsız paylaşılır."],
+            ["Niyə CLI-ni layihəyə lokal quraşdırmaq yaxşıdır?", "Komandada hamı eyni versiya ilə generasiya edir, CI-da da eyni versiya işləyir."],
+            ["ConfigModule.forRoot({ validate }) nə üçündür?", "Qalxışda mühit dəyişənlərini yoxlayır; yanlış və ya əksik dəyərdə tətbiq başlamır — xəta production-da gec yox, dərhal tutulur."],
           ]},
         ],
       },
@@ -477,6 +775,44 @@ export class AppModule {}` },
             ["exports", "başqa modulların işlədə biləcəyi provider-lər."],
           ]},
           { t: "tip", text: "Provider default olaraq modulun daxilində «gizlidir». Başqa modul onu işlətmək istəyirsə, iki şey lazımdır: sən onu exports-a yazırsan, o isə sənin modulunu imports-a." },
+          { t: "h", text: "Xüsusiyyət modulu: bir qovluq, bir modul" },
+          { t: "p", text: "Ən yaxşı təcrübə hər xüsusiyyət (məhsullar, sifarişlər, istifadəçilər) üçün ayrıca modul yaratmaqdır. Beləcə kod əlaqəsinə görə qruplaşır, hər modulun nə etdiyi aydındır və komanda üzvləri bir-birinə mane olmadan paralel işləyə bilər." },
+          { t: "code", lang: "typescript", caption: "Tam xüsusiyyət modulu (üç fayl, bir qovluq)", code: `// kuponlar/kuponlar.service.ts
+@Injectable()
+export class KuponlarService {
+  private readonly kuponlar = new Map<string, number>([['YAY10', 10]]);
+
+  endirim(kod: string): number {
+    return this.kuponlar.get(kod.toUpperCase()) ?? 0;
+  }
+}
+
+// kuponlar/kuponlar.controller.ts
+@Controller('kuponlar')
+export class KuponlarController {
+  constructor(private readonly kuponlar: KuponlarService) {}
+
+  @Get(':kod')
+  yoxla(@Param('kod') kod: string) {
+    return { kod, endirim: this.kuponlar.endirim(kod) };
+  }
+}
+
+// kuponlar/kuponlar.module.ts
+@Module({
+  controllers: [KuponlarController],
+  providers: [KuponlarService],
+  exports: [KuponlarService],         // başqa modul (sifarişlər) endirimi hesablaya bilsin
+})
+export class KuponlarModule {}
+
+// app.module.ts-də imports-a əlavə et: KuponlarModule` },
+          { t: "list", items: [
+            "Modul yaratdıqdan sonra onu AppModule-un (və ya ona bağlı başqa modulun) imports siyahısına əlavə etməsən, marşrutları işləməyəcək.",
+            "nest g module və nest g resource bunu avtomatik edir.",
+            "Hər modulun adı öz domenini ifadə etməlidir: UtilsModule / HelpersModule kimi «zibil qutusu» adlarından qaç.",
+          ]},
+          { t: "tip", text: "Modulu yaradanda özündən soruş: «Bu modulu sabah ayrıca mikroservisə çıxarsam, nə qədər kodu dəyişməli olaram?» Cavab nə qədər azdırsa, sərhədlər o qədər düzgündür." },
         ],
       },
       {
@@ -560,6 +896,89 @@ export class SifarislerModule {}`, why: "Servisi iki modulun providers-inə yazs
 @Module({ providers: [MehsullarService], exports: [MehsullarService] })
 export class MehsullarModule {}     // «idxal yazmayım» deyə hər modulu qlobal etmək`, right: `@Module({ providers: [MehsullarService], exports: [MehsullarService] })
 export class MehsullarModule {}     // lazım olan modul onu açıq idxal edir`, why: "Hər şey qlobal olanda modulların asılılıqları görünməz olur — kim kimdən asılıdır, bilinmir və modulu ayırmaq mümkünsüzləşir. @Global yalnız konfiqurasiya, logger, baza bağlantısı kimi həqiqətən ümumi infrastruktur üçündür." },
+          { t: "h", text: "ConfigurableModuleBuilder ilə dinamik modul" },
+          { t: "p", text: "Əl ilə forRoot / forRootAsync yazmaq təkrarçı və səhvə açıqdır. Nest-in ConfigurableModuleBuilder-i parametrli modul üçün sinfi, tokeni və async variantı (useFactory, inject) avtomatik yaradır." },
+          { t: "code", lang: "typescript", caption: "Qısa yazılmış parametrli modul", code: `// sms.module-definition.ts
+import { ConfigurableModuleBuilder } from '@nestjs/common';
+
+export interface SmsOptions {
+  apiUrl: string;
+  token: string;
+}
+
+export const {
+  ConfigurableModuleClass,
+  MODULE_OPTIONS_TOKEN,
+} = new ConfigurableModuleBuilder<SmsOptions>()
+  .setClassMethodName('forRoot')          // forRoot və forRootAsync yaranır
+  .build();
+
+// sms.module.ts
+@Module({
+  providers: [SmsService],
+  exports: [SmsService],
+})
+export class SmsModule extends ConfigurableModuleClass {}
+
+// sms.service.ts
+@Injectable()
+export class SmsService {
+  constructor(@Inject(MODULE_OPTIONS_TOKEN) private readonly secimler: SmsOptions) {}
+
+  async gonder(nomre: string, metn: string) {
+    // fetch(this.secimler.apiUrl, ...) — token buradan gəlir
+  }
+}
+
+// İstifadə
+@Module({
+  imports: [
+    SmsModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (konfiq: ConfigService) => ({
+        apiUrl: konfiq.getOrThrow<string>('SMS_URL'),
+        token: konfiq.getOrThrow<string>('SMS_TOKEN'),
+      }),
+    }),
+  ],
+})
+export class AppModule {}` },
+          { t: "h", text: "Modulun həyat dövrü qarmaqları" },
+          { t: "code", lang: "typescript", code: `@Module({ providers: [KeshService] })
+export class KeshModule implements OnModuleInit, OnModuleDestroy {
+  constructor(private readonly kesh: KeshService) {}
+
+  async onModuleInit() {
+    await this.kesh.isit();            // modulun asılılıqları hazır olanda: keşi doldur
+  }
+
+  async onModuleDestroy() {
+    await this.kesh.bagla();           // söndürülərkən: bağlantını bağla
+  }
+}` },
+          { t: "list", items: [
+            "Modulu yenidən ixrac etmək olar: exports: [TypeOrmModule] — idxal edən modul bazanın provider-lərini də alır.",
+            "forRoot hər tətbiqdə bir dəfə (AppModule-da) çağırılır; forFeature isə hər xüsusiyyət modulunda — o modulun işlətdiyi hissəni (məsələn, entity) qeydiyyatdan keçirir.",
+            "isGlobal: true seçimini yalnız həqiqətən hər yerdə lazım olan infrastruktura (ConfigModule) ver.",
+          ]},
+          { t: "mistake", lang: "typescript", wrong: `@Module({
+  providers: [MehsullarService],
+  // exports: [MehsullarService],   ← unudulub
+})
+export class MehsullarModule {}`, right: `@Module({
+  providers: [MehsullarService],
+  exports: [MehsullarService],
+})
+export class MehsullarModule {}`, why: "imports yazmaq kifayət deyil: modul yalnız exports-da olanı verir. Başqa modul onu yeridəndə «can't resolve dependencies» xətası alırsan. Xətanı oxu: hansı modulun kontekstində hansı provider tapılmır, ona bax." },
+          { t: "mistake", lang: "typescript", wrong: `@Module({ imports: [BModule] })
+export class AModule {}
+
+@Module({ imports: [AModule] })
+export class BModule {}          // A ↔ B dairəsi`, right: `@Module({ imports: [OrtaqModule] })
+export class AModule {}
+
+@Module({ imports: [OrtaqModule] })
+export class BModule {}`, why: "İki modulun bir-birini idxal etməsi qalxışda xəta verir. forwardRef simptomu gizlədir; düzgün həll bir-birindən asılı olan hissəni üçüncü modula çıxarmaqdır." },
         ],
       },
       {
@@ -635,6 +1054,54 @@ const debugModullari = process.env.NODE_ENV === 'production' ? [] : [DevAletleri
   imports: [CoreModule, AuthModule, MehsullarModule, SifarislerModule, AdminModule, ...debugModullari],
 })
 export class AppModule {}` },
+          { t: "h", text: "Nest qalxarkən modul qrafını necə qurur" },
+          { t: "p", text: "NestFactory.create çağırılanda iki əsas mərhələ gedir. Əvvəl scanner kök moduldan başlayaraq imports qrafını rekursiv gəzir və hər modul, provider, controller üçün qeyd yaradır. Sonra instansiyalaşdırma mərhələsi gəlir: provider-lər asılılıq sırası ilə yaradılır, async fabriklər gözlənilir, ardınca onModuleInit və onApplicationBootstrap qarmaqları çağırılır. Bütün bunlar qalxışda bir dəfə olur — sorğu zamanı yeni həll yoxdur (request scope istisnadır)." },
+          { t: "list", items: [
+            "Modul tokeni: eyni modul sinfi fərqli dinamik tənzimləmə ilə iki dəfə idxal olunarsa, Nest tənzimləməyə görə iki ayrı modul nüsxəsi yaradır (ayrı provider nüsxələri). Bu, register() konvensiyasının mənasıdır.",
+            "Provider axtarışı: Nest əvvəl modulun öz providers-inə, sonra imports etdiyi modulların exports-una baxır; @Global modulların ixracları hər yerdə görünür.",
+            "Test: Test.createTestingModule({ imports: [SifarislerModule] }).overrideProvider(...) ilə real modulu götürüb yalnız xarici asılılığı (ödəniş, email) saxta ilə əvəz etmək olar.",
+            "Modul sərhədi təhlili: madge və ya dependency-cruiser ilə modul asılılıq qrafını çıxar; dövrə və qadağan olunmuş idxalları CI-da yoxla.",
+          ]},
+          { t: "code", lang: "typescript", caption: "LazyModuleLoader: modulu ilk istifadədə yüklə", code: `import { Injectable } from '@nestjs/common';
+import { LazyModuleLoader } from '@nestjs/core';
+
+@Injectable()
+export class HesabatService {
+  constructor(private readonly lazyLoader: LazyModuleLoader) {}
+
+  async yarat(parametrler: HesabatParametrleri) {
+    // Ağır modul (PDF, Excel) yalnız lazım olanda yüklənir; qalxış sürətlənir
+    const { PdfModule } = await import('./pdf/pdf.module');
+    const { PdfService } = await import('./pdf/pdf.service');
+
+    const modulRef = await this.lazyLoader.load(() => PdfModule);
+    return modulRef.get(PdfService).hazirla(parametrler);
+  }
+}` },
+          { t: "code", lang: "typescript", caption: "Test: real modul, yalnız xarici asılılıq saxta", code: `describe('SifarislerModule (inteqrasiya)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const modul = await Test.createTestingModule({ imports: [SifarislerModule] })
+      .overrideProvider(OdenisServisi)
+      .useValue({ al: jest.fn().mockResolvedValue({ ugurlu: true }) })
+      .compile();
+
+    app = modul.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    await app.init();
+  });
+
+  afterAll(() => app.close());
+
+  it('POST /sifarisler yaradır', () =>
+    request(app.getHttpServer()).post('/sifarisler').send({ mehsulId: 1, say: 2 }).expect(201));
+});` },
+          { t: "list", items: [
+            "Modulun ölçüsü: bir modulda 30+ provider görürsənsə, ya domen çox genişdir, ya da modul «tanrı modul»-a çevrilib. Bölmək lazımdır.",
+            "Public API prinsipi: modulun index.ts-i yalnız ixrac olunan sinifləri (modul, servis, tip) göstərsin; başqa modullar yalnız ora idxal etsin, daxili fayllara yox.",
+            "Domen hadisələri: modullar bir-birinin servisini birbaşa çağırmaq əvəzinə hadisə yaya bilər (@nestjs/event-emitter). Bu, bağlılığı azaldır və modulu sonradan ayırmağı asanlaşdırır.",
+          ]},
           { t: "qa", items: [
             ["Modul nədir, hansı sahələri var?", "@Module ilə işarələnmiş sinif: imports, controllers, providers, exports. Əlaqəli funksionallığı qruplaşdırır."],
             ["Bir modulun servisini başqasında necə işlədirsən?", "Sahibi modul servisi exports-a yazır, istifadəçi modul həmin modulu imports-a əlavə edir."],
@@ -642,6 +1109,11 @@ export class AppModule {}` },
             ["@Global nə edir, nə vaxt işlədilir?", "Modulun ixraclarını idxalsız hər yerdə əlçatan edir. Yalnız ümumi infrastruktur üçün (config, logger); əks halda asılılıqlar gizlənir."],
             ["Dinamik modul nədir?", "İdxal zamanı tənzimləmə qəbul edən modul: statik metod (forRoot, forFeature, register) DynamicModule obyekti qaytarır."],
             ["Dairəvi asılılığı necə həll edirsən?", "Əvvəl dizaynı düzəldirəm (ortaq modul, hadisələr). Son çarə — forwardRef."],
+            ["register, forRoot, forFeature konvensiyaları fərqi?", "forRoot — tətbiq üçün bir dəfəlik qlobal tənzimləmə; register — hər idxalda ayrı tənzimləmə; forFeature — modula xas hissə (məsələn, entity). Əlavə: ...Async variantları tənzimləməni asinxron/DI ilə alır."],
+            ["ConfigurableModuleBuilder nə üçündür?", "Parametrli modulun sinfini, options tokenini və async (useFactory/inject) variantını boilerplate yazmadan yaradır."],
+            ["Nest eyni dinamik modulu iki fərqli tənzimləmə ilə idxal etsə nə olur?", "İki ayrı modul nüsxəsi yaranır, hər birinin öz provider-ləri olur. Eyni tənzimləmə ilə isə bir nüsxə paylaşılır."],
+            ["LazyModuleLoader nə vaxt məntiqlidir?", "Nadir istifadə olunan ağır modullar və serverless soyuq başlanğıc üçün; controller və gateway-i olan modullar lazy yüklənmir."],
+            ["Modulu mikroservisə çıxarmağa hazır olub-olmadığını necə bilirsən?", "Başqa modullar ona yalnız ixrac olunan servis/hadisələr vasitəsilə bağlıdırsa və daxili repository/entity-lərə birbaşa toxunmursa — hazırdır."],
           ]},
         ],
       },
@@ -708,6 +1180,37 @@ export class MehsullarController {
             ["@Body", "sorğunun JSON gövdəsi."],
           ]},
           { t: "tip", text: "Qaytardığın obyekt və ya massiv avtomatik JSON-a çevrilir. Status default: POST üçün 201, qalanları üçün 200." },
+          { t: "h", text: "Status kodları və xətalar" },
+          { t: "p", text: "HTTP cavabı həmişə status kodu ilə gəlir. Nest uğurlu cavablar üçün düzgün kodu özü seçir (GET 200, POST 201), xəta olanda isə sən istisna atırsan və Nest onu uyğun kodlu JSON cavaba çevirir." },
+          { t: "list", items: [
+            "200 OK — uğurlu oxuma/yeniləmə. 201 Created — yeni resurs yaradıldı. 204 No Content — uğurlu, amma cavab gövdəsi yoxdur (silmə).",
+            "400 Bad Request — giriş yanlışdır. 401 Unauthorized — giriş edilməyib. 403 Forbidden — icazə yoxdur. 404 Not Found — tapılmadı. 409 Conflict — ziddiyyət (məsələn, email təkrarı).",
+            "500 Internal Server Error — serverdə gözlənilməz xəta. Bunu istifadəçi səhvi üçün işlətmə.",
+          ]},
+          { t: "code", lang: "typescript", caption: "Xətanı istisna ilə bildirmək", code: `import { BadRequestException, ConflictException, Controller, Get, NotFoundException, Param, ParseIntPipe } from '@nestjs/common';
+
+@Controller('istifadeciler')
+export class IstifadecilerController {
+  constructor(private readonly istifadeciler: IstifadecilerService) {}
+
+  @Get(':id')
+  async biri(@Param('id', ParseIntPipe) id: number) {
+    const istifadeci = await this.istifadeciler.tap(id);
+    if (!istifadeci) {
+      throw new NotFoundException('İstifadəçi tapılmadı');        // → 404
+    }
+    return istifadeci;
+  }
+}
+
+// Nest-in yaratdığı xəta cavabı:
+// { "statusCode": 404, "message": "İstifadəçi tapılmadı", "error": "Not Found" }` },
+          { t: "terms", items: [
+            ["status kodu", "cavabın nəticəsini bildirən üç rəqəmli kod."],
+            ["HttpException", "bütün Nest HTTP xətalarının əsas sinfi (NotFoundException və s. ondan törəyir)."],
+            ["@HttpCode()", "uğurlu cavabın default status kodunu dəyişir."],
+            ["marşrut (route)", "HTTP metodu + yol cütü: GET /mehsullar/5."],
+          ]},
         ],
       },
       {
@@ -794,6 +1297,81 @@ yarat(@Body() giris: any) {
 yarat(@Body() dto: CreateMehsulDto) {      // class-validator + ValidationPipe
   return this.mehsullar.yarat(dto);
 }`, why: "any ilə nə tip, nə validasiya var: hücumçu istənilən sahəni (rol, qiymət, id) göndərir və o, bazaya yazılır. DTO sinfi + qlobal ValidationPipe({ whitelist: true }) işlət." },
+          { t: "h", text: "Guard, interceptor və metadata ilə controller-i zənginləşdirmək" },
+          { t: "p", text: "Controller-in üstünə və ya metodunun üstünə guard, interceptor, pipe, filter bağlana bilər. @UseGuards və s. controller səviyyəsində yazılanda bütün metodlara aiddir. Rolları belə təyin etmək geniş yayılmış üsuldur: @SetMetadata (və ya öz dekoratorun) ilə metadata yazırsan, guard isə Reflector ilə onu oxuyur." },
+          { t: "code", lang: "typescript", caption: "@Roles dekoratoru + guard", code: `// common/decorators/roles.decorator.ts
+import { SetMetadata } from '@nestjs/common';
+export const ROLES_KEY = 'rollar';
+export const Roles = (...rollar: string[]) => SetMetadata(ROLES_KEY, rollar);
+
+// common/guards/roles.guard.ts
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
+  canActivate(ctx: ExecutionContext): boolean {
+    // Əvvəl metoddan, yoxdursa controller-dən oxu
+    const teleb = this.reflector.getAllAndOverride<string[] | undefined>(ROLES_KEY, [
+      ctx.getHandler(),
+      ctx.getClass(),
+    ]);
+    if (!teleb || teleb.length === 0) return true;
+
+    const { user } = ctx.switchToHttp().getRequest();
+    return !!user && teleb.some((rol) => user.rollar?.includes(rol));
+  }
+}
+
+// İstifadə
+@Controller('admin/istifadeciler')
+@UseGuards(JwtAuthGuard, RolesGuard)            // controller səviyyəsində
+@Roles('admin')                                  // bütün metodlara
+export class AdminIstifadecilerController {
+  @Get()
+  hamisi() { ... }
+
+  @Delete(':id')
+  @Roles('admin', 'super-admin')                 // metod səviyyəsi üstünlük alır
+  sil(@Param('id', ParseIntPipe) id: number) { ... }
+}` },
+          { t: "h", text: "Cookie və cavab başlıqları: @Res({ passthrough: true })" },
+          { t: "code", lang: "typescript", code: `import { Res } from '@nestjs/common';
+import type { Response } from 'express';
+
+@Post('giris')
+async giris(@Body() dto: GirisDto, @Res({ passthrough: true }) res: Response) {
+  const token = await this.auth.giris(dto);
+
+  res.cookie('sessiya', token, {
+    httpOnly: true,                // JavaScript oxuya bilmir (XSS-ə qarşı)
+    secure: true,                  // yalnız HTTPS
+    sameSite: 'lax',               // CSRF-ə qarşı
+    maxAge: 60 * 60 * 1000,
+  });
+
+  return { ugurlu: true };         // Nest cavabı hələ də özü göndərir (interceptor-lar işləyir)
+}` },
+          { t: "mistake", lang: "typescript", wrong: `@Get(':id')
+async biri(@Param('id', ParseIntPipe) id: number) {
+  try {
+    return await this.servis.tap(id);
+  } catch (e) {
+    return { xeta: 'tapılmadı' };        // 200 OK ilə xəta!
+  }
+}`, right: `@Get(':id')
+async biri(@Param('id', ParseIntPipe) id: number) {
+  return this.servis.tap(id);            // servis NotFoundException atır → 404
+}`, why: "Xətanı 200 statusu ilə gizlətmək klientin xətanı tanımasına imkan vermir: monitorinq, keş və yenidən cəhd mexanizmləri hamısı status koduna baxır. İstisnanı ötür, Nest düzgün koda çevirsin." },
+          { t: "mistake", lang: "typescript", wrong: `@Post()
+yarat(@Body() dto: CreateSifarisDto) {
+  const mehsul = this.mehsullar.find(dto.mehsulId);
+  if (mehsul.say < dto.say) throw new BadRequestException('Stok azdır');
+  const cem = mehsul.qiymet * dto.say * (1 - this.endirim(dto));
+  return this.repo.save({ ...dto, cem });
+}`, right: `@Post()
+yarat(@Body() dto: CreateSifarisDto, @CurrentUser() u: CariIstifadeci) {
+  return this.sifarisler.yarat(dto, u.id);    // bütün qayda servisdə
+}`, why: "Controller-də stok, endirim, hesablama məntiqi olduqda onu başqa yerdən (növbə, cron, başqa controller) təkrar istifadə etmək və vahid test etmək mümkün olmur. Controller yalnız HTTP-ni bilməlidir." },
         ],
       },
       {
@@ -878,6 +1456,60 @@ async tap(id: number, istifadeciId: number): Promise<SifarisCavabDto> {
   if (!sifaris) throw new NotFoundException('Sifariş tapılmadı');   // 403 yox — varlığını sızdırma
   return { id: sifaris.id, tarix: sifaris.tarix, mebleg: sifaris.mebleg };   // açıq ağ siyahı
 }` },
+          { t: "h", text: "Interceptor: cavab zərfi və müddət ölçümü" },
+          { t: "p", text: "Interceptor RxJS Observable ilə handler-i əhatə edir: əvvəl və sonra kod icra edə, cavabı dəyişə, vaxtı ölçə, xətanı çevirə bilər. Ardıcıllıq: qlobal → controller → metod (sorğu tərəfində); cavab tərəfində tərsinə. Guard-lar isə interceptor-lardan ƏVVƏL işləyir, yəni icazəsiz sorğu interceptor-a çatmır." },
+          { t: "code", lang: "typescript", caption: "Vahid cavab formatı və yavaş sorğu xəbərdarlığı", code: `import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
+import { Observable, map, tap } from 'rxjs';
+
+export interface Zerf<T> { data: T; vaxt: string }
+
+@Injectable()
+export class ZerfInterceptor<T> implements NestInterceptor<T, Zerf<T>> {
+  intercept(_ctx: ExecutionContext, next: CallHandler<T>): Observable<Zerf<T>> {
+    return next.handle().pipe(map((data) => ({ data, vaxt: new Date().toISOString() })));
+  }
+}
+
+@Injectable()
+export class YavasSorgInterceptor implements NestInterceptor {
+  private readonly log = new Logger('Yavas');
+
+  intercept(ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const basladi = performance.now();
+    const req = ctx.switchToHttp().getRequest();
+
+    return next.handle().pipe(
+      tap(() => {
+        const ms = performance.now() - basladi;
+        if (ms > 500) this.log.warn(req.method + ' ' + req.url + ' ' + ms.toFixed(0) + ' ms');
+      }),
+    );
+  }
+}
+
+// main.ts
+// app.useGlobalInterceptors(new YavasSorgInterceptor());` },
+          { t: "h", text: "Səhifələmə cavabı və keş başlıqları" },
+          { t: "code", lang: "typescript", code: `export interface SehifeCavabi<T> {
+  elementler: T[];
+  cem: number;
+  sehife: number;
+  olcu: number;
+}
+
+@Get()
+@Header('Cache-Control', 'private, max-age=30')        // brauzer 30 saniyə keşləyir
+async siyahi(@Query() sorgu: SehifelemeDto): Promise<SehifeCavabi<MehsulCavabDto>> {
+  const [elementler, cem] = await this.mehsullar.siyahi(sorgu);   // findAndCount
+  return { elementler, cem, sehife: sorgu.sehife, olcu: sorgu.olcu };
+}` },
+          { t: "list", items: [
+            "Offset səhifələmə (skip/take) böyük cədvəldə yavaşlayır; çox böyük səhifə nömrəsində baza ilk N sətri atmalı olur. Kursor əsaslı səhifələmə (son görünən id-dən sonrakılar) böyük məlumatda sabit sürət verir.",
+            "Controller-də serializasiya: böyük cavabı JSON.stringify etmək CPU xərcidir və event loop-u bloklayır. Lazımsız sahələri bazada seç (select), cavabı kiçik saxla, axın (StreamableFile) və sıxma (compression) düşün.",
+            "Idempotentlik: POST təkrarlananda (şəbəkə xətası, retry) iki sifariş yaranmasın deyə Idempotency-Key başlığı qəbul et və nəticəni saxla. Ödəniş endpoint-lərində vacibdir.",
+            "Sorğu ID və izləmə: hər sorğuya correlation id ver (middleware), loglarda və xarici çağırışlarda ötür. İstifadəçi şikayət edəndə izləməni tapa bilərsən.",
+            "Controller testləri: vahid testdə controller-i servis mock-u ilə yoxla; HTTP səviyyəsini (status, DTO validasiyası, guard) supertest ilə e2e testdə yoxla. Hər ikisi lazımdır: birincisi sürətli, ikincisi real pipeline-ı təsdiqləyir.",
+          ]},
           { t: "qa", items: [
             ["Controller-in məsuliyyəti nədir?", "HTTP qatını emal etmək: marşrut, parametrlərin çıxarılması, servisin çağırılması, cavabın/statusun qaytarılması. Biznes məntiqi servisdədir."],
             ["@Param, @Query, @Body fərqi?", "Param — URL yolunun dəyişən hissəsi; Query — ?açar=dəyər; Body — sorğunun gövdəsi (JSON)."],
@@ -885,6 +1517,11 @@ async tap(id: number, istifadeciId: number): Promise<SifarisCavabDto> {
             ["Status kodunu necə dəyişirsən?", "@HttpCode(204) ilə statik; xətalar üçün HttpException törəmələri (NotFoundException və s.)."],
             ["IDOR/BOLA nədir, necə qarşısını alırsan?", "İstifadəçinin id-ni dəyişib başqasının obyektinə çatması. Hər sorğuda obyektin cari istifadəçiyə aidliyini serverdə (sorğunun şərtində) yoxlayıram."],
             ["Marşrut sırası niyə vacibdir?", "Uyğunlaşdırma yazılma sırası ilə gedir; parametrli yol sabit yolu «uda» bilər."],
+            ["Guard interceptor-dan əvvəl yoxsa sonra işləyir?", "Əvvəl. Sıra: middleware → guard → interceptor → pipe → handler. İcazəsiz sorğu interceptor-a və handler-ə çatmır."],
+            ["Interceptor ilə middleware fərqi?", "Middleware Express səviyyəsindədir, ExecutionContext və handler haqqında məlumatı bilmir. Interceptor Nest kontekstini bilir (hansı controller/metod), RxJS ilə cavabı dəyişə bilir və DI-dən istifadə edir."],
+            ["Reflector nə üçündür?", "Dekoratorla (@SetMetadata, @Roles, @Public) yazılmış metadata-nı guard/interceptor-da oxumaq üçün; getAllAndOverride metod və sinif səviyyəsini birləşdirir."],
+            ["Offset və kursor səhifələmə fərqi?", "Offset (skip/take) sadədir, amma böyük ofsetdə yavaşlayır və dəyişən məlumatda təkrar/buraxılış verə bilər. Kursor son elementə görə sorğu edir — sabit sürət və düzgün nəticə."],
+            ["POST sorğusunu təkrar göndərməyə qarşı necə qorunursan?", "Idempotency-Key başlığı: açar ilk dəfə gələndə əməliyyat icra olunur və nəticə saxlanır; təkrar gələndə eyni nəticə qaytarılır, əməliyyat təkrarlanmır."],
           ]},
         ],
       },

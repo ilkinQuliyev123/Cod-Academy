@@ -134,6 +134,72 @@ const dogru = await bcrypt.compare(parol, istifadeci.parolHesi);`, why: "Açıq 
 panel() { ... }          // yalnız frontend-də düymə gizlədilib`, right: `@Rollar('admin')
 @Get('admin-panel')
 panel() { ... }`, why: "Frontend-də düyməni gizlətmək müdafiə deyil — hər kəs API-ni birbaşa çağırır. İcazə yalnız serverdə (guard) yoxlanılır." },
+          { t: "h", text: "@CurrentUser() və Passport ilə JWT" },
+          { t: "p", text: "Guard req.user-i doldurandan sonra controller-də hər dəfə @Req() ilə bütün sorğu obyektini almaq yorucudur və tipləri itirir. createParamDecorator ilə öz parametr dekoratorunu yaza bilərsən: o, ExecutionContext-dən sorğunu oxuyub yalnız lazım olan hissəni qaytarır. Bu həm controller-i təmiz saxlayır, həm də test zamanı req obyektini saxtalaşdırmaq ehtiyacını azaldır." },
+          { t: "code", lang: "typescript", caption: "Parametr dekoratoru və Passport strategiyası", code: `// cari-istifadeci.decorator.ts
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+export interface CariIstifadeci { id: number; rollar: string[]; tenantId?: number }
+
+export const CariIstifadeciDek = createParamDecorator(
+  (sahe: keyof CariIstifadeci | undefined, ctx: ExecutionContext) => {
+    const user = ctx.switchToHttp().getRequest().user as CariIstifadeci;
+    return sahe ? user?.[sahe] : user;
+  },
+);
+
+// istifadə
+@Get('profil')
+profil(@CariIstifadeciDek() cari: CariIstifadeci, @CariIstifadeciDek('id') id: number) {
+  return this.istifadeciler.tap(id);
+}
+
+// Passport ilə: jwt.strategy.ts
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(konfiq: ConfigService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: konfiq.getOrThrow<string>('JWT_SIRR'),
+      algorithms: ['HS256'],
+    });
+  }
+  // token yoxlanandan sonra çağırılır; qaytarılan dəyər req.user olur
+  validate(yuk: { sub: number; rollar: string[] }): CariIstifadeci {
+    return { id: yuk.sub, rollar: yuk.rollar };
+  }
+}
+
+// guard: AuthGuard('jwt') — Passport strategiyasını işə salır
+@Injectable()
+export class JwtPassportGuard extends AuthGuard('jwt') {
+  constructor(private readonly reflector: Reflector) { super(); }
+  canActivate(ctx: ExecutionContext) {
+    const acıq = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [ctx.getHandler(), ctx.getClass()]);
+    return acıq ? true : super.canActivate(ctx);
+  }
+}` },
+          { t: "terms", items: [
+            ["createParamDecorator", "controller parametri üçün öz dekoratorunu yaratmağa imkan verir (məs. @CurrentUser())."],
+            ["Passport strategiyası", "autentifikasiya üsulunu (JWT, local, OAuth) kapsullaşdıran sinif; validate() nəticəsi req.user olur."],
+            ["getAllAndOverride / getAllAndMerge", "metadatanı handler və sinifdən oxuyur: birincisi ilk tapılanı, ikincisi hamısını birləşdirir."],
+            ["SetMetadata", "handler və ya sinifə açar-dəyər metadata qoyur; guard Reflector ilə oxuyur."],
+          ]},
+          { t: "mistake", lang: "typescript", wrong: `const yuk = this.jwt.decode(token);     // imza yoxlanmır!
+req.user = yuk;`, right: `const yuk = await this.jwt.verifyAsync(token, { algorithms: ['HS256'] });
+req.user = yuk;`, why: "decode yalnız base64 açır, imzanı və müddəti yoxlamır — hər kəs öz yazdığı tokeni «etibarlı» göstərə bilər. Həmişə verify/verifyAsync işlət." },
+          { t: "mistake", lang: "typescript", wrong: `canActivate(ctx: ExecutionContext) {
+  const req = ctx.switchToHttp().getRequest();
+  return req.user?.rollar.includes('admin');   // user yoxdursa undefined → 403, rollar yoxdursa xəta
+}`, right: `canActivate(ctx: ExecutionContext) {
+  const { user } = ctx.switchToHttp().getRequest();
+  return Array.isArray(user?.rollar) && user.rollar.includes('admin');
+}`, why: "Guard-da gözlənilməz TypeError 500 verir və problemi gizlədir. Giriş məlumatına etibar etmə: optional chaining və tip yoxlaması ilə həmişə aydın true/false qaytar." },
+          { t: "warn", text: "Guard false qaytaranda Nest ForbiddenException (403) atır. Giriş olmayanda 401 istəyirsənsə, UnauthorizedException atmalısan — guard-ın nəticəsini «sadəcə false» buraxma." },
         ],
       },
       {
@@ -193,6 +259,67 @@ async sil(id: number, cari: CariIstifadeci) {
   }
   await this.repo.remove(sened);
 }` },
+          { t: "h", text: "Guard-lar müxtəlif kontekstlərdə və tenant yoxlaması" },
+          { t: "p", text: "ExecutionContext yalnız HTTP üçün deyil: getType() 'http', 'ws' və ya 'rpc' qaytarır. Eyni guard sinfi üç transportda işləyəcəksə, kontekstə görə sorğu/klient obyektini düzgün almaq lazımdır. WebSocket-də autentifikasiya adətən handshake zamanı bir dəfə aparılır, çünki bağlantı uzunmüddətlidir; sonrakı mesajlarda yenidən token yoxlamaq əvəzinə bağlantıya bağlanmış istifadəçini oxuyursan." },
+          { t: "code", lang: "typescript", caption: "Çox kontekstli guard və tenant guard", code: `@Injectable()
+export class UmumiAuthGuard implements CanActivate {
+  constructor(private readonly jwt: JwtService) {}
+
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
+    let token: string | undefined;
+    let hedef: { user?: unknown };
+
+    if (ctx.getType() === 'ws') {
+      const klient = ctx.switchToWs().getClient();
+      token = klient.handshake?.auth?.token;          // socket.io handshake
+      hedef = klient.data;
+    } else {
+      const req = ctx.switchToHttp().getRequest();
+      const [tip, t] = (req.headers.authorization ?? '').split(' ');
+      token = tip === 'Bearer' ? t : undefined;
+      hedef = req;
+    }
+    if (!token) throw new UnauthorizedException();
+    try {
+      hedef.user = await this.jwt.verifyAsync(token, { algorithms: ['HS256'] });
+      return true;
+    } catch {
+      throw new UnauthorizedException();
+    }
+  }
+}
+
+// Tenant guard: URL-dəki tenant tokendəkinə uyğun olmalıdır
+@Injectable()
+export class TenantGuard implements CanActivate {
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest();
+    const urlTenant = Number(req.params.tenantId);
+    if (!Number.isInteger(urlTenant) || urlTenant !== req.user?.tenantId) {
+      throw new NotFoundException();                  // başqa tenantın mövcudluğunu açma
+    }
+    return true;
+  }
+}
+
+// Sıra: soldan sağa icra olunur — əvvəl auth, sonra tenant
+@UseGuards(UmumiAuthGuard, TenantGuard)
+@Controller('tenantlar/:tenantId/senedler')
+export class TenantSenedlerController { /* ... */ }` },
+          { t: "list", items: [
+            "@UseGuards(A, B) — guard-lar soldan sağa icra olunur və ilk uğursuz olan zənciri kəsir. Qlobal APP_GUARD-lar controller guard-larından əvvəl çalışır.",
+            "Guard-da verilənlər bazasına hər sorğuda getmək bahadır: token yükündəki məlumata güvən, həssas əməliyyatlarda isə servisdə bazadan təsdiqlə.",
+            "Guard test edilə bilən sinifdir: saxta ExecutionContext (createMock və ya əl ilə yığılmış obyekt) ilə canActivate()-i birbaşa çağır; Reflector-u mock-la.",
+            "Token müqayisələrində vaxt hücumlarına qarşı sabit müddətli müqayisə (crypto.timingSafeEqual) istifadə et — məsələn, API açarlarını heşləyib müqayisə edərkən.",
+          ]},
+          { t: "qa", items: [
+            ["Guard ExecutionContext ilə WebSocket-i necə dəstəkləyir?", "ctx.getType() ilə kontekst təyin edilir; ws üçün switchToWs().getClient() ilə socket alınır, autentifikasiya adətən handshake-də aparılır."],
+            ["getAllAndOverride və getAllAndMerge fərqi?", "Override handler metadatasını sinif metadatasının üzərinə qoyur (ilk tapılan); merge ikisini birləşdirir — rollar massivlərini toplamaq üçün faydalıdır."],
+            ["Guard-ları hansı sıra ilə yazmaq lazımdır?", "Əvvəl autentifikasiya (req.user doldurur), sonra rol/tenant guard-ı. Tərs sıra user olmadığı üçün həmişə rədd verər."],
+            ["Parol sıfırlama tokeni niyə JWT olmamalıdır?", "Birdəfəlik və ləğv olunan olmalıdır: təsadüfi token bazada heşlənmiş saxlanılır, qısa ömürlü və istifadədən sonra silinir."],
+            ["Guard-da bazaya sorğu verməyin zərəri?", "Hər sorğuda əlavə gecikmə və yük yaradır. Lazım olanda keşlə və ya yalnız həssas əməliyyatlarda yoxla."],
+            ["Guard-ın interceptor-dan fərqi?", "Guard yalnız keçid qərarı verir və handler-dən əvvəl işləyir; interceptor handler-in əvvəl-sonrasına girib cavabı dəyişə bilir."],
+          ]},
           { t: "qa", items: [
             ["Guard və middleware fərqi?", "Guard ExecutionContext vasitəsilə hansı handler-in çağırılacağını və onun metadatasını bilir; middleware bilmir. Guard-lar autentifikasiya/avtorizasiya üçün nəzərdə tutulub."],
             ["401 və 403 fərqi?", "401 — kimlik yoxdur və ya yanlışdır; 403 — kimlik var, amma icazə yoxdur."],
@@ -343,6 +470,61 @@ export class AuditInterceptor implements NestInterceptor {
   const bas = Date.now();
   return next.handle().pipe(tap(() => console.log(Date.now() - bas)));
 }`, why: "next.handle() Observable qaytarır, handler abunə olunanda icra olunur. «Sonra» məntiqi pipe/tap içində olmalıdır." },
+          { t: "h", text: "Hazır interceptor-lar: serializasiya, keş və fayl yükləmə" },
+          { t: "p", text: "Hər dəfə interceptor-u sıfırdan yazmaq lazım deyil. ClassSerializerInterceptor entity/DTO siniflərindəki class-transformer dekoratorlarına (@Exclude, @Expose, @Transform) baxıb cavabı süzür — parolHesi kimi sahələri cavabdan çıxarmağın ən təmiz yoludur. CacheInterceptor GET cavablarını keşləyir; FileInterceptor isə multer vasitəsilə multipart/form-data fayl yükləməsini emal edir." },
+          { t: "code", lang: "typescript", code: `// Cavabdan həssas sahəni çıxar
+export class IstifadeciCavabi {
+  id: number;
+  ad: string;
+
+  @Exclude()
+  parolHesi: string;
+
+  @Transform(({ value }) => (value as string).toLowerCase())
+  email: string;
+
+  constructor(qismen: Partial<IstifadeciCavabi>) { Object.assign(this, qismen); }
+}
+
+@UseInterceptors(ClassSerializerInterceptor)
+@Get(':id')
+async tap(@Param('id', ParseIntPipe) id: number) {
+  return new IstifadeciCavabi(await this.servis.tap(id));    // sinif nümunəsi qaytar, adi obyekt yox
+}
+
+// Hazır keş: açar və TTL dekoratorla
+@UseInterceptors(CacheInterceptor)
+@CacheKey('mehsul_siyahi')
+@CacheTTL(30_000)                                   // cache-manager v5+: millisaniyə
+@Get()
+siyahi() { return this.servis.hamisi(); }
+
+// Fayl yükləmə: ölçü və tip məhdudiyyəti ilə
+@Post('sekil')
+@UseInterceptors(FileInterceptor('fayl', {
+  limits: { fileSize: 2 * 1024 * 1024 },            // 2 MB
+  fileFilter: (_req, fayl, cb) =>
+    cb(fayl.mimetype.startsWith('image/') ? null : new BadRequestException('Yalnız şəkil'), true),
+}))
+yukle(@UploadedFile() fayl: Express.Multer.File) {
+  return { ad: fayl.originalname, olcu: fayl.size };
+}` },
+          { t: "terms", items: [
+            ["ClassSerializerInterceptor", "cavabdakı sinif nümunələrini class-transformer qaydalarına görə seriallaşdırır."],
+            ["@Exclude / @Expose", "sahəni cavabdan çıxarır / yalnız göstərilənləri açır."],
+            ["tap / map / catchError / finalize", "RxJS operatorları: yan təsir / dəyişdirmə / xətanı tutma / uğurdan və ya xətadan asılı olmayaraq sonda işləyən təmizlik."],
+            ["multer", "multipart/form-data faylları emal edən kitabxana; Nest FileInterceptor bunun üzərində qurulub."],
+          ]},
+          { t: "mistake", lang: "typescript", wrong: `@UseInterceptors(ClassSerializerInterceptor)
+@Get(':id')
+tap(@Param('id') id: string) {
+  return { ...entity };          // adi obyekt: @Exclude işləmir
+}`, right: `@UseInterceptors(ClassSerializerInterceptor)
+@Get(':id')
+async tap(@Param('id', ParseIntPipe) id: number) {
+  return new IstifadeciCavabi(await this.servis.tap(id));
+}`, why: "ClassSerializerInterceptor yalnız sinif nümunələrinə təsir edir. Spread və ya adi obyekt qaytarsan dekoratorlar tətbiq olunmur və həssas sahə sızır." },
+          { t: "tip", text: "Interceptor-da yan təsir (audit, metrika) cavabı gecikdirməməlidir: await etmə, xətanı ayrıca tut. Əks halda uğursuz log yazısı biznes sorğusunu sındırar." },
         ],
       },
       {
@@ -412,6 +594,62 @@ export class LogInterceptor implements NestInterceptor {
     );
   }
 }` },
+          { t: "h", text: "AsyncLocalStorage ilə sorğu konteksti və RxJS axınının dərinliyi" },
+          { t: "p", text: "Node.js-də sorğuya xas məlumatı (requestId, istifadəçi) hər funksiyaya parametr kimi ötürmək yorucudur. AsyncLocalStorage asinxron zəncir boyu kontekst saxlayır: middleware konteksti açır, sonrakı bütün kod (servis, repo, loqqer) onu oxuya bilir. Interceptor-da isə next.handle() Observable-dır və abunə olunana qədər soyuqdur — operatorların sırası vacibdir: timeout handler-i, finalize isə həm uğur, həm xəta, həm də ləğv zamanı işləyir." },
+          { t: "code", lang: "typescript", caption: "AsyncLocalStorage, finalize və xətanın çevrilməsi", code: `// sorgu-konteksti.ts
+import { AsyncLocalStorage } from 'node:async_hooks';
+export const kontekst = new AsyncLocalStorage<{ id: string; istifadeciId?: number }>();
+
+// middleware konteksti açır
+@Injectable()
+export class KontekstMiddleware implements NestMiddleware {
+  use(req: any, _res: any, next: () => void) {
+    kontekst.run({ id: req.id ?? randomUUID() }, next);   // next həmin kontekstdə çağırılır
+  }
+}
+
+// istənilən yerdə oxu (parametr ötürmədən)
+export function cariId() { return kontekst.getStore()?.id; }
+
+// Aktiv sorğu sayğacı (metrika) — finalize həmişə işləyir
+@Injectable()
+export class AktivSorgularInterceptor implements NestInterceptor {
+  private aktiv = 0;
+  intercept(_ctx: ExecutionContext, next: CallHandler) {
+    this.aktiv++;
+    return next.handle().pipe(finalize(() => { this.aktiv--; }));   // uğur, xəta və ya client ləğvi
+  }
+}
+
+// Domen xətasını HTTP xətasına çevir (filter əvəzinə, yalnız bu controller üçün)
+@Injectable()
+export class XetaCevirInterceptor implements NestInterceptor {
+  intercept(_ctx: ExecutionContext, next: CallHandler) {
+    return next.handle().pipe(
+      catchError((x) =>
+        throwError(() => (x instanceof StokYoxdur ? new ConflictException(x.message) : x)),
+      ),
+    );
+  }
+}
+
+// Nəticəni dəyişdirmədən vaxt həddini aşanı xəbərdar et
+tap({ next: () => { if (Date.now() - bas > 1000) logger.warn('Yavaş sorğu: ' + cariId()); } })` },
+          { t: "list", items: [
+            "Eyni interceptor-da bir neçə operator pipe-da soldan sağa tətbiq olunur: timeout(...) əvvəl, catchError sonra olmalıdır ki, TimeoutError tutulsun.",
+            "AsyncLocalStorage kiçik əlavə xərc gətirir, amma loqda requestId-ni hər yerə ötürməkdən qat-qat təmizdir. nestjs-cls kimi paketlər bunu Nest-ə uyğunlaşdırır.",
+            "Soyuq və isti Observable: next.handle() abunə olunmayana qədər handler-i çağırmır. İki dəfə subscribe etsən handler iki dəfə işləyər (məs. retry() ilə).",
+            "retry() interceptor-da təhlükəlidir: handler-i yenidən işlədir, POST kimi dəyişdirici əməliyyat iki dəfə təsir edə bilər. Yalnız idempotent GET-lərdə düşün.",
+            "Müştəri bağlantını kəsəndə Observable ləğv olunur (unsubscribe); uzun işləri finalize/takeUntil ilə təmizlə.",
+          ]},
+          { t: "warn", text: "Qlobal interceptor-da hər sorğuda JSON.stringify(req.body) kimi ağır əməliyyat və böyük gövdələri loqlamaq həm performansı öldürür, həm də həssas məlumat sızdırır. Ölçü limiti və maskalama qoy." },
+          { t: "qa", items: [
+            ["Observable soyuq olması nə deməkdir?", "next.handle() özü handler-i çağırmır; abunə olunanda icra olunur. Abunəlik olmasa handler heç işə düşmür, iki abunəlik iki icra verir."],
+            ["finalize operatoru nə vaxt işləyir?", "Axın uğurla bitəndə, xəta ilə bitəndə və ya abunə ləğv edildikdə — təmizlik və sayğac üçün idealdır."],
+            ["AsyncLocalStorage nə problemi həll edir?", "Sorğuya xas kontekstin (requestId, istifadəçi) parametr ötürmədən asinxron zəncir boyu əlçatan olmasını."],
+            ["Interceptor və exception filter-in xəta ilə münasibəti?", "Interceptor catchError ilə xətanı çevirə bilər; çevrilməyən xəta filter-ə çatır. Interceptor xətanı udarsa filter heç işə düşməz."],
+            ["Global interceptor-ları DI ilə necə qeydiyyatdan keçirirsən?", "Modulda provide: APP_INTERCEPTOR, useClass: X; app.useGlobalInterceptors(new X()) DI-siz işləyir."],
+          ]},
           { t: "qa", items: [
             ["Middleware və interceptor fərqi?", "Middleware marşrutdan əvvəl işləyir və handler-i bilmir; interceptor ExecutionContext ilə handler-i bilir, əvvəl və sonra işləyir, cavabı dəyişə bilir."],
             ["next() çağırılmasa nə olur?", "Middleware-də sorğu asılı qalır. Interceptor-da next.handle() çağırılmasa handler işə düşmür (keşdə bu bilərəkdən edilir)."],
@@ -562,6 +800,63 @@ export class BazaXetaFilter implements ExceptionFilter {
   this.logger.error(e);
   throw e;                 // yenidən at ki, filter xətanı cavaba çevirsin
 }`, why: "Xətanı yalnız loqlayıb udmaq problemi gizlədir və gözlənilməz vəziyyətə aparır. Ya işlə, ya da yenidən at." },
+          { t: "h", text: "Validasiya xətaları, HttpAdapterHost və BaseExceptionFilter" },
+          { t: "p", text: "ValidationPipe default olaraq BadRequestException atır və message sahəsində sətirlər massivi olur. Klientə sahə adı ilə strukturlu cavab vermək üçün exceptionFactory yazıla bilər. Digər tərəfdən, filter-də birbaşa Express-in res.status().json() çağırmaq tətbiqi Express-ə bağlayır; Fastify-a keçmək istəsən HttpAdapterHost vasitəsilə HTTP adapterinin reply() metodundan istifadə etmək daha portativdir. Standart davranışı qismən dəyişmək istəyirsənsə BaseExceptionFilter-dən törə və super.catch() çağır." },
+          { t: "code", lang: "typescript", code: `// main.ts — validasiya xətaları sahə üzrə
+app.useGlobalPipes(new ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  exceptionFactory: (xetalar: ValidationError[]) =>
+    new BadRequestException({
+      mesaj: 'Doğrulama xətası',
+      sahələr: xetalar.map((x) => ({ sahe: x.property, qaydalar: Object.values(x.constraints ?? {}) })),
+    }),
+}));
+
+// Platformadan müstəqil filter (Express və Fastify ilə işləyir)
+@Catch()
+export class PortativFilter implements ExceptionFilter {
+  constructor(private readonly adapterHost: HttpAdapterHost) {}
+
+  catch(xeta: unknown, host: ArgumentsHost) {
+    const { httpAdapter } = this.adapterHost;
+    const ctx = host.switchToHttp();
+    const status = xeta instanceof HttpException ? xeta.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    httpAdapter.reply(
+      ctx.getResponse(),
+      { statusCode: status, yol: httpAdapter.getRequestUrl(ctx.getRequest()) },
+      status,
+    );
+  }
+}
+
+// BaseExceptionFilter: yalnız loqu əlavə et, qalanını Nest-ə burax
+@Catch()
+export class LoqlayanFilter extends BaseExceptionFilter {
+  catch(xeta: unknown, host: ArgumentsHost) {
+    if (!(xeta instanceof HttpException)) logger.error(xeta);
+    super.catch(xeta, host);
+  }
+}
+
+// Marşrut/controller səviyyəsində filter
+@UseFilters(BazaXetaFilter)
+@Controller('kurslar')
+export class KurslarController { /* ... */ }` },
+          { t: "terms", items: [
+            ["exceptionFactory", "ValidationPipe-in xəta siyahısını öz istisnana çevirən funksiyası."],
+            ["HttpAdapterHost", "altdakı HTTP platformasına (Express/Fastify) çıxış verir; filter-i platformadan müstəqil edir."],
+            ["BaseExceptionFilter", "Nest-in default filter-i; üzərinə əlavə məntiq qoyub super.catch() çağırmaq üçün."],
+            ["@UseFilters", "filter-i controller və ya marşrut səviyyəsində bağlayır."],
+          ]},
+          { t: "mistake", lang: "typescript", wrong: `if (!istifadeci) {
+  return new NotFoundException();      // return — atılmır, 200 ilə obyekt qayıdır
+}`, right: `if (!istifadeci) {
+  throw new NotFoundException('İstifadəçi tapılmadı');
+}`, why: "İstisnanı return etmək onu atmır: Nest onu adi cavab kimi JSON-a çevirir və status 200 qalır. İstisna həmişə throw ilə atılmalıdır." },
+          { t: "mistake", lang: "typescript", wrong: `throw new Error('Sifariş tapılmadı');   // adi Error`, right: `throw new NotFoundException('Sifariş tapılmadı');`, why: "Adi Error Nest üçün gözlənilməz xətadır və 500 olur. Müştəri xətasını (404/400/409) uyğun HttpException ilə bildir ki, doğru status getsin." },
+          { t: "warn", text: "Qlobal filter-i app.useGlobalFilters() ilə qeydiyyatdan keçirsən, ona DI inyeksiya etmək olmur (HttpAdapterHost kimi). DI lazımdırsa APP_FILTER provider-i işlət." },
         ],
       },
       {
@@ -639,6 +934,57 @@ export class ProblemFilter implements ExceptionFilter {
     });
   }
 }` },
+          { t: "h", text: "Mikroservis/WS filter-ləri, qlobal xəta tutma və sıfır itki" },
+          { t: "p", text: "HTTP filter-i RPC və WebSocket kontekstində işləmir. RpcException və WsException bu kontekstlər üçün nəzərdə tutulub, onları isə uyğun filter-lə (BaseRpcExceptionFilter, BaseWsExceptionFilter) emal edirsən. Prosesin özü səviyyəsində isə Nest-dən kənar qalan xətalar (unhandledRejection, uncaughtException) üçün ayrıca bağlama və monitorinq lazımdır." },
+          { t: "code", lang: "typescript", code: `// RPC kontekstində xəta: Observable qaytarılır
+@Catch()
+export class RpcXetaFilter implements RpcExceptionFilter<RpcException> {
+  catch(xeta: RpcException | Error): Observable<never> {
+    const mesaj = xeta instanceof RpcException ? xeta.getError() : 'Daxili xəta';
+    return throwError(() => mesaj);
+  }
+}
+
+// WebSocket gateway
+@UseFilters(new BaseWsExceptionFilter())
+@WebSocketGateway()
+export class SohbetGateway {
+  @SubscribeMessage('mesaj')
+  al(@MessageBody() m: string) {
+    if (!m) throw new WsException('Boş mesaj');
+  }
+}
+
+// main.ts: proses səviyyəsində son müdafiə
+process.on('unhandledRejection', (sebeb) => {
+  logger.error('unhandledRejection', sebeb as Error);
+  // Node 15+ default olaraq prosesi dayandırır; orkestrator yenidən başladır
+});
+process.on('uncaughtException', (xeta) => {
+  logger.error('uncaughtException', xeta.stack);
+  process.exit(1);                                    // vəziyyət etibarsızdır: təmiz bağlan və çıx
+});
+
+app.enableShutdownHooks();                            // SIGTERM-də OnModuleDestroy/OnApplicationShutdown işləsin
+
+// Sentry kimi alətə yalnız gözlənilməz (5xx) xətalar göndər
+if (!(xeta instanceof HttpException) || xeta.getStatus() >= 500) {
+  Sentry.captureException(xeta);
+}` },
+          { t: "list", items: [
+            "Xəta büdcəsi: 4xx klientin, 5xx serverin xətasıdır. Alert-ləri 5xx nisbətinə (SLO) bağla, tək-tək 404-lərə yox.",
+            "Xəta zənciri: new Error('mesaj', { cause: orijinal }) ilə kök səbəbi saxla — loqda tam zəncir görünür, müştəriyə isə yalnız ümumi mesaj gedir.",
+            "Retry edilə bilən və edilə bilməyən xətaları ayır: doğrulama xətası təkrar etməyin mənası yoxdur, şəbəkə xətası var.",
+            "Filter-də yenidən xəta atmaq olmaz: bu, cavab göndərilmədən sorğunu asılı qoya bilər. Filter içindəki kod sadə və xətasız olmalıdır.",
+            "Xəta mesajları üçün i18n: mesajı deyil, kodu qaytar; tərcümə klientdə və ya Accept-Language ilə aparılsın.",
+          ]},
+          { t: "qa", items: [
+            ["HTTP filter niyə mikroservisdə işləmir?", "Hər transportun öz kontekst və cavab mexanizmi var; RPC/WS üçün RpcException/WsException və uyğun filter lazımdır, host.getType() ilə fərqləndirilir."],
+            ["uncaughtException-dan sonra proses davam etməlidirmi?", "Xeyr: vəziyyət naməlumdur. Xətanı loqla, resursları təmiz bağla və çıx; orkestrator (Kubernetes/PM2) yenidən başladar."],
+            ["new Error(msg, { cause }) nə üçündür?", "Xətanı zəncirləyir: üst səviyyə mesajı saxlayır, kök səbəb loqda qalır."],
+            ["Hansı xətaları Sentry-yə göndərmək lazımdır?", "Gözlənilməz xətaları (5xx); 400/404/409 gözlənilən xətalardır və metrika kifayətdir."],
+            ["Filter və interceptor xəta işləməsində hansı daha yüksək səviyyədədir?", "Interceptor catchError ilə əvvəl tutur; çevrilməyən xəta filter-ə çatır. Filter son müdafiə xəttidir."],
+          ]},
           { t: "qa", items: [
             ["Exception filter nə edir?", "Atılmış istisnanı tutub müştəriyə gedən cavabı (status və gövdə) formalaşdırır."],
             ["Niyə domen xətaları ayrıca yazılır?", "Servis HTTP-dən asılı olmur; filter statusa xəritələyir, beləcə eyni məntiq HTTP, RPC və WS-də işləyir."],
@@ -812,6 +1158,75 @@ for (const s of sifarisler) {
           { t: "mistake", lang: "typescript", wrong: `const sorgu = 'SELECT * FROM istifadeciler WHERE ad = \\'' + ad + '\\'';
 await this.dataSource.query(sorgu);        // SQL inyeksiyası`, right: `await this.dataSource.query('SELECT * FROM istifadeciler WHERE ad = $1', [ad]);
 // və ya repo.find({ where: { ad } })`, why: "Sətir birləşdirməsi ilə sorğu qurmaq SQL inyeksiyasıdır: ad = ' OR 1=1 -- bütün cədvəli verir. Həmişə parametrləşdirilmiş sorğu işlət." },
+          { t: "h", text: "Səhifələmə, yumşaq silmə, QueryRunner və Prisma interaktiv tranzaksiyası" },
+          { t: "p", text: "Siyahı endpoint-lərində həmişə məhdudiyyət qoy: findAndCount həm cari səhifəni, həm ümumi sayı verir. Yumşaq silmə (soft delete) @DeleteDateColumn ilə qeydi bazadan silmədən gizlədir: find avtomatik silinmişləri çıxarır, restore() isə geri qaytarır. Tranzaksiyanı əl ilə idarə etmək lazımdırsa QueryRunner istifadə et — connect, startTransaction, commit/rollback və mütləq release (finally-də)." },
+          { t: "code", lang: "typescript", code: `// Səhifələmə + ümumi say
+async siyahi(sehife = 1, olcu = 20) {
+  const take = Math.min(olcu, 50);
+  const [setirler, say] = await this.repo.findAndCount({
+    order: { yaradilma: 'DESC' },
+    skip: (sehife - 1) * take,
+    take,
+  });
+  return { setirler, say, sehifeSayi: Math.ceil(say / take) };
+}
+
+// Yumşaq silmə
+@Entity()
+export class Kurs {
+  @PrimaryGeneratedColumn() id: number;
+  @DeleteDateColumn() silinib: Date | null;
+}
+await this.repo.softRemove(kurs);                       // silinib = indi
+await this.repo.restore(id);                            // geri qaytar
+await this.repo.find({ withDeleted: true });            // silinmişlər də
+
+// QueryRunner: əl ilə idarə olunan tranzaksiya
+const qr = this.dataSource.createQueryRunner();
+await qr.connect();
+await qr.startTransaction();
+try {
+  await qr.manager.save(sifaris);
+  await qr.manager.decrement(Mehsul, { id: mehsulId }, 'stok', say);
+  await qr.commitTransaction();
+} catch (x) {
+  await qr.rollbackTransaction();
+  throw x;
+} finally {
+  await qr.release();                                    // bağlantını hovuza qaytar, yoxsa sızır
+}
+
+// Prisma: interaktiv tranzaksiya və select
+const nəticə = await this.prisma.$transaction(async (tx) => {
+  const hesab = await tx.hesab.findUniqueOrThrow({ where: { id: kimden } });
+  if (hesab.balans < mebleg) throw new ConflictException('Balans kifayət deyil');
+  await tx.hesab.update({ where: { id: kimden }, data: { balans: { decrement: mebleg } } });
+  return tx.hesab.update({ where: { id: kime }, data: { balans: { increment: mebleg } } });
+});
+
+this.prisma.istifadeci.findMany({ select: { id: true, ad: true }, where: { aktiv: true } });   // yalnız lazım olan sütunlar` },
+          { t: "terms", items: [
+            ["findAndCount", "həm səhifənin sətirlərini, həm ümumi sayı qaytarır."],
+            ["soft delete", "qeydi silmir, deletedAt ilə işarələyir; sorğular avtomatik süzür."],
+            ["QueryRunner", "bir bağlantını və tranzaksiyanı əl ilə idarə etmək üçün obyekt."],
+            ["$transaction (Prisma)", "bir neçə əməliyyatı ya massivlə, ya da interaktiv funksiya ilə atomar icra edir."],
+            ["eager / lazy", "əlaqənin avtomatik yüklənməsi / lazım olanda yüklənməsi; eager ehtiyatsız istifadədə yük artırır."],
+          ]},
+          { t: "mistake", lang: "typescript", wrong: `await this.dataSource.transaction(async (em) => {
+  await em.save(sifaris);
+  await this.mehsulRepo.decrement({ id }, 'stok', 1);    // tranzaksiyadan KƏNARDA
+});`, right: `await this.dataSource.transaction(async (em) => {
+  await em.save(sifaris);
+  await em.decrement(Mehsul, { id }, 'stok', 1);         // eyni em
+});`, why: "Servisə inyeksiya olunmuş repo ayrı bağlantı götürür və tranzaksiyaya qoşulmur: xəta olsa belə həmin dəyişiklik geri qayıtmır. Tranzaksiya daxilində yalnız em/tx istifadə et." },
+          { t: "mistake", lang: "typescript", wrong: `const qr = ds.createQueryRunner();
+await qr.connect();
+await qr.startTransaction();
+await qr.manager.save(x);
+await qr.commitTransaction();     // release yoxdur, xəta halında rollback yoxdur`, right: `try { /* ... */ await qr.commitTransaction(); }
+catch (e) { await qr.rollbackTransaction(); throw e; }
+finally { await qr.release(); }`, why: "release olunmayan QueryRunner bağlantını hovuzda tutur; bir neçə belə sorğudan sonra hovuz tükənir və bütün tətbiq asılır." },
+          { t: "tip", text: "findAndCount hər çağırışda COUNT sorğusu da icra edir. Çox böyük cədvəldə dəqiq say lazım deyilsə, «növbəti səhifə var?» üçün take + 1 götür." },
         ],
       },
       {
@@ -875,6 +1290,72 @@ async siyahi(cari: CariIstifadeci) {
 const adlar = await this.prisma.$queryRaw<{ ad: string }[]>(
   Prisma.sql\\\`SELECT ad FROM istifadeciler WHERE email = \\\${email}\\\`,   // parametrləşir
 );` },
+          { t: "h", text: "Kursor səhifələmə, hovuz konfiqurasiyası və miqrasiya nümunəsi" },
+          { t: "p", text: "Offset səhifələmə (OFFSET 100000) baza hər dəfə ilk 100000 sətri keçməli olduğu üçün dərinləşdikcə yavaşlayır; həm də səhifələmə zamanı yeni qeyd əlavə olunsa, sətirlər təkrar və ya buraxılmış görünür. Kursor səhifələmə son görülən açardan (id, yaradilma) davam edir və indeksdən istifadə edir — sabit müddətli və ardıcıldır. Miqrasiyalarda isə hər dəyişikliyin up və down hissəsi olmalıdır, böyük cədvəldə əməliyyatlar kilid müddətini nəzərə almalıdır." },
+          { t: "code", lang: "typescript", caption: "Kursor səhifələmə, hovuz və miqrasiya", code: `// Kursor səhifələmə (id azalan sırada)
+async siyahi(son?: number, olcu = 20) {
+  const take = Math.min(olcu, 50);
+  const setirler = await this.repo.find({
+    where: son ? { id: LessThan(son) } : {},
+    order: { id: 'DESC' },
+    take: take + 1,                                     // +1: növbəti səhifə var?
+  });
+  const daha = setirler.length > take;
+  const melumat = daha ? setirler.slice(0, take) : setirler;
+  return { melumat, novbeti: daha ? melumat[melumat.length - 1].id : null };
+}
+
+// Hovuz və SSL: TypeORM (pg sürücüsü)
+TypeOrmModule.forRootAsync({
+  inject: [ConfigService],
+  useFactory: (k: ConfigService) => ({
+    type: 'postgres',
+    url: k.getOrThrow('DATABASE_URL'),
+    ssl: k.get('NODE_ENV') === 'production' ? { rejectUnauthorized: true } : false,
+    extra: { max: 10, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5_000 },
+    autoLoadEntities: true,
+    synchronize: false,
+    migrationsRun: false,                               // miqrasiyanı CI/deploy addımında ayrıca işlət
+  }),
+})
+
+// Miqrasiya: expand mərhələsi (yeni sütun nullable)
+export class IstifadeciTelefon1730000000000 implements MigrationInterface {
+  async up(qr: QueryRunner) {
+    await qr.query('ALTER TABLE istifadeciler ADD COLUMN telefon varchar(20) NULL');
+  }
+  async down(qr: QueryRunner) {
+    await qr.query('ALTER TABLE istifadeciler DROP COLUMN telefon');
+  }
+}
+
+// İndeksi kilidsiz yaratmaq (PostgreSQL): tranzaksiyadan kənarda
+export class SifarisIndeks1730000001000 implements MigrationInterface {
+  transaction = false;                                  // CONCURRENTLY tranzaksiya daxilində işləmir
+  async up(qr: QueryRunner) {
+    await qr.query('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sifaris_istifadeci ON sifarisler (istifadeci_id)');
+  }
+  async down(qr: QueryRunner) {
+    await qr.query('DROP INDEX CONCURRENTLY IF EXISTS idx_sifaris_istifadeci');
+  }
+}` },
+          { t: "list", items: [
+            "Prisma-da hovuz parametrləri bağlantı sətrində verilir (connection_limit, pool_timeout); serverless mühitdə hər funksiya yeni bağlantı açdığı üçün pooler (PgBouncer, Accelerate) demək olar məcburidir.",
+            "N+1-i aşkar etmək üçün sorğu loqunu aç (TypeORM logging: ['query'], Prisma log: ['query']) və bir sorğuda neçə SQL getdiyinə bax. Testdə sorğu sayını assert etmək olar.",
+            "Dərin əlaqə zəncirləri (A → B → C → D) kartezian partlayışa səbəb ola bilər: relations ilə hər şeyi bir JOIN-də yükləmək əvəzinə ayrı toplu sorğuya böl.",
+            "Böyük hesabat sorğuları OLTP bazasını bloklamasın: oxu replikası və ya ayrıca analitik anbar, vaxt aşımı (statement_timeout) və limit.",
+            "Tranzaksiya izolyasiya səviyyələri: READ COMMITTED (default) kifayət etməyəndə REPEATABLE READ/SERIALIZABLE; serialization xətası (40001) halında təkrar cəhd lazımdır.",
+            "Deadlock-dan qaçmaq üçün kilidləri həmişə eyni sırada götür (məs. id artan sırası ilə); uzun tranzaksiyalardan, tranzaksiya içində xarici HTTP çağırışından qaç.",
+          ]},
+          { t: "warn", text: "Tranzaksiya içində xarici HTTP/e-poçt çağırışı etmə: tranzaksiya və bağlantı çağırış bitənə qədər açıq qalır, kilidlər uzanır. Əvvəl bazaya yaz, hadisəni outbox ilə sonra göndər." },
+          { t: "qa", items: [
+            ["Offset və kursor səhifələmə fərqi?", "Offset dərinləşdikcə yavaşlayır və dəyişən məlumatda təkrar/buraxılma verir; kursor indeksdən istifadə edir, sabit sürətlidir və ardıcıldır."],
+            ["Bağlantı hovuzu niyə tükənə bilər?", "Release olunmayan QueryRunner, uzun tranzaksiyalar və pod sayı × hovuz ölçüsünün baza limitini keçməsi səbəb olur."],
+            ["Expand/contract miqrasiyası nədir?", "Əvvəl yeni sütunu/cədvəli əlavə edirsən (köhnə kod işləməyə davam edir), kodu yeniləyirsən, sonda köhnəni silirsən — sıfır dayanma ilə."],
+            ["CREATE INDEX CONCURRENTLY niyə fərqli işləyir?", "Cədvəli yazma əməliyyatlarına bloklamır, amma tranzaksiya daxilində çağırıla bilmir; miqrasiyada transaction = false lazımdır."],
+            ["Optimistik və pessimist kilid fərqi?", "Optimistik versiya sütunu ilə konfliktdə xəta verir (az konflikt üçün); pessimist sətri əvvəlcədən kilidləyir (çox konflikt üçün) və başqalarını gözlədir."],
+            ["Hansı halda repozitoriya əvəzinə QueryBuilder/xam SQL?", "Mürəkkəb JOIN, aqreqat və atomar UPDATE lazım olanda; parametrləşdirilmiş şəkildə və nəticə tipi ilə."],
+          ]},
           { t: "qa", items: [
             ["TypeORM və Prisma fərqi?", "TypeORM — dekoratorlu entity siniflər, Nest ilə sıx inteqrasiya. Prisma — sxem faylı, avtomatik tipli klient və güclü miqrasiya aləti."],
             ["N+1 problemi nədir?", "Siyahı üçün 1 sorğu, hər element üçün əlavə sorğu. JOIN/include və ya toplu (IN) sorğu ilə həll olunur."],

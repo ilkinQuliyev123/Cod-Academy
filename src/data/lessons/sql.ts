@@ -65,6 +65,30 @@ db.query("SELECT * FROM telebeler WHERE ad = $1", [ad]);` },
             ["SQL deklarativ dil nə deməkdir?", "Nəticəni təsvir edirsən, alqoritmi yox — icra yolunu optimizator seçir."],
             ["SQL injection-dan necə qorunursan?", "Parametrli sorğular/ORM, giriş validasiyası, minimal DB icazələri; heç vaxt string birləşdirmə."],
           ]},
+          { t: "h", text: "Ən az imtiyaz prinsipi: GRANT və REVOKE" },
+          { t: "p", text: "Tətbiq bazaya admin hesabı ilə qoşulursa, bir SQL injection açığı bütün bazanın itirilməsi deməkdir. Ən az imtiyaz (least privilege) prinsipi: hər hesaba yalnız ehtiyac duyduğu hüquqlar verilir. Sorğu dili SQL standartdır, amma GRANT/REVOKE SQLite-da yoxdur (fayl əsaslı), PostgreSQL və MySQL-də var." },
+          { t: "code", lang: "sql", code: `-- PostgreSQL / MySQL: ayrı hesablar
+CREATE USER tetbiq_oxu   IDENTIFIED BY '...';   -- hesabat/oxuma
+CREATE USER tetbiq_yaz   IDENTIFIED BY '...';   -- gündəlik tətbiq
+-- migrasiya üçün ayrıca, yalnız deploy zamanı istifadə olunan hesab
+
+GRANT SELECT ON telebeler, kurslar TO tetbiq_oxu;
+GRANT SELECT, INSERT, UPDATE ON telebeler TO tetbiq_yaz;   -- DELETE, DROP, ALTER verilmir
+
+REVOKE UPDATE ON telebeler FROM tetbiq_yaz;               -- hüququ geri al
+-- Sütun səviyyəsi: həssas sahəyə çıxışı bağla
+GRANT SELECT (id, ad, email) ON istifadeciler TO tetbiq_oxu;  -- parol_hes verilmir` },
+          { t: "list", items: [
+            "Tətbiqi superuser/root/sa hesabı ilə işlətmə. Əgər injection olarsa belə, DROP, GRANT və fayl oxuma əməliyyatları mümkün olmamalıdır.",
+            "Rol-əsaslı idarəetmə: hüquqları rola ver, istifadəçilərə rolu təyin et. Hüquq dəyişikliyi bir yerdə olur.",
+            "Mühitləri ayır: development, test və production üçün fərqli hesab və parollar; production parolları kod depoda yox, gizli məlumat idarəçisində saxlanır.",
+            "Verilənlər bazasını internetə açıq buraxma: firewall və yalnız tətbiq serverindən bağlantı; TLS ilə şifrələnmiş bağlantı.",
+            "SQLite-da: hüquq modeli yoxdur; bunun əvəzinə faylın OS səviyyəsində icazələri, tətbiq qatında yoxlama və lazım olduqda PRAGMA query_only = ON (oxuma-yalnız bağlantı) işlədilir.",
+          ]},
+          { t: "qa", items: [
+            ["Ən az imtiyaz nə üçün vacibdir?", "Açıq-aşkar bir səhv (SQL injection, sızmış parol) baş verəndə ziyanı məhdudlaşdırır: hücumçu yalnız həmin hesabın icazə verdiyi qədər edə bilər."],
+            ["Tətbiqin DB hesabına DROP/ALTER icazəsi verilməlidirmi?", "Xeyr. Sxem dəyişiklikləri ayrıca migrasiya hesabı ilə, deploy zamanı edilir."],
+          ]},
         ],
       },
       {
@@ -154,6 +178,25 @@ SELECT ad, COALESCE(seher, 'naməlum') AS seher FROM telebeler;` },
             ["Niyə WHERE-də alias işləmir?", "WHERE SELECT-dən əvvəl icra olunur — alias hələ mövcud deyil."],
             ["SELECT * niyə tövsiyə olunmur?", "Lazımsız data, kövrək kod, indeks optimallaşdırmasının itməsi və məlumat sızması riski."],
           ]},
+          { t: "h", text: "SELECT * və həssas məlumatın sızması" },
+          { t: "code", lang: "sql", code: `-- Pis: bütün sütunlar, o cümlədən parol_hes, reset_token, telefon...
+SELECT * FROM istifadeciler WHERE id = ?;
+
+-- Yaxşı: yalnız lazım olan sahələr
+SELECT id, ad, email FROM istifadeciler WHERE id = ?;
+
+-- Daha da yaxşı: həssas sütunlara baxmayan view
+CREATE VIEW acik_istifadeciler AS
+SELECT id, ad, email FROM istifadeciler;` },
+          { t: "list", items: [
+            "SELECT * API cavabına birbaşa verilərsə, sonradan cədvələ əlavə olunan həssas sütun (token, parol heşi) avtomatik sızır (data leak).",
+            "Cavab obyektini (DTO) açıq şəkildə sütunlarla qur; ORM-də select/projection seç.",
+            "Xəta mesajlarında SQL mətni, cədvəl və sütun adları göstərmə — hücumçuya sxem haqqında məlumat verir. Detalları yalnız loga yaz.",
+            "Mətni log-a yazarkən parolları, token və kart nömrələrini maskala.",
+          ]},
+          { t: "qa", items: [
+            ["SELECT * nə vaxt təhlükəsizlik problemidir?", "Həssas sütunlar olan cədvəllərdə; yeni sütun əlavə olunduqda kod dəyişməyibsə də, məlumat avtomatik müştəriyə çıxır."],
+          ]},
         ],
       },
       {
@@ -229,6 +272,38 @@ SELECT * FROM telebeler WHERE seher IS NULL;` },
           { t: "qa", items: [
             ["Sargable nədir?", "İndeksdən istifadə edə bilən şərt — sütun dəyişdirilmədən müqayisə olunur."],
             ["NOT IN və NULL problemi?", "Alt sorğuda NULL varsa NOT IN UNKNOWN qaytarır və nəticə boş olur."],
+          ]},
+          { t: "h", text: "SQL injection: konkatenasiya və parametrli sorğu" },
+          { t: "p", text: "SQL injection istifadəçi girişi SQL mətninin içinə birləşdirildikdə (konkatenasiya) baş verir: giriş məlumat kimi qalmır, sorğunun strukturunu dəyişir. Ən kritik veb zəifliklərindən biridir." },
+          { t: "code", lang: "js", code: `// TƏHLÜKƏLİ — konkatenasiya
+const sql = "SELECT * FROM istifadeciler WHERE ad = '" + ad + "' AND parol_hes = '" + hes + "'";
+// ad = admin' --   →   ... WHERE ad = 'admin' --' AND parol_hes = ...   (parol yoxlanmır)
+// ad = ' OR '1'='1 →   ... WHERE ad = '' OR '1'='1' ...                 (hamı uyğun gəlir)
+// ad = x'; DROP TABLE istifadeciler; --                                 (ikinci əmr — bəzi sürücülərdə)
+
+// TƏHLÜKƏSİZ — parametrli sorğu (prepared statement)
+const row = db.prepare("SELECT id, ad FROM istifadeciler WHERE ad = ?").get(ad);` },
+          { t: "code", lang: "sql", code: `-- Əsas fikir: SQL mətni və məlumat ayrı göndərilir
+-- Sorğu şablonu (əvvəlcədən tərtib olunur):
+SELECT id, ad FROM istifadeciler WHERE ad = ? AND aktiv = ?;
+-- Parametrlər ('admin', 1) ayrıca bağlanır və heç vaxt SQL kimi şərh olunmur.
+
+-- Adlı parametrlər (SQLite): :ad və $ad
+SELECT id, ad FROM istifadeciler WHERE ad = :ad;` },
+          { t: "list", items: [
+            "Prepared statement-də sorğunun strukturu server tərəfindən əvvəlcədən sabitlənir, qiymətlər isə yalnız dəyər kimi bağlanır — injection mümkün olmur.",
+            "Parametr yalnız DƏYƏR yerində işləyir; cədvəl/sütun adı və ORDER BY istiqaməti parametr ola bilməz. Dinamik ad lazımdırsa ağ siyahı ilə seç: const icazeli = {ad:'ad', yas:'yas'}; const sutun = icazeli[istek.sirala] ?? 'id'.",
+            "LIKE üçün: parametrə % simvollarını özün əlavə et — WHERE ad LIKE ? ilə '%' || ? || '%' və ya parametri '%' + deyer + '%' hazırla (və %, _ simvollarını escape et).",
+            "IN (...) üçün: lazımi sayda ? yarat — IN (?, ?, ?) — və dəyərləri massivlə ötür.",
+            "ORM (Prisma, Drizzle, SQLAlchemy, Hibernate) default olaraq parametrləşdirir; amma raw/queryRaw funksiyalarında yenə konkatenasiya etmə.",
+            "Defence in depth: ən az imtiyaz hesabı, giriş validasiyası, xəta mesajlarını gizlətmək, WAF — hamısı əlavə qatdır, əsas müdafiə isə parametrli sorğudur.",
+          ]},
+          { t: "mistake", lang: "js", wrong: `db.run(\`SELECT * FROM mehsullar WHERE ad = '\${ad}'\`);   // template string də konkatenasiyadır`, right: `db.prepare("SELECT id, ad FROM mehsullar WHERE ad = ?").all(ad);`, why: "Template literal səliqəli görünsə də, dəyəri SQL mətninə yapışdırır. Qiyməti ? və ya :ad kimi yer tutucu ilə ayrıca ötür." },
+          { t: "warn", text: "Escape funksiyaları (məsələn dırnağı ikiləşdirmək) və qara siyahılar (OR, DROP sözlərini silmək) etibarlı müdafiə deyil. Kodlaşdırma və kontekst fərqləri bunu aşır. Yalnız parametrli sorğu işlət." },
+          { t: "qa", items: [
+            ["SQL injection nədir və necə qarşısı alınır?", "İstifadəçi girişinin SQL mətninə birləşdirilməsi nəticəsində sorğunun strukturunun dəyişməsi. Parametrli sorğu (prepared statement), ən az imtiyaz hesabı və validasiya ilə qarşısı alınır."],
+            ["Prepared statement niyə təhlükəsizdir?", "Sorğu şablonu və dəyərlər ayrı ötürülür; dəyər heç vaxt SQL kimi parse olunmur, ona görə strukturu dəyişə bilmir."],
+            ["ORDER BY istifadəçi seçimi ilə necə təhlükəsiz edilir?", "Parametr ola bilmədiyi üçün icazəli sütun adlarının ağ siyahısından seçilir, istiqamət isə yalnız ASC və ya DESC olaraq yoxlanır."],
           ]},
         ],
       },
@@ -623,6 +698,34 @@ UPDATE telebeler SET yas = yas + 1 WHERE seher = 'Bakı' RETURNING id, ad, yas;`
             ["DELETE ilə TRUNCATE fərqi?", "DELETE sətir-sətir silir, WHERE qəbul edir, log yazır; TRUNCATE cədvəli tamamilə və tez boşaldır."],
             ["UPSERT nədir?", "Açar toqquşmasında INSERT əvəzinə UPDATE edən atomik əməliyyat."],
           ]},
+          { t: "h", text: "Parolları heşləmə və parametrli INSERT/UPDATE" },
+          { t: "code", lang: "sql", code: `CREATE TABLE istifadeciler (
+  id        INTEGER PRIMARY KEY,
+  email     TEXT NOT NULL UNIQUE,
+  parol_hes TEXT NOT NULL,            -- argon2id / bcrypt çıxışı (duz, parametrlər daxil)
+  yaradildi TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Tətbiq heşi hesablayır, SQL yalnız nəticəni saxlayır (parametrli)
+INSERT INTO istifadeciler (email, parol_hes) VALUES (?, ?);
+
+-- Yoxlama: heşi bazadan götür, tətbiqdə argon2/bcrypt verify ilə müqayisə et
+SELECT id, parol_hes FROM istifadeciler WHERE email = ?;` },
+          { t: "list", items: [
+            "Parolu heç vaxt açıq mətnlə və ya sürətli heşlə (MD5, SHA-1, tək SHA-256) saxlama. Yavaş, duzlu (salted) alqoritmlər istifadə et: argon2id (tövsiyə olunan), bcrypt, scrypt.",
+            "Duz (salt) hər parol üçün unikaldır və müasir kitabxanalar onu heşin içinə yerləşdirir. Hesablama xərci (cost) vaxt keçdikcə artırılır.",
+            "Heşləmə tətbiq tərəfində aparılır, SQL funksiyası ilə deyil; parol verilənlər bazasına heç vaxt açıq mətnlə gəlmir (və loga yazılmır).",
+            "Digər həssas məlumatlar (kart nömrəsi, ŞV) — ya heç saxlama, ya da sütun səviyyəsində şifrələ və açarı bazadan kənarda saxla (KMS).",
+            "UPDATE və DELETE-də həmişə WHERE və hüquq yoxlaması: UPDATE profil SET ad = ? WHERE id = ? AND istifadeci_id = ? — yalnız öz sətrini dəyişsin (IDOR-un qarşısı).",
+            "Mass assignment: istifadəçi JSON-undan SET sütunlarını dinamik qurma; dəyişdirilə bilən sahələri ağ siyahı ilə seç (rol, is_admin kimi sahələr çıxarılsın).",
+          ]},
+          { t: "mistake", lang: "sql", wrong: `INSERT INTO istifadeciler (email, parol_hes) VALUES ('a@b.az', 'sifre123');
+-- və ya MD5('sifre123')`, right: `-- parol_hes = argon2id("sifre123", unikal duz) : $argon2id$v=19$m=65536,t=3,p=4$...
+INSERT INTO istifadeciler (email, parol_hes) VALUES (?, ?);`, why: "Açıq mətn və sürətli heşlər baza sızarsa dərhal bərpa olunur (rainbow cədvəl, GPU brute-force). Yavaş, duzlu parol heşi hücumu minlərlə dəfə bahalaşdırır." },
+          { t: "qa", items: [
+            ["Parolu necə saxlayırsan?", "Açıq mətn yox, argon2id və ya bcrypt kimi yavaş və duzlu heşləmə ilə. Giriş zamanı daxil edilən parol həmin alqoritmlə yoxlanır, heş geri çevrilmir."],
+            ["Şifrələmə (encryption) ilə heşləmə (hashing) fərqi?", "Şifrələmə açarla geri qaytarıla bilir; heşləmə birtərəflidir. Parollar şifrələnmir, heşlənir."],
+          ]},
         ],
       },
       {
@@ -703,6 +806,33 @@ DROP TABLE IF EXISTS kohne_cedvel;` },
           { t: "qa", items: [
             ["VARCHAR və TEXT fərqi?", "VARCHAR(n) uzunluq limiti qoyur; PostgreSQL-də performans eynidir, fərq yalnız qaydadadır."],
             ["Parolları bazada necə saxlamalı?", "Argon2id/bcrypt kimi yavaş, duzlu hash ilə; heç vaxt açıq və ya sürətli hash ilə."],
+          ]},
+          { t: "h", text: "Sxem səviyyəsində müdafiə: məhdudiyyətlər və həssas sütunlar" },
+          { t: "code", lang: "sql", code: `CREATE TABLE istifadeciler (
+  id          INTEGER PRIMARY KEY,
+  email       TEXT NOT NULL UNIQUE CHECK (email LIKE '%_@_%._%'),
+  parol_hes   TEXT NOT NULL,
+  rol         TEXT NOT NULL DEFAULT 'istifadeci' CHECK (rol IN ('istifadeci', 'muellim', 'admin')),
+  aktiv       INTEGER NOT NULL DEFAULT 1 CHECK (aktiv IN (0, 1)),
+  yaradildi   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Həssas məlumatı ayrı cədvəldə saxla
+CREATE TABLE istifadeci_gizli (
+  istifadeci_id INTEGER PRIMARY KEY REFERENCES istifadeciler(id) ON DELETE CASCADE,
+  telefon       TEXT,
+  reset_token_hes TEXT,
+  reset_bitir   TEXT
+);` },
+          { t: "list", items: [
+            "NOT NULL, UNIQUE, CHECK, FOREIGN KEY — bazanın özü səhv və qəsdən yanlış məlumatın qarşısını alan son sığortadır (tətbiq xətası olsa belə).",
+            "Rol kimi dəyərləri CHECK/enum ilə məhdudlaşdır; default ən aşağı hüquqlu rol olsun (ən az imtiyaz).",
+            "Reset token-i də parol kimi heşlə saxla və qısa müddətlə məhdudlaşdır (bitmə vaxtı).",
+            "Həssas sütunları ayrı cədvələ çıxarmaq hüquq və view ilə çıxışı idarə etməyi asanlaşdırır.",
+            "SQLite-da FOREIGN KEY yoxlaması üçün hər bağlantıda PRAGMA foreign_keys = ON lazımdır.",
+          ]},
+          { t: "qa", items: [
+            ["CHECK məhdudiyyəti təhlükəsizliyə necə kömək edir?", "Tətbiq səhv etsə belə, bazaya yanlış dəyər (icazəsiz rol, mənfi miqdar) yazmağa imkan vermir; dərin müdafiə qatıdır."],
           ]},
         ],
       },
@@ -1035,6 +1165,38 @@ CREATE TABLE isciler (
             ["Denormallaşdırma nə vaxt əsaslıdır?", "Ölçülmüş oxuma problemi olanda və sinxronluğu təmin edən mexanizm olanda (trigger, materialized view, tranzaksiya)."],
             ["Sifariş sətrində qiyməti saxlamaq təkrardırmı?", "Xeyr. O, satış anındakı qiymətdir — məhsulun cari qiymətindən fərqli faktdır."],
           ]},
+          { t: "h", text: "Audit və izlənmə" },
+          { t: "p", text: "Təhlükəsizlik yalnız qarşısını almaq deyil, baş verənləri aşkarlamaq və araşdırmaqdır. Kritik cədvəllərdə kim, nə vaxt, nəyi dəyişdi qeydə alınmalıdır." },
+          { t: "code", lang: "sql", code: `CREATE TABLE audit_log (
+  id         INTEGER PRIMARY KEY,
+  vaxt       TEXT NOT NULL DEFAULT (datetime('now')),
+  istifadeci TEXT,               -- tətbiq səviyyəsində kimdir
+  cedvel     TEXT NOT NULL,
+  emeliyyat  TEXT NOT NULL CHECK (emeliyyat IN ('INSERT', 'UPDATE', 'DELETE')),
+  setir_id   INTEGER,
+  kohne      TEXT,               -- JSON
+  yeni       TEXT                -- JSON
+);
+
+-- SQLite trigger nümunəsi: rol dəyişəndə qeyd et
+CREATE TRIGGER trg_rol_audit
+AFTER UPDATE OF rol ON istifadeciler
+BEGIN
+  INSERT INTO audit_log (cedvel, emeliyyat, setir_id, kohne, yeni)
+  VALUES ('istifadeciler', 'UPDATE', NEW.id,
+          json_object('rol', OLD.rol), json_object('rol', NEW.rol));
+END;` },
+          { t: "list", items: [
+            "Audit cədvəli yalnız INSERT ilə yazılmalıdır: tətbiq hesabına UPDATE/DELETE hüququ vermə (dəyişməz iz).",
+            "Mümkün olduqda audit məlumatını ayrı sistemə (log anbarı) göndər ki, hücumçu öz izlərini silə bilməsin.",
+            "Həssas dəyərləri (parol heşi, token) audit-ə yazma; yalnız dəyişdiyini qeyd et.",
+            "«Soft delete» (silinib işarəsi) məlumatı saxlayır, amma şəxsi məlumat qanunları (məsələn GDPR) üçün həqiqi silmə və saxlanma müddəti siyasəti də lazımdır.",
+            "Normallaşdırma həssas məlumatı bir yerdə saxlamağa kömək edir: şəxsi sahələr bir cədvəldədirsə, onların qorunması, şifrələnməsi və silinməsi asan olur.",
+          ]},
+          { t: "qa", items: [
+            ["Audit log-un məqsədi nədir?", "Kim, nə vaxt, nəyi dəyişdi — incident araşdırması, uyğunluq (compliance) və sui-istifadənin aşkarlanması üçün dəyişməz iz saxlamaq."],
+            ["Audit cədvəlinə yazma hüququ necə məhdudlaşdırılır?", "Tətbiq hesabına yalnız INSERT verilir; UPDATE və DELETE verilmir və ya trigger ilə bloklanır."],
+          ]},
         ],
       },
       {
@@ -1248,6 +1410,42 @@ COMMIT;` },
             ["Optimist və pessimist kilid fərqi?", "Pessimist sətri əvvəlcədən kilidləyir (toqquşma çoxdursa); optimist kilidsiz işləyir və yazanda versiyanı yoxlayır (toqquşma nadirdirsə)."],
             ["Deadlock-un qarşısı necə alınır?", "Resursları sabit sırada kilidləmək, qısa tranzaksiyalar, xətada yenidən cəhd."],
             ["Lost update necə baş verir?", "İki tranzaksiya eyni dəyəri oxuyur, hərəsi öz hesablamasını yazır — sonuncu əvvəlkini əzir."],
+          ]},
+          { t: "h", text: "Race condition-lar və atomiklik" },
+          { t: "p", text: "Yarış vəziyyəti iki sorğu eyni vaxtda eyni məlumata toxunduqda baş verir. Klassik nümunə: balansı oxu, tətbiqdə yoxla, sonra yenilə — iki paralel sorğu eyni balansı oxuyub hər ikisi çıxarış edə bilər (double-spend). Bu həm səhv, həm də istismar oluna bilən təhlükəsizlik problemidir (kupon, bonus, stok, pul köçürməsi)." },
+          { t: "code", lang: "sql", code: `-- TƏHLÜKƏLİ: oxu → qərar → yaz (aralıqda başqa sorğu girə bilər)
+SELECT balans FROM hesablar WHERE id = 1;       -- 100
+-- tətbiq: 100 >= 80, deməli olar
+UPDATE hesablar SET balans = 20 WHERE id = 1;   -- 2-ci sorğu da 100 oxuyub idi
+
+-- DÜZGÜN 1: şərt UPDATE-in özündə (atomik)
+UPDATE hesablar SET balans = balans - 80
+WHERE id = 1 AND balans >= 80;
+-- təsirlənən sətir sayı 0 olarsa → balans kifayət etmir
+
+-- DÜZGÜN 2: tranzaksiya + CHECK məhdudiyyəti
+-- CREATE TABLE hesablar (..., balans INTEGER NOT NULL CHECK (balans >= 0));
+BEGIN IMMEDIATE;     -- SQLite: yazma kilidi dərhal alınır
+UPDATE hesablar SET balans = balans - 80 WHERE id = 1;
+UPDATE hesablar SET balans = balans + 80 WHERE id = 2;
+COMMIT;
+
+-- Kupon: yalnız bir dəfə istifadə
+UPDATE kuponlar SET istifade_olundu = 1 WHERE kod = ? AND istifade_olundu = 0;` },
+          { t: "list", items: [
+            "Qərarı verilənlər bazasında ver: şərtli UPDATE ... WHERE şərt, UNIQUE məhdudiyyəti, CHECK məhdudiyyəti. Tətbiqdə «yoxla, sonra yaz» (check-then-act) yarış üçün açıqdır.",
+            "UNIQUE indeksi dublikat əməliyyatları da (eyni sifarişin iki dəfə göndərilməsi, idempotency key) qoruyur.",
+            "PostgreSQL/MySQL-də: SELECT ... FOR UPDATE sətri kilidləyir; izolyasiya səviyyəsi (READ COMMITTED, REPEATABLE READ, SERIALIZABLE) hansı anomaliyaların mümkün olduğunu təyin edir. SERIALIZABLE-da tətbiq serializasiya xətasında əməliyyatı yenidən cəhd etməlidir.",
+            "Tranzaksiyaları qısa saxla; daxilində xarici HTTP çağırışı və ya istifadəçi gözləməsi olmasın (kilid uzun qalır, deadlock riski artır).",
+            "Deadlock: iki tranzaksiya sətirləri fərqli ardıcıllıqla kilidlədikdə — həmişə eyni ardıcıllıqla kilidlə və xətanı tutub yenidən cəhd et.",
+          ]},
+          { t: "mistake", lang: "sql", wrong: `SELECT stok FROM mehsullar WHERE id = 7;      -- 1
+-- tətbiq: stok > 0 → OK
+UPDATE mehsullar SET stok = stok - 1 WHERE id = 7;`, right: `UPDATE mehsullar SET stok = stok - 1 WHERE id = 7 AND stok > 0;
+-- təsirlənən sətir = 0 → stok bitib`, why: "Oxuma və yazma arasında başqa sorğu girə bilər və stok mənfiyə düşər (oversell). Şərti dəyişiklik bir atomik əməliyyatdır." },
+          { t: "qa", items: [
+            ["Race condition-un verilənlər bazasında qarşısı necə alınır?", "Atomik şərtli UPDATE, UNIQUE/CHECK məhdudiyyətləri, tranzaksiya və lazım olduqda SELECT FOR UPDATE ya da yüksək izolyasiya səviyyəsi ilə."],
+            ["Double-spend problemi nədir?", "Eyni balansdan paralel sorğularla iki dəfə çıxarış etmək; oxu-yoxla-yaz ardıcıllığı atomik olmadıqda baş verir."],
           ]},
         ],
       },

@@ -67,6 +67,7 @@ const ready = (async () => {
 })();
 self.onmessage = async (e) => {
   try { await ready; } catch (err) { postMessage({ kind: "error", text: "Python yüklənmədi: " + err }); postMessage({ done: true }); return; }
+  postMessage({ started: true }); // mühərrik hazırdır: icra limiti indi başlayır
   py.setStdout({ batched: (t) => postMessage({ kind: "log", text: t }) });
   py.setStderr({ batched: (t) => postMessage({ kind: "error", text: t }) });
   try { await py.runPythonAsync(e.data); }
@@ -83,12 +84,16 @@ function runPython(code: string, onStatus?: (s: string) => void): Promise<OutLin
   const w = pyWorker;
   return new Promise((resolve) => {
     const lines: OutLine[] = [];
-    const hard = setTimeout(() => {
+    let hard: ReturnType<typeof setTimeout>;
+    const stop = (text: string) => {
       w.terminate(); pyWorker = null; // donmuş worker-i at, növbəti dəfə yenisi
-      resolve([...lines, { kind: "error", text: "⏱ Vaxt bitdi (20 s). Sonsuz dövr ola bilər?" }]);
-    }, 20000);
+      resolve([...lines, { kind: "error", text }]);
+    };
+    // Yükləmə limiti (yavaş şəbəkə üçün uzun); kodun icra limiti yalnız mühərrik hazır olandan sonra başlayır
+    hard = setTimeout(() => stop("Python yüklənmədi (şəbəkə çox yavaşdır). Yenidən cəhd et."), 120000);
     w.onmessage = (e) => {
-      if (e.data.done) { clearTimeout(hard); resolve(lines); }
+      if (e.data.started) { clearTimeout(hard); hard = setTimeout(() => stop("⏱ Vaxt bitdi (20 s). Sonsuz dövr ola bilər?"), 20000); }
+      else if (e.data.done) { clearTimeout(hard); resolve(lines); }
       else lines.push(e.data);
     };
     w.postMessage(code);

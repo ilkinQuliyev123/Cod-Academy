@@ -60,6 +60,29 @@ export class MehsullarController {
             ["singleton", "default olaraq tətbiq boyu yalnız bir nüsxə yaranır."],
           ]},
           { t: "tip", text: "Qayda sadədir: controller nazik, servis qalın. Controller-də if/else yığınları görürsənsə, onu servisə köçür." },
+          { t: "h", text: "Servis başqa servisdən istifadə edir və log yazır" },
+          { t: "p", text: "Servislər bir-birindən asılı ola bilər: SifarislerService məhsulu MehsullarService-dən alır. Hər servis öz məsuliyyətinə sadiq qalır. Nest-in daxili Logger sinfi ilə servis öz adı altında log yaza bilər — console.log əvəzinə onu işlət, çünki Logger səviyyələri (log, warn, error) və formatı tənzimlənir." },
+          { t: "code", lang: "typescript", code: `import { Injectable, Logger } from '@nestjs/common';
+
+@Injectable()
+export class SifarislerService {
+  private readonly logger = new Logger(SifarislerService.name);
+
+  constructor(private readonly mehsullar: MehsullarService) {}
+
+  yarat(mehsulId: number, say: number) {
+    const mehsul = this.mehsullar.tap(mehsulId);            // başqa servisi çağırır
+    const cem = mehsul.qiymet * say;
+    this.logger.log('Sifariş yaradıldı: ' + mehsul.ad + ' x' + say);
+    return { mehsul: mehsul.ad, say, cem };
+  }
+}` },
+          { t: "list", items: [
+            "Servis HTTP-ni bilmir: req, res və status kodları controller-in işidir. Servis yalnız məlumat qaytarır və ya istisna atır.",
+            "Hər servis bir məsuliyyət daşıyır: sifariş məntiqi, email göndərmə, ödəniş ayrı servislərdir.",
+            "Servisin metodları kiçik və adı aydın olsun: yarat, tap, yenile, sil — fəaliyyət adı + obyekt.",
+          ]},
+          { t: "tip", text: "Servis yazarkən özündən soruş: «Bunu controller olmadan, sadəcə TypeScript funksiyası kimi çağıra bilərəmmi?» Əgər bəli — düzgün yerdədir." },
         ],
       },
       {
@@ -128,6 +151,69 @@ export class SayacService {
   controllers: [XController],
   providers: [XService],
 })`, why: "Servis providers-ə yazılmayıbsa: «Nest can't resolve dependencies of the XController». @Injectable() tək kifayət deyil — modul da servisi tanımalıdır." },
+          { t: "h", text: "Scope-lar: DEFAULT, REQUEST, TRANSIENT" },
+          { t: "code", lang: "typescript", code: `import { Inject, Injectable, Scope } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
+import type { Request } from 'express';
+
+// Singleton (default): tətbiq boyu bir nüsxə
+@Injectable()
+export class KonfiqService {}
+
+// Hər sorğu üçün yeni nüsxə: sorğunun özünü yeridə bilər
+@Injectable({ scope: Scope.REQUEST })
+export class SorguKontekstiService {
+  constructor(@Inject(REQUEST) private readonly req: Request) {}
+
+  dil(): string {
+    return this.req.headers['accept-language']?.toString() ?? 'az';
+  }
+}
+
+// Hər yeridən yerdə ayrıca nüsxə (məsələn, hər sinifin öz logger-i)
+@Injectable({ scope: Scope.TRANSIENT })
+export class ReqemLogger {
+  private oncul = '';
+  setOncul(s: string) { this.oncul = s; }
+}` },
+          { t: "h", text: "Asinxron fabrik və ixtiyari asılılıq" },
+          { t: "code", lang: "typescript", code: `export const KESH = Symbol('KESH');
+
+@Module({
+  providers: [
+    {
+      provide: KESH,
+      // { token, optional: true } — asılılıq yoxdursa undefined ötürülür, xəta atılmır
+      inject: [ConfigService, { token: METRIKA, optional: true }],
+      useFactory: async (konfiq: ConfigService, metrika?: MetrikaServisi) => {
+        const kesh = new RedisKesh(konfiq.getOrThrow<string>('REDIS_URL'));
+        await kesh.qosul();
+        metrika?.say('kesh.qosuldu');
+        return kesh;
+      },
+    },
+  ],
+  exports: [KESH],
+})
+export class KeshModule {}` },
+          { t: "mistake", lang: "typescript", wrong: `// @Injectable() unudulub
+export class XService {
+  constructor(private readonly y: YService) {}
+}`, right: `@Injectable()
+export class XService {
+  constructor(private readonly y: YService) {}
+}`, why: "Sinifdə heç bir dekorator olmasa TypeScript konstruktor tiplərinin metadatasını yazmır və Nest-in nəyi yeridəcəyini bilməsi mümkün olmur: «can't resolve dependencies» xətası. @Injectable() metadatanın yazılmasını tətikləyir." },
+          { t: "mistake", lang: "typescript", wrong: `@Injectable()
+export class SifarislerService {
+  private readonly poct = new PoctServisi(process.env.SMTP_URL);   // özün yaradırsan
+}`, right: `@Injectable()
+export class SifarislerService {
+  constructor(private readonly poct: PoctServisi) {}               // konteyner verir
+}`, why: "Provider-in içində başqa provider-i new ilə yaratmaq konteynerdən yan keçmək deməkdir: onun asılılıqları, ömür dövrü (bağlantını bağlamaq) və testdə əvəz edilməsi idarə olunmur." },
+          { t: "qa", items: [
+            ["@Injectable() olmayan sinfi provider kimi qeydiyyat etsək nə olar?", "Asılılığı olmayan sinif işləyə bilər, amma asılılığı varsa TypeScript tip metadatasını yazmır və Nest parametrləri həll edə bilmir. Həmişə @Injectable() işlət."],
+            ["Singleton ilə request scope fərqi?", "Singleton — tətbiq boyu bir nüsxə, sorğular paylaşır; request scope — hər sorğu üçün yeni nüsxə, sorğu kontekstini (REQUEST) yeridə bilir, amma bahalıdır."],
+          ]},
         ],
       },
       {
@@ -177,12 +263,64 @@ export class PostgresBagla implements OnApplicationShutdown {
 const app = await NestFactory.create(AppModule);
 app.enableShutdownHooks();                 // SIGTERM/SIGINT-də yuxarıdakı qarmaq işləyir
 await app.listen(3000);` },
+          { t: "h", text: "Lifecycle qarmaqlarının dəqiq sırası" },
+          { t: "p", text: "Qalxış: modulların asılılıqları həll olunur → onModuleInit (hər modulun provider-ləri üçün) → onApplicationBootstrap → app.listen (şəbəkəni açır). Söndürülmə siqnalı gələndə: onModuleDestroy → beforeApplicationShutdown → (server bağlantıları qəbul etməyi dayandırır) → onApplicationShutdown. Qarmaq async ola bilər — Nest Promise-in həllini gözləyir." },
+          { t: "code", lang: "typescript", caption: "Bütün qarmaqlar bir yerdə", code: `@Injectable()
+export class BagliqServisi
+  implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy, BeforeApplicationShutdown, OnApplicationShutdown
+{
+  private readonly log = new Logger(BagliqServisi.name);
+
+  async onModuleInit() {
+    this.log.log('1) onModuleInit: asılılıqlar hazırdır, bağlantı aç');
+  }
+  async onApplicationBootstrap() {
+    this.log.log('2) onApplicationBootstrap: bütün modullar qalxıb, işçiləri başlat');
+  }
+  async onModuleDestroy() {
+    this.log.log('3) onModuleDestroy: yeni iş qəbul etməyi dayandır');
+  }
+  async beforeApplicationShutdown(siqnal?: string) {
+    this.log.log('4) beforeApplicationShutdown: ' + siqnal + ' — cari işləri bitir');
+  }
+  async onApplicationShutdown(siqnal?: string) {
+    this.log.log('5) onApplicationShutdown: bağlantıları bağla');
+  }
+}` },
+          { t: "h", text: "ModuleRef ilə sorğu kontekstində scope-lu provider" },
+          { t: "code", lang: "typescript", code: `import { ContextIdFactory, ModuleRef } from '@nestjs/core';
+
+@Injectable()
+export class ImportServisi {
+  constructor(private readonly moduleRef: ModuleRef) {}
+
+  async isle(tenantId: string) {
+    // Hər iş üçün ayrı kontekst id: request-scoped provider-in bir nüsxəsi bu iş üçün yaranır
+    const kontekstId = ContextIdFactory.create();
+    this.moduleRef.registerRequestByContextId({ tenantId }, kontekstId);
+
+    const servis = await this.moduleRef.resolve(TenantServisi, kontekstId);
+    return servis.hesabat();
+  }
+}` },
+          { t: "list", items: [
+            "moduleRef.get(X) singleton provider-i sinxron verir; request/transient scope-lu üçün moduleRef.resolve(X) (Promise qaytarır) lazımdır — get() onlar üçün xəta atır.",
+            "Request scope ağacı: asılılıq zənciri uzundursa, hər sorğuda onlarla obyekt yaranır. Ölçü: sorğu başına gecikmə və GC yükü. Əksər hallarda AsyncLocalStorage ilə singleton servis daha sürətlidir.",
+            "Durable provider-lər (@Injectable({ scope: Scope.REQUEST, durable: true }) + ContextIdStrategy): multi-tenant sistemdə hər sorğu üçün yox, hər tenant üçün bir nüsxə yaradıb paylaşmaq mümkündür. Bu, request scope-un bahasını kəskin azaldır.",
+            "Asinxron provider-in xətası: useFactory qalxışda xəta atarsa, tətbiq qalxmır. Bu çox vaxt yaxşıdır (fail fast): baza əlçatmazdırsa, tətbiq «sağlam» görünüb səssiz çökməsin.",
+            "Provider-lərin sayı: yüzlərlə provider normaldır, qalxış vaxtı onların asinxron init işlərindən (bağlantılar) asılıdır. Uzun init-ləri paralel yox, lazım olanda yüklə; qalxış metrikini ölç.",
+            "Test: singleton servisi vahid testdə new X(mock1, mock2) ilə birbaşa yaratmaq ən sürətlisidir — Nest konteyneri lazım deyil. Konteynerlə test yalnız DI konfiqurasiyasını yoxlamaq lazım olanda.",
+          ]},
           { t: "qa", items: [
             ["Provider nədir?", "Nest DI konteynerinin yaradıb idarə etdiyi və başqa siniflərə yeritdiyi sinif və ya dəyər."],
             ["useClass, useValue, useFactory fərqi?", "useClass — sinif nüsxəsi; useValue — hazır dəyər; useFactory — asılılıqlardan hesablanan (async ola bilən) dəyər."],
             ["Provider-lər niyə default singleton-dur?", "Performans və ortaq resurs (bağlantı hovuzu) üçün. Buna görə sorğuya xas vəziyyət sahədə saxlanmamalıdır."],
             ["Request scope-un bahası nədir?", "Hər sorğuda yeni nüsxə yaranır və scope yuxarı zəncirlə yayılır — gecikmə və yaddaş artır."],
             ["Tətbiq söndürülərkən bağlantılar necə təmiz bağlanır?", "enableShutdownHooks() + OnApplicationShutdown/OnModuleDestroy qarmaqları."],
+            ["Lifecycle qarmaqları hansı sıra ilə işləyir?", "onModuleInit → onApplicationBootstrap; söndürmədə onModuleDestroy → beforeApplicationShutdown → onApplicationShutdown (shutdown hooks aktiv olmalıdır)."],
+            ["moduleRef.get və resolve fərqi?", "get singleton provider-i sinxron verir; scope-lu (request/transient) provider üçün resolve (Promise) lazımdır."],
+            ["Multi-tenant tətbiqdə request scope-un alternativi?", "AsyncLocalStorage (nestjs-cls) ilə singleton servislər və ya durable provider-lər (tenant başına nüsxə)."],
+            ["Provider useFactory xəta atarsa nə olur?", "Qalxış uğursuz olur, tətbiq başlamır. Bu, fail-fast davranışıdır və çox vaxt istənilən haldır."],
           ]},
         ],
       },
@@ -234,6 +372,28 @@ const servis = new SifarislerService({ gonder: jest.fn() } as any);` },
             ["token", "provider-i tapmaq üçün açar (sinif, sətir, Symbol)."],
           ]},
           { t: "tip", text: "private readonly parametr qısa yazılışdır: TypeScript həm sahə yaradır, həm də ona dəyər mənimsədir. Nest konstruktor parametrlərinin tipinə baxaraq nəyi yeridəcəyini bilir." },
+          { t: "h", text: "DI-ni Nest olmadan əl ilə görək" },
+          { t: "p", text: "DI mürəkkəb texnologiya deyil — sadəcə «lazım olanı özün yaratma, kənardan al» prinsipidir. Nest-in konteyneri əl ilə yazacağın bu işi avtomatlaşdırır: kim kimdən asılıdır, hansı sıra ilə yaradılmalıdır, hansı nüsxə paylaşılmalıdır." },
+          { t: "code", lang: "typescript", caption: "Əl ilə DI (Nest-siz)", code: `class PoctServisi {
+  gonder(kime: string, metn: string) { console.log('Poçt →', kime, metn); }
+}
+
+class SifarisServisi {
+  constructor(private readonly poct: PoctServisi) {}
+  yarat(email: string) { this.poct.gonder(email, 'Sifariş qəbul edildi'); }
+}
+
+// «Kompozisiya kökü»: obyektləri bir yerdə düzürük
+const poct = new PoctServisi();
+const sifaris = new SifarisServisi(poct);        // asılılığı kənardan veririk
+sifaris.yarat('aysel@example.az');
+
+// Nest-də bu işi konteyner görür: providers siyahısına yazırsan, o özü bağlayır.` },
+          { t: "list", items: [
+            "Asılılıq sayı artdıqca əl ilə bağlamaq çətinləşir: A B-yə, B C-yə, C D-yə lazımdır. Konteyner bu zənciri özü həll edir.",
+            "Eyni nüsxə paylaşılır: PoctServisi bir dəfə yaradılır və ona ehtiyacı olan hamıya verilir (singleton).",
+            "Əvəzetmə asandır: test üçün saxta poçt, production üçün real poçt — yalnız qeydiyyat dəyişir.",
+          ]},
         ],
       },
       {
@@ -286,6 +446,83 @@ export class SifarislerModule {}`, why: "Servisi iki modulda providers-ə yazand
 constructor(private readonly g: Gonderici) {}    // icra zamanı interfeys yoxdur`, right: `export const GONDERICI = Symbol('GONDERICI');
 
 constructor(@Inject(GONDERICI) private readonly g: Gonderici) {}`, why: "Interfeys kompilyasiyadan sonra silinir, Nest onu token kimi tapa bilmir. Abstrakt sinif və ya Symbol + @Inject işlət." },
+          { t: "h", text: "Strategiya nümunəsi: çoxlu realizasiya, bir token" },
+          { t: "code", lang: "typescript", code: `export const ODENIS_USULLARI = Symbol('ODENIS_USULLARI');
+
+export interface OdenisUsulu {
+  readonly ad: string;
+  ode(mebleg: number): Promise<void>;
+}
+
+@Injectable() export class KartOdenis implements OdenisUsulu { readonly ad = 'kart'; async ode(m: number) { /* ... */ } }
+@Injectable() export class NagdOdenis implements OdenisUsulu { readonly ad = 'nagd'; async ode(m: number) { /* ... */ } }
+
+@Module({
+  providers: [
+    KartOdenis,
+    NagdOdenis,
+    {
+      provide: ODENIS_USULLARI,
+      inject: [KartOdenis, NagdOdenis],
+      useFactory: (...usullar: OdenisUsulu[]) => usullar,
+    },
+  ],
+})
+export class OdenisModule {}
+
+@Injectable()
+export class OdenisServisi {
+  private readonly xerite: Map<string, OdenisUsulu>;
+
+  constructor(@Inject(ODENIS_USULLARI) usullar: OdenisUsulu[]) {
+    this.xerite = new Map(usullar.map((u) => [u.ad, u]));
+  }
+
+  ode(usul: string, mebleg: number) {
+    const secilen = this.xerite.get(usul);
+    if (!secilen) throw new BadRequestException('Bilinməyən ödəniş üsulu');
+    return secilen.ode(mebleg);                 // yeni üsul əlavə etmək = yeni sinif + qeydiyyat
+  }
+}` },
+          { t: "h", text: "Tipli konfiqurasiya yeridilməsi" },
+          { t: "code", lang: "typescript", code: `// config/database.config.ts
+import { registerAs } from '@nestjs/config';
+
+export default registerAs('database', () => ({
+  url: process.env.DATABASE_URL,
+  hovuzOlcusu: Number(process.env.DB_POOL ?? 10),
+}));
+
+// ConfigModule.forRoot({ load: [databaseConfig] })
+
+// Servisdə: açar sətri yazmadan, tam tiplə
+@Injectable()
+export class BazaServisi {
+  constructor(
+    @Inject(databaseConfig.KEY) private readonly konfiq: ConfigType<typeof databaseConfig>,
+  ) {}
+
+  hovuz() {
+    return this.konfiq.hovuzOlcusu;              // number, avtomatik tamamlama ilə
+  }
+}` },
+          { t: "mistake", lang: "typescript", wrong: `{
+  provide: 'REDIS',
+  useFactory: (konfiq: ConfigService) => createClient({ url: konfiq.get('REDIS_URL') }),
+  // inject göstərilməyib → konfiq = undefined
+}`, right: `{
+  provide: 'REDIS',
+  inject: [ConfigService],
+  useFactory: (konfiq: ConfigService) => createClient({ url: konfiq.getOrThrow('REDIS_URL') }),
+}`, why: "useFactory parametrlərini Nest özü tanımır: inject massivində hansı provider-lərin hansı sıra ilə ötürüləcəyini açıq yazmalısan. Yoxsa parametrlər undefined gəlir." },
+          { t: "mistake", lang: "typescript", wrong: `// a.service.ts
+constructor(private readonly b: BService) {}
+// b.service.ts
+constructor(private readonly a: AService) {}      // dairə → qalxışda xəta`, right: `// ortaq məntiq üçüncü servisə
+@Injectable() export class OrtaqService { /* A və B-nin ortaq işi */ }
+
+// a.service.ts: constructor(private readonly ortaq: OrtaqService) {}
+// b.service.ts: constructor(private readonly ortaq: OrtaqService) {}`, why: "İki sinif bir-birini konstruktorda tələb edəndə heç biri ilk yaradıla bilmir. forwardRef + @Inject(forwardRef(() => X)) onu keçici işlədir, amma dizayn problemini həll etmir." },
         ],
       },
       {
@@ -328,12 +565,63 @@ constructor(@Inject(GONDERICI) private readonly g: Gonderici) {}`, why: "Interfe
     expect(poct.gonder).toHaveBeenCalledTimes(1);
   });
 });` },
+          { t: "h", text: "Konteyner asılılığı addım-addım necə həll edir" },
+          { t: "list", items: [
+            "1) Skan: modul qrafı gəzilir, providers siyahıları token → provider xəritəsinə yazılır (token adətən sinfin özüdür).",
+            "2) Parametrlərin oxunması: hər provider üçün konstruktor tipləri 'design:paramtypes' metadatasından, açıq @Inject(token) göstərişləri isə 'self:paramtypes' metadatasından oxunur. @Inject olan parametr tipi üstələyir.",
+            "3) Axtarış: token əvvəl cari modulun provider-lərində, sonra imports-dakı modulların exports-unda, sonra qlobal modullarda axtarılır. Tapılmasa «can't resolve dependencies» xətası.",
+            "4) Yaratma: asılılıqlar əvvəl yaradılır (dərinlik üzrə), sonra provider özü; hazır nüsxə modulun xəritəsində singleton kimi saxlanır. Async fabriklər gözlənilir.",
+            "5) Request/transient scope-lu provider-lərin nüsxəsi qalxışda deyil, uyğun kontekstdə yaranır; onlardan asılı olan provider-lər də həmin scope-a «keçir».",
+          ]},
+          { t: "p", text: "Fayl səviyyəsində dairəvi idxal (a.ts b.ts-i idxal edir, b.ts a.ts-i) fərqli problemdir: dekorator metadatası hesablananda sinfin dəyəri hələ undefined ola bilər və Nest xətada 'argument at index [0] is undefined' deyir. Bu halda @Inject(forwardRef(() => Sinif)) tipin həllini gecikdirir. Amma ən yaxşı yol idxal dövrəsini qırmaqdır." },
+          { t: "code", lang: "typescript", caption: "Hadisə ilə ayırmaq: A B-ni tanımır", code: `// npm i @nestjs/event-emitter
+// app.module.ts: imports: [EventEmitterModule.forRoot()]
+
+@Injectable()
+export class SifarislerService {
+  constructor(private readonly hadiseler: EventEmitter2) {}
+
+  async yarat(dto: CreateSifarisDto, istifadeciId: number) {
+    const sifaris = await this.repo.save({ ...dto, istifadeciId });
+    this.hadiseler.emit('sifaris.yaradildi', { sifarisId: sifaris.id, istifadeciId });
+    return sifaris;                              // bildiriş, anbar və s. haqqında heç nə bilmir
+  }
+}
+
+@Injectable()
+export class BildirisDinleyicisi {
+  @OnEvent('sifaris.yaradildi')
+  async isle(payload: { sifarisId: number; istifadeciId: number }) {
+    // email göndər; SifarislerService-i idxal etməyə ehtiyac yoxdur
+  }
+}` },
+          { t: "code", lang: "typescript", caption: "Fabrik, async provider və overrideProvider ilə e2e test", code: `const modul = await Test.createTestingModule({ imports: [AppModule] })
+  .overrideProvider(OdenisServisi)
+  .useValue({ ode: jest.fn().mockResolvedValue({ ugurlu: true }) })
+  .overrideGuard(JwtAuthGuard)
+  .useValue({ canActivate: (ctx: ExecutionContext) => {
+    ctx.switchToHttp().getRequest().user = { id: 1, rollar: ['istifadeci'] };
+    return true;
+  } })
+  .compile();
+
+const app = modul.createNestApplication();
+await app.init();` },
+          { t: "list", items: [
+            "Metadata ilə plugin sistemi: öz dekoratorunu (SetMetadata və ya Reflector.createDecorator) yaz, DiscoveryService.getProviders() ilə bütün provider-ləri gəz və metadata olanları avtomatik qeydiyyat et — işləyici/strategiya siyahısını əl ilə saxlamaq lazım qalmır.",
+            "Servis lokatoru anti-pattern-i: hər yerdə moduleRef.get(...) çağırmaq asılılığı gizlədir və konstruktoru yalan edir. Yalnız dinamik seçim (runtime-da hansı strategiyanı götürəcəyini bilirsən) üçün işlət.",
+            "Mock-lardan çox istifadə: hər şeyi saxta ilə əvəz edəndə test yalnız mock-u yoxlayır. Servis məntiqi üçün vahid test, DI və HTTP konfiqurasiyası üçün az sayda inteqrasiya/e2e test qarışığı daha etibarlıdır.",
+          ]},
           { t: "qa", items: [
             ["DI nə verir?", "Zəif bağlılıq, asan test (mock yeridilir), asılılığın mərkəzləşmiş idarəsi və ömür dövrü nəzarəti."],
             ["Nest asılılığı necə tanıyır?", "Konstruktor parametrlərinin tip metadatasından (emitDecoratorMetadata) və ya @Inject tokenindən."],
             ["Interfeysi niyə birbaşa yeridə bilmirik?", "İcra zamanı interfeys yoxdur; abstrakt sinif və ya Symbol token işlədilir."],
             ["Dairəvi asılılıq necə həll olunur?", "forwardRef müvəqqətidir; düzgün yol — ortaq məntiqi ayırmaq və ya hadisə ilə ayırmaq."],
             ["Testdə provider-i necə əvəz edirsən?", "createTestingModule-da { provide, useValue } və ya overrideProvider."],
+            ["Konstruktor yeridilməsi ilə property yeridilməsi fərqi?", "Konstruktor — asılılıqlar açıq və məcburidir, obyekt natamam yaranmır. Property (@Inject sahəyə) — gizli asılılıq yaradır; yalnız miras zəncirində konstruktoru dəyişmək çətin olanda işlədilir."],
+            ["@Inject() hansı hallarda mütləqdir?", "Token sinif olmayanda: sətir, Symbol, interfeys əvəzi tokeni; həmçinin forwardRef və custom provider-lər."],
+            ["Fayl idxalı dövrəsi ilə modul asılılığı dövrəsi fərqi?", "Fayl dövrəsi — JS modul yükləməsində dəyərin undefined qalması; modul/provider dövrəsi — DI qrafında. Hər ikisi forwardRef ilə müvəqqəti həll olunur, amma əsl həll dizaynı dəyişməkdir."],
+            ["Strategiya nümunəsini DI ilə necə qurursan?", "Hər realizasiyanı provider kimi qeydiyyat edib massiv tokeni (useFactory + inject) altında topluyuram; seçici servis xəritədən istədiyini götürür."],
           ]},
         ],
       },
@@ -407,6 +695,40 @@ yarat(@Body() dto: CreateIstifadeciDto) {
             ["whitelist", "DTO-da elan olunmayan sahələri silir."],
           ]},
           { t: "tip", text: "DTO üçün interface yox, sinif işlət: interfeys icra zamanı yoxdur, dekoratorlar isə yalnız sinifdə işləyir." },
+          { t: "h", text: "Ən çox işlədilən validatorlar" },
+          { t: "code", lang: "typescript", code: `import { ArrayNotEmpty, IsBoolean, IsDate, IsIn, IsNotEmpty, IsNumber, IsUrl, IsUUID, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class CreateMeqaleDto {
+  @IsNotEmpty({ message: 'Başlıq boş ola bilməz' })
+  @MaxLength(120)
+  basliq: string;
+
+  @IsUrl()
+  menbe: string;
+
+  @IsBoolean()
+  derc: boolean;
+
+  @IsIn(['qaralama', 'yayimda'])
+  status: string;
+
+  @IsUUID()
+  muellifId: string;
+
+  @Type(() => Date)                    // JSON-da tarix sətir gəlir, Date-ə çevir
+  @IsDate()
+  planlasdirilmisTarix: Date;
+
+  @ArrayNotEmpty()
+  etiketler: string[];
+}` },
+          { t: "list", items: [
+            "Hər sahəyə ən azı tip dekoratoru ver (@IsString, @IsInt). Dekoratorsuz sahə whitelist: true olanda tamamilə silinir.",
+            "Ixtiyari sahə üçün @IsOptional() yaz; yoxsa dəyər olmadıqda digər validatorlar xəta verir.",
+            "Xəta mesajlarını dekoratorun message parametri ilə özün yaza bilərsən.",
+          ]},
+          { t: "tip", text: "strict rejimdə TypeScript DTO sahələrinin başlanğıc dəyəri olmadığına görə şikayət edə bilər. İki həll var: sahəyə ! qoy (ad!: string) və ya tsconfig-də strictPropertyInitialization-ı DTO-lar üçün söndür. Nest şablonu bunu söndürülmüş saxlayır." },
         ],
       },
       {
@@ -464,6 +786,59 @@ siyahi(@Query() sorgu: SehifelemeDto) { ... }` },
 yarat(@Body() dto: CreateIstifadeciDto) {
   return this.repo.save(dto);          // gövdədə rol: 'admin' də gəlsə?
 }`, right: `app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));`, why: "whitelist olmasa DTO-da olmayan sahələr də obyektdə qalır; repo.save onları bazaya yazar. «rol: admin» göndərən hücumçu özünü admin edə bilər (mass assignment)." },
+          { t: "h", text: "@Transform, @ValidateIf və öz dekoratorun" },
+          { t: "code", lang: "typescript", code: `import { Transform } from 'class-transformer';
+import { IsEmail, IsOptional, IsString, ValidateIf, registerDecorator, ValidationOptions } from 'class-validator';
+
+// Öz dekoratorun
+export function IsAzMobil(secimler?: ValidationOptions) {
+  return (obyekt: object, sahe: string) =>
+    registerDecorator({
+      name: 'isAzMobil',
+      target: obyekt.constructor,
+      propertyName: sahe,
+      options: { message: 'Mobil nömrə +994XXXXXXXXX formatında olmalıdır', ...secimler },
+      validator: {
+        validate: (deyer: unknown) => typeof deyer === 'string' && /^\\+994(50|51|55|70|77|99)[0-9]{7}$/.test(deyer),
+      },
+    });
+}
+
+export class QeydiyyatDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @IsEmail()
+  email: string;
+
+  @IsAzMobil()
+  mobil: string;
+
+  @IsString()
+  odenisUsulu: 'kart' | 'nagd';
+
+  // Yalnız kartla ödənişdə tələb olunur
+  @ValidateIf((o: QeydiyyatDto) => o.odenisUsulu === 'kart')
+  @IsString()
+  kartNomresi?: string;
+}` },
+          { t: "list", items: [
+            "@Transform dəyəri yoxlamadan əvvəl normallaşdırır (trim, kiçik hərf). Sıra: əvvəl transformasiya, sonra validasiya.",
+            "@ValidateIf şərti yoxlama üçündür: şərt false-dursa, həmin sahənin digər validatorları keçilir.",
+            "Boolean query: ?aktiv=false sətri gəlir. Onu @Transform(({ value }) => value === 'true') ilə çevir; implicit conversion 'false'-u true edə bilər.",
+            "Tarix: @Type(() => Date) + @IsDate(); Yalnız ISO sətri qəbul etmək üçün @IsISO8601().",
+          ]},
+          { t: "mistake", lang: "typescript", wrong: `@Get()
+siyahi(@Query() sorgu: SehifelemeDto) {
+  console.log(sorgu instanceof SehifelemeDto);     // false!
+}
+// main.ts: new ValidationPipe({ whitelist: true })   // transform yoxdur`, right: `app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));`, why: "transform: false olduqda ValidationPipe yoxlayır, amma controller-ə düz obyekt ötürür: @Type çevirmələri tətbiq olunmur, default dəyərlər (sehife = 1) işləmir və instanceof yalan qaytarır." },
+          { t: "mistake", lang: "typescript", wrong: `export class FilterDto {
+  @IsInt()
+  yas: number;                  // query-dən '25' sətri gəlir → @IsInt rədd edir
+}`, right: `export class FilterDto {
+  @Type(() => Number)
+  @IsInt()
+  yas: number;
+}`, why: "Query və param dəyərləri sətirdir. Tip çevirməsi olmadan @IsInt həmişə rədd edəcək. @Type(() => Number) əvvəl çevirir, sonra validasiya yoxlayır." },
         ],
       },
       {
@@ -520,12 +895,67 @@ export class EmailBosdurMu implements ValidatorConstraintInterface {
   async validate(email: string) { return !(await this.istifadeciler.emailVarmi(email)); }
   defaultMessage() { return 'Bu email artıq qeydiyyatdadır'; }
 }` },
+          { t: "h", text: "Validasiya xətası cavabında həssas məlumatı sızdırma" },
+          { t: "p", text: "Default olaraq class-validator xəta obyektlərində target (bütün DTO) və value (göndərilən dəyər) də olur. Standart ValidationPipe cavabda yalnız mesajları qaytarır, amma öz exceptionFactory-ni yazanda x.target-i (parol daxil olmaqla bütün gövdəni) və ya x.value-nu cavaba/loga qoymamaq lazımdır. validationError: { target: false, value: false } seçimi bunu ümumiyyətlə söndürür." },
+          { t: "code", lang: "typescript", caption: "Zod ilə sxem əsaslı pipe (alternativ yanaşma)", code: `import { z } from 'zod';
+
+export const CreateKursSxemi = z.object({
+  ad: z.string().min(2).max(80),
+  qiymet: z.number().positive().max(10_000),
+  etiketler: z.array(z.string().min(1).max(20)).max(10),
+});
+export type CreateKursGiris = z.infer<typeof CreateKursSxemi>;     // tip sxemdən çıxarılır
+
+@Injectable()
+export class ZodPipe<T> implements PipeTransform<unknown, T> {
+  constructor(private readonly sxem: z.ZodType<T>) {}
+
+  transform(deyer: unknown): T {
+    const netice = this.sxem.safeParse(deyer);
+    if (!netice.success) {
+      throw new BadRequestException({ mesaj: 'Yanlış məlumat', sahələr: netice.error.flatten().fieldErrors });
+    }
+    return netice.data;                         // yoxlanmış və tipli
+  }
+}
+
+@Post()
+yarat(@Body(new ZodPipe(CreateKursSxemi)) giris: CreateKursGiris) {
+  return this.kurslar.yarat(giris);
+}` },
+          { t: "h", text: "Giriş DTO-sunu daxili modeldən ayırmaq" },
+          { t: "code", lang: "typescript", code: `// Üç ayrı model: hər birinin öz məsuliyyəti var
+//   CreateIstifadeciDto   — klientdən gələn (validasiya, ağ siyahı)
+//   Istifadeci (entity)   — bazadakı forma (parolHesi, yaradilma tarixi və s.)
+//   IstifadeciCavabDto    — klientə gedən (yalnız açıq sahələr)
+
+@Injectable()
+export class IstifadecilerService {
+  async yarat(dto: CreateIstifadeciDto): Promise<IstifadeciCavabDto> {
+    const parolHesi = await argon2.hash(dto.parol);                 // parol düz saxlanmır
+    const entity = await this.repo.save({ ad: dto.ad, email: dto.email, parolHesi });
+    return IstifadeciCavabDto.dan(entity);
+  }
+}` },
+          { t: "list", items: [
+            "Eyni DTO-nu həm giriş, həm cavab üçün işlətmə: giriş DTO-su parolu qəbul edir, cavab DTO-su isə ona heç vaxt sahib olmamalıdır.",
+            "DTO versiyalaşdırma: API-nin v2-si yeni DTO sinifləri ilə gəlir; köhnə klientlər v1 DTO-su ilə işləməyə davam edir. Mövcud DTO-nu geriyə uyğunsuz dəyişmə.",
+            "OpenAPI: @nestjs/swagger plugin-i DTO sahələrini və class-validator dekoratorlarını oxuyub sxem yaradır; sənədləşmə kodla sinxron qalır. Yeni sahə əlavə edəndə sənədi əl ilə yeniləməyə ehtiyac yoxdur.",
+            "Performans: ValidationPipe hər sorğuda plainToInstance + validate çağırır — reflektiv və nisbətən bahalıdır. İsti endpoint-lərdə DTO-nu kiçik saxla, böyük massivi limitlə; ölçmədən optimallaşdırma etmə.",
+            "Qlobal pipe ilə marşrut pipe-ı eyni vaxtda işləyəndə hər ikisi tətbiq olunur: eyni DTO iki dəfə yoxlana bilər. Ya qlobal, ya marşrut səviyyəsində birini seç.",
+            "forbidUnknownValues: class-validator-un yeni versiyalarında default true-dur — dekoratoru olmayan (tanınmayan) obyekt validasiyadan keçmir. DTO-da heç bir dekorator olmayan sinif bu səbəbdən bütün sorğuları rədd edə bilər.",
+          ]},
           { t: "qa", items: [
             ["DTO niyə sinif olmalıdır?", "Dekoratorlar və metadata yalnız siniflərdə işləyir; interfeys icra zamanı yoxdur."],
             ["whitelist nə edir?", "DTO-da elan olunmayan sahələri silir; forbidNonWhitelisted ilə isə 400 qaytarır. Mass assignment-dən qoruyur."],
             ["İç-içə obyekt yoxlanmırsa səbəb nə ola bilər?", "@ValidateNested ilə yanaşı @Type(() => Sinif) yoxdur."],
             ["Cavab DTO-su niyə lazımdır?", "Entity-ni birbaşa qaytarmaq həssas sahələri (parol heşi) sızdıra bilər; ağ siyahı ilə nəyin çıxdığını özün seçirsən."],
             ["Validasiya SQL inyeksiyasından qoruyurmu?", "Tək başına yox. Parametrləşdirilmiş sorğu/ORM və çıxışda kodlaşdırma əlavə lazımdır."],
+            ["@Type(() => Number) nə üçündür?", "class-transformer-ə sətir dəyəri (query/param) ədədə çevirməyi bildirir; çevirmədən @IsInt sətri rədd edər."],
+            ["transform: true nə verir?", "Gövdəni DTO sinfinin nüsxəsinə çevirir (@Type işləyir, default dəyərlər tətbiq olunur) və primitivləri metoddakı tipə uyğun çevirir."],
+            ["class-validator ilə Zod arasında necə seçirsən?", "Nest ekosistemi və Swagger inteqrasiyası vacibdirsə class-validator; tək həqiqət mənbəyi və güclü tip çıxarımı vacibdirsə Zod. Komandada ardıcıl olmaq daha vacibdir."],
+            ["Validasiya xətası cavabında nələrə diqqət edirsən?", "Göndərilən dəyəri və DTO-nu (parol ola bilər) cavaba/loga qoymuram; yalnız sahə adı və mənalı mesaj qaytarıram."],
+            ["Giriş, entity və cavab modelini niyə ayırırsan?", "Hər birinin məsuliyyəti fərqlidir: giriş doğrulanır, entity saxlanır, cavab ağ siyahı ilə çıxır. Qarışdırmaq mass assignment və məlumat sızması riski yaradır."],
           ]},
         ],
       },
@@ -591,6 +1021,32 @@ export class KitablarController {
             ["ValidationPipe", "DTO yoxlayır (əvvəlki dərs)."],
           ]},
           { t: "tip", text: "Pipe-ı üç yerdə qoşmaq olar: parametrdə (@Param('id', ParseIntPipe)), metoddakı/controllerdəki @UsePipes ilə, və ya qlobal app.useGlobalPipes ilə." },
+          { t: "h", text: "Xəta statusunu və mesajını tənzimləmək" },
+          { t: "p", text: "Hazır pipe-lara seçimlər verə bilərsən: xəta olanda hansı status kodu qayıtsın, hansı mesaj olsun. Pipe-ı sinif kimi yox, new ilə nüsxə kimi yazanda parametr ötürmək olur." },
+          { t: "code", lang: "typescript", code: `@Get(':id')
+biri(
+  @Param('id', new ParseIntPipe({
+    errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE,                  // 406
+    exceptionFactory: () => new BadRequestException('id müsbət tam ədəd olmalıdır'),
+  })) id: number,
+) {
+  return { id };
+}
+
+@Get('qiymet')
+qiymet(@Query('mebleg', ParseFloatPipe) mebleg: number) {          // '12.5' → 12.5
+  return { mebleg };
+}
+
+// Metod səviyyəsində: bütün parametrlərə tətbiq olunur
+@Post()
+@UsePipes(new ValidationPipe({ whitelist: true }))
+yarat(@Body() dto: CreateKitabDto) { ... }` },
+          { t: "list", items: [
+            "Pipe parametr səviyyəsində ən dəqiqdir; metod, controller və qlobal səviyyə isə bütün parametrlərə tətbiq olunur.",
+            "Query-dəki hər şey sətirdir: ədəd, boolean və massiv lazımdırsa uyğun Parse*Pipe işlət.",
+            "Pipe istisna atanda metod ümumiyyətlə çağırılmır — yanlış məlumat servisə çatmır.",
+          ]},
         ],
       },
       {
@@ -656,6 +1112,41 @@ biri(@Param('id', ParseIntPipe) id: number) {
   return this.servis.tap(id);
 }`, why: "parseInt('abc') = NaN; NaN servisə və bazaya ötürülür, anlaşılmaz xətaya və ya gözlənilməz sorğuya səbəb olur. ParseIntPipe 400 qaytarır." },
           { t: "mistake", lang: "typescript", wrong: `@Query('olcu') olcu: number      // tip ədəddir, amma əslində sətir gəlir`, right: `@Query('olcu', ParseIntPipe) olcu: number`, why: "TypeScript tipi icra zamanı çevirmə etmir. Query və param həmişə sətirdir; olcu + 1 = '201' kimi nəticə verə bilər. Çevirmə pipe ilə olmalıdır." },
+          { t: "h", text: "Pipe-ların sırası və DefaultValuePipe" },
+          { t: "code", lang: "typescript", code: `// DefaultValuePipe ƏVVƏL gəlməlidir: dəyər yoxdursa default verir, sonra ParseIntPipe çevirir
+@Get()
+siyahi(
+  @Query('sehife', new DefaultValuePipe(1), ParseIntPipe) sehife: number,
+  @Query('olcu', new DefaultValuePipe(20), ParseIntPipe) olcu: number,
+) { ... }
+
+// Birdən çox pipe soldan sağa işləyir: trim → uzunluq → kiçik hərf
+@Get('axtar')
+axtar(@Query('soz', TrimPipe, new MaxUzunluqPipe(50), KicikHerfPipe) soz: string) { ... }
+
+// Body-ni normallaşdıran ümumi pipe (obyektin sətir sahələrini trim edir)
+@Injectable()
+export class BodyTrimPipe implements PipeTransform {
+  transform(deyer: unknown, meta: ArgumentMetadata) {
+    if (meta.type !== 'body' || typeof deyer !== 'object' || deyer === null) return deyer;
+    return Object.fromEntries(
+      Object.entries(deyer).map(([a, d]) => [a, typeof d === 'string' ? d.trim() : d]),
+    );
+  }
+}` },
+          { t: "p", text: "ArgumentMetadata-nın metatype sahəsi parametrin TypeScript tipidir (məsələn, DTO sinfi). Məhz buna görə ValidationPipe parametrin hansı DTO olduğunu bilir və onu class-validator-a verir. Primitiv tip üçün (String, Number) validasiya adətən keçilir." },
+          { t: "mistake", lang: "typescript", wrong: `@Query('sehife', ParseIntPipe, new DefaultValuePipe(1)) sehife: number
+// ?sehife göndərilməyib → ParseIntPipe undefined-ı çevirə bilmir → 400`, right: `@Query('sehife', new DefaultValuePipe(1), ParseIntPipe) sehife: number`, why: "Pipe-lar soldan sağa işləyir. DefaultValuePipe əvvəl dəyəri təmin etməlidir; əks halda ParseIntPipe undefined alır və 400 ilə rədd edir." },
+          { t: "mistake", lang: "typescript", wrong: `// main.ts
+app.useGlobalPipes(new ValidationPipe());
+
+// Pipe öz içində servis tələb edir
+@Injectable()
+export class IdVarMiPipe { constructor(private readonly servis: XService) {} ... }
+app.useGlobalPipes(new IdVarMiPipe());     // XService yoxdur!`, right: `@Module({
+  providers: [{ provide: APP_PIPE, useClass: IdVarMiPipe }],
+})
+export class AppModule {}`, why: "useGlobalPipes DI konteynerindən kənardadır, ona görə nüsxəni özün yaradırsan və asılılıqlar verilmir. DI lazım olan qlobal pipe-ı APP_PIPE provider-i ilə qeydiyyat et." },
         ],
       },
       {
@@ -705,12 +1196,48 @@ describe('AralikPipe', () => {
   it('düzgün dəyəri ədədə çevirir', () => expect(pipe.transform('50')).toBe(50));
   it('aralıqdan kənarı rədd edir', () => expect(() => pipe.transform('500')).toThrow(BadRequestException));
 });` },
+          { t: "h", text: "Pipe-lar və xüsusi parametr dekoratorları" },
+          { t: "p", text: "Pipe-lar yalnız @Body/@Param/@Query-ə aid deyil: createParamDecorator ilə yaradılmış dekoratorun parametrinə də pipe bağlana bilər. Bu zaman ValidationPipe default olaraq xüsusi dekoratorları yoxlamır — validateCustomDecorators: true seçimi lazımdır." },
+          { t: "code", lang: "typescript", code: `export const Oturum = createParamDecorator((sahe: string | undefined, ctx: ExecutionContext) => {
+  const req = ctx.switchToHttp().getRequest();
+  return sahe ? req.session?.[sahe] : req.session;
+});
+
+@Get('profil')
+profil(@Oturum('istifadeci', new ValidationPipe({ validateCustomDecorators: true })) i: CariIstifadeciDto) {
+  return i;
+}` },
+          { t: "h", text: "Fayl yükləmə üçün ParseFilePipeBuilder" },
+          { t: "code", lang: "typescript", code: `@Post('avatar')
+@UseInterceptors(FileInterceptor('fayl'))
+avatar(
+  @UploadedFile(
+    new ParseFilePipeBuilder()
+      .addFileTypeValidator({ fileType: /^image\\/(png|jpeg)$/ })
+      .addMaxSizeValidator({ maxSize: 1024 * 1024 })          // 1 MB
+      .build({ errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY }),
+  )
+  fayl: Express.Multer.File,
+) {
+  return { olcu: fayl.size };
+}` },
+          { t: "list", items: [
+            "Pipe nüsxələri: new XPipe() ilə hər marşrut üçün ayrı nüsxə yaranır, sinif kimi verəndə isə (DI ilə) bir nüsxə paylaşılır. Pipe vəziyyətsiz (stateless) olmalıdır ki, paylaşılması təhlükəsiz olsun.",
+            "Asinxron pipe-lar (verilənlər bazasına baxanlar) hər sorğuda işləyir: hesab et — hər parametrə baza sorğusu N+1 problemi və yük yaradır. Çox istifadə olunan yoxlamaları keşlə və ya servisdə et.",
+            "Pipe və exception filter: pipe-dan atılan istisna da eyni exception filter zəncirinə düşür. Qlobal filter-də validasiya xətalarını (BadRequestException) uyğun formata sala bilərsən.",
+            "Yaxşı pipe kiçikdir, bir iş görür və başqa pipe-larla birləşir (kompozisiya). Çox böyük 'hər şeyi edən' pipe oxunmaz və test edilməsi çətin olur.",
+            "Pipe səviyyəsində validasiya ilə DTO validasiyasının fərqi: sadə, tək parametrli yoxlamalar üçün pipe (ParseIntPipe, UUID), mürəkkəb obyektlər üçün DTO + ValidationPipe.",
+          ]},
           { t: "qa", items: [
             ["Pipe-ın iki əsas rolu?", "Transformasiya (sətri ədədə çevirmək) və validasiya (yanlış dəyərə istisna atmaq)."],
             ["Pipe guard-a nisbətən nə vaxt işləyir?", "Guard-dan sonra, controller-dən əvvəl."],
             ["Niyə @Query('olcu') olcu: number tək kifayət deyil?", "TypeScript tipləri icra zamanı çevirmə etmir; dəyər sətir qalır. ParseIntPipe və ya DTO @Type(() => Number) lazımdır."],
             ["APP_PIPE niyə useGlobalPipes-dən fərqlənir?", "APP_PIPE modul kontekstində qeydiyyat olunur və DI-dən istifadə edə bilir; useGlobalPipes yox."],
             ["Pipe səlahiyyət yoxlamaq üçün uyğundurmu?", "Xeyr. Pipe formatı yoxlayır; icazə guard və servisdə yoxlanmalıdır."],
+            ["Pipe-lara parametr ötürməyin iki yolu hansılardır?", "Sinif kimi (@Param('id', MyPipe)) — Nest DI ilə yaradır; nüsxə kimi (new MyPipe(1, 100)) — parametrləri özün verirsən, amma DI işləmir."],
+            ["ValidationPipe xüsusi dekorator parametrini yoxlayırmı?", "Default olaraq yox; validateCustomDecorators: true lazımdır."],
+            ["DefaultValuePipe ilə ParseIntPipe-ın sırası niyə vacibdir?", "Pipe-lar soldan sağa işləyir. DefaultValuePipe əvvəl dəyəri təmin etməlidir, yoxsa ParseIntPipe undefined alıb 400 qaytarır."],
+            ["Pipe-da verilənlər bazasına sorğu atmaq nə vaxt məntiqlidir?", "Nadir və yalnız şəffaflıq üçün (id → obyekt). Çoxlu parametrdə N+1 yaradır; ümumiyyətlə servisdə açıq çağırış daha aydındır."],
           ]},
         ],
       },
